@@ -7,7 +7,7 @@ different modules, all Dart/Flutter code follows these conventions.
 
 | Element | Convention | Example |
 |---|---|---|
-| Files | `snake_case.dart` | `passport_screen.dart` |
+| Files | `snake_case.dart` | `passport.dart` |
 | Classes / Widgets | `UpperCamelCase` | `PassportHeroCard` |
 | Variables / functions | `lowerCamelCase` | `selectedTab`, `buildBody()` |
 | Constants | `lowerCamelCase` with `const` | `const totalPieces = 40;` |
