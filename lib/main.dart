@@ -1,7 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'models.dart';
 import 'modules/homepage.dart';
+import 'modules/mappage.dart';
 import 'modules/passport.dart';
 import 'modules/placeholder.dart';
 import 'widgets/app_bottom_bar.dart';
@@ -39,11 +39,18 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   BottomTab _selectedTab = BottomTab.home;
+  int _totalXp = 0;
+
+  void _addXp(int amount) {
+    setState(() => _totalXp += amount);
+  }
 
   Widget _buildBody() {
     switch (_selectedTab) {
       case BottomTab.home:
-        return const HomeScreen();
+        return HomeScreen(totalXp: _totalXp);
+      case BottomTab.map:
+        return MapScreen(onXpEarned: _addXp);
       case BottomTab.passport:
         return const PassportScreen();
       default:

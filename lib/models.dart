@@ -1,4 +1,3 @@
-
 /// Bottom navigation tabs. Add a new value here, then handle it
 /// in the switch inside MainScreen (main.dart).
 enum BottomTab { home, map, scan, badges, passport }
@@ -58,3 +57,4 @@ class GuideChip {
   final String label;
   const GuideChip(this.icon, this.label);
 }
+

@@ -5,9 +5,11 @@ import '../widgets/app_header.dart';
 /// Home screen. Order top to bottom:
 /// AppHeader -> WelcomeCard -> QuickActionsRow -> ExploreGuideCard
 /// -> Daily Missions -> Weekly Rankings.
-/// Change the user's name / avatar / stats in the WelcomeCard(...) call below.
+/// `totalXp` is the user's current XP (starts at 0, grows as quizzes
+/// are completed) — passed down from MainScreen in main.dart.
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  final int totalXp;
+  const HomeScreen({super.key, required this.totalXp});
 
   @override
   Widget build(BuildContext context) {
@@ -18,26 +20,26 @@ class HomeScreen extends StatelessWidget {
       Mission('🤝', 'Refer a friend to MalaysiaGO', '+100 XP', false),
     ];
     const rankings = [
-      RankEntry(1, '🧕', 'Siti Nurhaliza', 'Selangor', '4,820 XP', false),
-      RankEntry(2, '🧑', 'Rajesh Kumar', 'Penang', '4,310 XP', false),
+      RankEntry(1, '🧕', 'Albert Chin', 'Selangor', '4,820 XP', false),
+      RankEntry(2, '🧑', 'Kaiser Tan', 'Penang', '4,310 XP', false),
       RankEntry(3, '🤓', 'Alston Chung (You)', 'KL', '3,940 XP', true),
       RankEntry(4, '👩', 'Mei Lin Tan', 'Malacca', '3,720 XP', false),
     ];
 
     return Column(
       children: [
-        const AppHeader(title: 'MalaysiaGO', subtitle: 'Your Heritage Journey 🇲🇾', xp: '1,250'),
+        AppHeader(title: 'MalaysiaGO', subtitle: 'Your Heritage Journey 🇲🇾', xp: '$totalXp'),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             children: [
-              const WelcomeCard(
+              WelcomeCard(
                 name: 'Alston Chung',
                 avatarEmoji: '🤓',
                 level: 6,
                 nextLevel: 7,
                 streakDays: 7,
-                currentXp: 1250,
+                currentXp: totalXp,
                 xpToNextLevel: 1500,
                 badges: 5,
                 pieces: 24,
