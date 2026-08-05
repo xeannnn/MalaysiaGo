@@ -1,0 +1,12 @@
+IconButton(
+  icon: const Icon(Icons.search),
+  onPressed: () async {
+    final selectedSite = await showSearch<HeritageSite?>(
+      context: context,
+      delegate: HeritageSearchDelegate(sampleHeritageSites),
+    );
+    if (selectedSite != null) {
+      // Handle navigation to site details
+    }
+  },
+)

@@ -1,0 +1,55 @@
+class HeritageSearchDelegate extends SearchDelegate<HeritageSite?> {
+  final List<HeritageSite> sites;
+
+  HeritageSearchDelegate(this.sites);
+
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    return [
+      if (query.isNotEmpty)
+        IconButton(
+          icon: const Icon(Icons.clear),
+          onPressed: () => query = '',
+        ),
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () => close(context, null),
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) => _buildSearchResults();
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _buildSearchResults();
+
+  Widget _buildSearchResults() {
+    final results = sites.where((site) {
+      final q = query.toLowerCase();
+      return site.name.toLowerCase().contains(q) ||
+          site.state.toLowerCase().contains(q) ||
+          site.category.toLowerCase().contains(q);
+    }).toList();
+
+    if (results.isEmpty) {
+      return const Center(child: Text('No results found'));
+    }
+
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        final site = results[index];
+        return ListTile(
+          title: Text(site.name),
+          subtitle: Text('${site.state} • ${site.category}'),
+          onTap: () => close(context, site),
+        );
+      },
+    );
+  }
+}
