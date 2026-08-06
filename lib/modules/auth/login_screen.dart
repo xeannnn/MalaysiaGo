@@ -1,4 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import 'auth_service.dart';
 import 'register_screen.dart';
 
 /// Displays the login form for registered users.
@@ -11,16 +14,102 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  final AuthService _authService = AuthService();
+
   bool _hidePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _authService.login(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/home',
+            (route) => false,
+      );
+    } on FirebaseAuthException catch (error) {
+      debugPrint('Login Firebase Code: ${error.code}');
+      debugPrint('Login Firebase Message: ${error.message}');
+
+      if (!mounted) {
+        return;
+      }
+
+      String message;
+
+      switch (error.code) {
+        case 'invalid-email':
+          message = 'Please enter a valid email address.';
+          break;
+        case 'user-disabled':
+          message = 'This account has been disabled.';
+          break;
+        case 'invalid-credential':
+        case 'user-not-found':
+        case 'wrong-password':
+          message = 'Incorrect email or password.';
+          break;
+        case 'network-request-failed':
+          message = 'Network error. Please check your internet connection.';
+          break;
+        case 'too-many-requests':
+          message = 'Too many login attempts. Please try again later.';
+          break;
+        default:
+          message = error.message ?? 'Login failed.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (error) {
+      debugPrint('Login error: $error');
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Something went wrong: $error'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -62,6 +151,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      autocorrect: false,
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(Icons.email_outlined),
@@ -72,7 +163,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           return 'Please enter your email.';
                         }
 
-                        if (!value.contains('@')) {
+                        final emailPattern =
+                        RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+                        if (!emailPattern.hasMatch(value.trim())) {
                           return 'Please enter a valid email.';
                         }
 
@@ -83,6 +177,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _hidePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) {
+                        if (!_isLoading) {
+                          _login();
+                        }
+                      },
                       decoration: InputDecoration(
                         labelText: 'Password',
                         prefixIcon: const Icon(Icons.lock_outline),
@@ -112,26 +212,42 @@ class _LoginScreenState extends State<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {},
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Forgot Password will be added next.',
+                              ),
+                            ),
+                          );
+                        },
                         child: const Text('Forgot Password?'),
                       ),
                     ),
                     const SizedBox(height: 8),
                     FilledButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          // Firebase login will be added next.
-                        }
-                      },
-                      child: const Text('Login'),
+                      onPressed: _isLoading ? null : _login,
+                      child: _isLoading
+                          ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                          : const Text('Login'),
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton(
-                      onPressed: () {
+                      onPressed: _isLoading
+                          ? null
+                          : () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const RegisterScreen(),
+                          MaterialPageRoute<void>(
+                            builder: (_) => const RegisterScreen(),
                           ),
                         );
                       },
@@ -139,7 +255,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 12),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Guest login will be added next.',
+                            ),
+                          ),
+                        );
+                      },
                       child: const Text('Continue as Guest'),
                     ),
                   ],
