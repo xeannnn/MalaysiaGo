@@ -5,6 +5,7 @@ import 'modules/mappage.dart';
 import 'modules/passport.dart';
 import 'modules/placeholder.dart';
 import 'widgets/app_bottom_bar.dart';
+import 'modules/badges.dart';
 
 void main() {
   runApp(const MalaysiaGoApp());
@@ -53,6 +54,11 @@ class _MainScreenState extends State<MainScreen> {
         return MapScreen(onXpEarned: _addXp);
       case BottomTab.passport:
         return const PassportScreen();
+      case BottomTab.badges:
+        return BadgesScreen(
+          totalXp: _totalXp,
+          onXpEarned: _addXp,  // Pass the XP callback
+        );
       default:
         return PlaceholderScreen(tab: _selectedTab);
     }
