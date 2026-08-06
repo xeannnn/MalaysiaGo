@@ -1,3 +1,6 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
 import 'package:flutter/material.dart';
 import 'models.dart';
 import 'modules/homepage.dart';
@@ -5,8 +8,22 @@ import 'modules/mappage.dart';
 import 'modules/passport.dart';
 import 'modules/placeholder.dart';
 import 'widgets/app_bottom_bar.dart';
+import 'modules/auth/login_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 15));
+
+    debugPrint('Firebase connected successfully.');
+  } catch (error, stackTrace) {
+    debugPrint('Firebase initialization failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+
   runApp(const MalaysiaGoApp());
 }
 
@@ -22,7 +39,7 @@ class MalaysiaGoApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
-      home: const MainScreen(),
+      home: const LoginScreen(),
     );
   }
 }

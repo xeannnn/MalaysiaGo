@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "280746057244",
+    "project_id": "malaysiago-b58a5",
+    "storage_bucket": "malaysiago-b58a5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:280746057244:android:3a00cd306618f3aedb09d9",
+        "android_client_info": {
+          "package_name": "com.example.malaysiago"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2DOPkjVzJ3Mrm5tI8KrC8S9h8hQpSo90"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
