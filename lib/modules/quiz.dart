@@ -75,6 +75,33 @@ class QuizRepository {
       description: 'Sacred limestone cathedral above Kuala Lumpur',
       difficulty: 'Easy',
     ),
+    'george_town': const QuizSite(
+      id: 'george_town',
+      icon: '🏛️',
+      name: 'George Town',
+      location: 'Penang · UNESCO',
+      category: 'UNESCO',
+      description: 'Historic colonial port city famous for street art and heritage shophouses',
+      difficulty: 'Medium',
+    ),
+    'malacca_city': const QuizSite(
+      id: 'malacca_city',
+      icon: '🏯',
+      name: 'Malacca City',
+      location: 'Melaka · UNESCO',
+      category: 'UNESCO',
+      description: 'Historic trading port shaped by Portuguese, Dutch, and British rule',
+      difficulty: 'Medium',
+    ),
+    'merdeka_square': const QuizSite(
+      id: 'merdeka_square',
+      icon: '🏳️',
+      name: 'Dataran Merdeka',
+      location: 'Kuala Lumpur · National',
+      category: 'National',
+      description: 'Historic square where Malaysia\'s independence was declared in 1957',
+      difficulty: 'Easy',
+    ),
   };
 
   static final Map<String, List<QuizQuestion>> _questions = {
@@ -101,6 +128,84 @@ class QuizRepository {
         correctIndex: 0,
         explanation:
         'Thaipusam is the largest annual gathering at Batu Caves, with devotees carrying kavadi up the 272 steps as an act of devotion.',
+        xpReward: 26,
+      ),
+    ],
+    'george_town': const [
+      QuizQuestion(
+        question: 'In what year were George Town and Malacca jointly inscribed as a UNESCO World Heritage Site?',
+        options: ['2000', '2008', '2012', '2015'],
+        correctIndex: 1,
+        explanation:
+        'George Town and Malacca were jointly listed in 2008 as "Melaka and George Town, Historic Cities of the Straits of Malacca."',
+        xpReward: 27,
+      ),
+      QuizQuestion(
+        question: 'George Town is world-famous for which public art form found throughout its streets?',
+        options: ['Street murals', 'Neon signage', 'Sand sculptures', 'Ice sculptures'],
+        correctIndex: 0,
+        explanation:
+        'Artists like Ernest Zacharevic popularised the interactive street murals that now draw visitors across George Town.',
+        xpReward: 27,
+      ),
+      QuizQuestion(
+        question: 'Which George Town street is historically nicknamed "Harmony Street" for its cluster of temples, mosques, and churches?',
+        options: ['Lebuh Chulia', 'Jalan Masjid Kapitan Keling', 'Lebuh Armenian', 'Jalan Penang'],
+        correctIndex: 1,
+        explanation:
+        'Jalan Masjid Kapitan Keling (formerly Pitt Street) earned the nickname for the diverse houses of worship along it.',
+        xpReward: 26,
+      ),
+    ],
+    'malacca_city': const [
+      QuizQuestion(
+        question: 'Which European power first colonised Malacca, in 1511?',
+        options: ['Portuguese', 'Dutch', 'British', 'Spanish'],
+        correctIndex: 0,
+        explanation: 'Malacca fell to Portuguese forces under Afonso de Albuquerque in 1511.',
+        xpReward: 27,
+      ),
+      QuizQuestion(
+        question: 'What is the name of the Portuguese fortress ruins still standing in Malacca today?',
+        options: ['A Famosa', 'Fort Cornwallis', 'Fort Santiago', 'Fort Margherita'],
+        correctIndex: 0,
+        explanation: 'A Famosa was built by the Portuguese in 1511; only the Porta de Santiago gate survives today.',
+        xpReward: 27,
+      ),
+      QuizQuestion(
+        question: 'Which street in Malacca is best known for its antique shops and Peranakan heritage?',
+        options: ['Jonker Street', 'Jalan Hang Tuah', 'Lebuh Chulia', 'Orchard Road'],
+        correctIndex: 0,
+        explanation: 'Jonker Street (Jalan Hang Jebat) is the heart of Malacca\'s Peranakan and antique trading heritage.',
+        xpReward: 26,
+      ),
+    ],
+    'merdeka_square': const [
+      QuizQuestion(
+        question: 'What historic event took place at Dataran Merdeka at midnight on 31 August 1957?',
+        options: [
+          'Declaration of Malaysia\'s independence',
+          'Coronation of the first King',
+          'Opening of the first railway',
+          'Signing of a peace treaty'
+        ],
+        correctIndex: 0,
+        explanation:
+        'The Union Jack was lowered and the Malayan flag raised for the first time as independence was declared.',
+        xpReward: 27,
+      ),
+      QuizQuestion(
+        question: 'What was Dataran Merdeka historically used for during the colonial era?',
+        options: ['A cricket field ("the Padang")', 'A horse racing track', 'A military parade ground only', 'A marketplace'],
+        correctIndex: 0,
+        explanation: 'It was known as the Selangor Club Padang, used for cricket and other colonial-era sports.',
+        xpReward: 27,
+      ),
+      QuizQuestion(
+        question: 'Dataran Merdeka is home to one of the tallest flagpoles in the world, standing at roughly what height?',
+        options: ['95 metres', '20 metres', '50 metres', 'There is no flagpole'],
+        correctIndex: 0,
+        explanation: 'The flagpole at Dataran Merdeka stands around 95 metres tall, among the tallest in the world.',
         xpReward: 26,
       ),
     ],
