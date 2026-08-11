@@ -70,7 +70,7 @@ class _MainScreenState extends State<MainScreen> {
       case BottomTab.home:
         return HomeScreen(totalXp: _totalXp);
       case BottomTab.map:
-        return MapScreen(onXpEarned: _addXp);
+        return MapScreen(totalXp: _totalXp, onXpEarned: _addXp);
       case BottomTab.passport:
         return const PassportScreen();
       default:
