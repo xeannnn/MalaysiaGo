@@ -68,7 +68,12 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildBody() {
     switch (_selectedTab) {
       case BottomTab.home:
-        return HomeScreen(totalXp: _totalXp);
+        return HomeScreen(
+          totalXp: _totalXp,
+          onTabSelected: (tab) {
+            setState(() => _selectedTab = tab);
+          },
+        );
       case BottomTab.map:
         return MapScreen(totalXp: _totalXp, onXpEarned: _addXp);
       case BottomTab.passport:
