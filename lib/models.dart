@@ -62,14 +62,16 @@ class GuideChip {
 // ACHIEVEMENT & REWARDS MODELS NANAT
 // ============================================================
 
+/// Represents a state-themed badge with pieces that unlock gradually
 class StateBadge {
   final String id;
   final String stateName;
   final String badgeIcon;
-  final String badgeTheme; // e.g., "Malayan Tiger", "Hornbill"
+  final String badgeTheme;
   final List<String> requiredSiteIds;
   final int totalPieces;
   final String description;
+  final int bonusXp;
 
   const StateBadge({
     required this.id,
@@ -79,6 +81,7 @@ class StateBadge {
     required this.requiredSiteIds,
     required this.totalPieces,
     required this.description,
+    this.bonusXp = 150,
   });
 
   int getUnlockedPieces(List<String> visitedSiteIds) {
@@ -96,10 +99,37 @@ class StateBadge {
   }
 
   double getProgress(List<String> visitedSiteIds) {
-    return getUnlockedPieces(visitedSiteIds) / totalPieces;
+    return totalPieces > 0 ? getUnlockedPieces(visitedSiteIds) / totalPieces : 0.0;
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'stateName': stateName,
+      'badgeIcon': badgeIcon,
+      'badgeTheme': badgeTheme,
+      'requiredSiteIds': requiredSiteIds,
+      'totalPieces': totalPieces,
+      'description': description,
+      'bonusXp': bonusXp,
+    };
+  }
+
+  factory StateBadge.fromMap(Map<String, dynamic> map) {
+    return StateBadge(
+      id: map['id'] ?? '',
+      stateName: map['stateName'] ?? '',
+      badgeIcon: map['badgeIcon'] ?? '',
+      badgeTheme: map['badgeTheme'] ?? '',
+      requiredSiteIds: List<String>.from(map['requiredSiteIds'] ?? []),
+      totalPieces: map['totalPieces'] ?? 0,
+      description: map['description'] ?? '',
+      bonusXp: map['bonusXp'] ?? 150,
+    );
   }
 }
 
+/// Represents a user's progress for a specific badge
 class UserBadgeProgress {
   final String badgeId;
   final String stateName;
@@ -108,7 +138,8 @@ class UserBadgeProgress {
   final int totalPieces;
   final int unlockedPieces;
   final bool isComplete;
-  final int xpEarned;
+  final int bonusXpEarned;
+  final bool bonusClaimed;
 
   const UserBadgeProgress({
     required this.badgeId,
@@ -118,12 +149,15 @@ class UserBadgeProgress {
     required this.totalPieces,
     required this.unlockedPieces,
     required this.isComplete,
-    required this.xpEarned,
+    required this.bonusXpEarned,
+    this.bonusClaimed = false,
   });
 
   double get progress => totalPieces > 0 ? unlockedPieces / totalPieces : 0.0;
+  int get remainingPieces => totalPieces - unlockedPieces;
 }
 
+/// Represents a user's overall achievement progress
 class UserAchievement {
   final int totalXp;
   final int level;
@@ -143,4 +177,54 @@ class UserAchievement {
 
   double get completionRate =>
       totalBadges > 0 ? completedBadges / totalBadges : 0.0;
+}
+
+/// User level configuration
+class LevelConfig {
+  final int level;
+  final int xpRequired;
+  final String title;
+
+  const LevelConfig({
+    required this.level,
+    required this.xpRequired,
+    required this.title,
+  });
+
+  static const List<LevelConfig> levels = [
+    LevelConfig(level: 1, xpRequired: 0, title: 'Tourist'),
+    LevelConfig(level: 2, xpRequired: 100, title: 'Explorer'),
+    LevelConfig(level: 3, xpRequired: 250, title: 'Adventurer'),
+    LevelConfig(level: 4, xpRequired: 450, title: 'Historian'),
+    LevelConfig(level: 5, xpRequired: 700, title: 'Heritage Enthusiast'),
+    LevelConfig(level: 6, xpRequired: 1000, title: 'Culture Lover'),
+    LevelConfig(level: 7, xpRequired: 1500, title: 'Malaysia Insider'),
+    LevelConfig(level: 8, xpRequired: 2200, title: 'Heritage Master'),
+    LevelConfig(level: 9, xpRequired: 3200, title: 'Cultural Ambassador'),
+    LevelConfig(level: 10, xpRequired: 5000, title: 'Heritage Legend'),
+  ];
+
+  static LevelConfig getLevelByXp(int xp) {
+    LevelConfig? result = levels.first;
+    for (var level in levels) {
+      if (xp >= level.xpRequired) {
+        result = level;
+      }
+    }
+    return result!;
+  }
+
+  static LevelConfig? getNextLevel(int currentLevel) {
+    return levels.firstWhere(
+          (l) => l.level == currentLevel + 1,
+      orElse: () => levels.last,
+    );
+  }
+
+  static int getXpToNextLevel(int currentXp) {
+    int currentLevel = getLevelByXp(currentXp).level;
+    var next = getNextLevel(currentLevel);
+    if (next == null || next == levels.last) return 0;
+    return next.xpRequired - currentXp;
+  }
 }

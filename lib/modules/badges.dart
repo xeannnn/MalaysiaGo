@@ -1,9 +1,21 @@
+// ============================================================
+// ACHIEVEMENT & REWARDS MODULE - BADGES SCREEN
+// ============================================================
+//
+// This module displays:
+// 1. User's XP and level progress
+// 2. State-themed badges with progressive unlock
+// 3. Badge detail view with site requirements
+// 4. Bonus XP claiming for completed badges
+//
+// ============================================================
+
 import 'package:flutter/material.dart';
 import '../widgets/app_header.dart';
 import '../models.dart';
 
 // ============================================================
-// BADGE DATA - All 13 Malaysian States
+// BADGE DATA - All Malaysian States
 // ============================================================
 
 /// Predefined state badges with their required heritage sites
@@ -103,7 +115,62 @@ const List<StateBadge> _allBadges = [
     totalPieces: 2,
     description: 'Complete all heritage sites in Pahang',
   ),
-  // Add more states as needed
+  StateBadge(
+    id: 'badge_johor',
+    stateName: 'Johor',
+    badgeIcon: '🦁',
+    badgeTheme: 'Lion',
+    requiredSiteIds: [
+      'site_gunung_ledang',
+    ],
+    totalPieces: 1,
+    description: 'Complete all heritage sites in Johor',
+  ),
+  StateBadge(
+    id: 'badge_ns',
+    stateName: 'Negeri Sembilan',
+    badgeIcon: '🐃',
+    badgeTheme: 'Buffalo',
+    requiredSiteIds: [],
+    totalPieces: 1,
+    description: 'Complete all heritage sites in Negeri Sembilan',
+  ),
+  StateBadge(
+    id: 'badge_kedah',
+    stateName: 'Kedah',
+    badgeIcon: '🌾',
+    badgeTheme: 'Paddy Field',
+    requiredSiteIds: [],
+    totalPieces: 1,
+    description: 'Complete all heritage sites in Kedah',
+  ),
+  StateBadge(
+    id: 'badge_tganu',
+    stateName: 'Terengganu',
+    badgeIcon: '⛵',
+    badgeTheme: 'Fishing Boat',
+    requiredSiteIds: [],
+    totalPieces: 1,
+    description: 'Complete all heritage sites in Terengganu',
+  ),
+  StateBadge(
+    id: 'badge_kelantan',
+    stateName: 'Kelantan',
+    badgeIcon: '🎨',
+    badgeTheme: 'Cultural Arts',
+    requiredSiteIds: [],
+    totalPieces: 1,
+    description: 'Complete all heritage sites in Kelantan',
+  ),
+  StateBadge(
+    id: 'badge_perlis',
+    stateName: 'Perlis',
+    badgeIcon: '🌿',
+    badgeTheme: 'Green Landscape',
+    requiredSiteIds: [],
+    totalPieces: 1,
+    description: 'Complete all heritage sites in Perlis',
+  ),
 ];
 
 // ============================================================
@@ -133,34 +200,26 @@ class _BadgesScreenState extends State<BadgesScreen> {
   // Simulated user progress - replace with actual data from Firebase/Hive
   // In production, these would come from the user's profile in Firestore
   final Map<String, List<String>> _visitedSites = {
-    // "badge_kl": ['site_klcc', 'site_pasar_seni'],
-    // "badge_melaka": ['site_afamosa', 'site_st_paul', 'site_jonker_street'],
+    // 'badge_kl': ['site_klcc', 'site_pasar_seni'],
+    // 'badge_melaka': ['site_afamosa', 'site_st_paul', 'site_jonker_street'],
   };
 
-  // XP thresholds for each level
-  static const List<int> _levelThresholds = [
-    0, 100, 250, 450, 700, 1000, 1350, 1750, 2200, 2700, 3250
-  ];
+  // ============================================================
+  // LEVEL CALCULATION (Using LevelConfig from models.dart)
+  // ============================================================
 
   int _getLevel(int xp) {
-    int level = 1;
-    for (int i = 1; i < _levelThresholds.length; i++) {
-      if (xp >= _levelThresholds[i]) {
-        level = i + 1;
-      }
-    }
-    return level;
+    return LevelConfig.getLevelByXp(xp).level;
   }
 
   int _getXpToNextLevel(int xp) {
-    int currentLevel = _getLevel(xp);
-    if (currentLevel >= _levelThresholds.length) {
-      return 0;
-    }
-    int nextThreshold = _levelThresholds[currentLevel];
-    return nextThreshold - xp;
+    return LevelConfig.getXpToNextLevel(xp);
   }
 
+  // ============================================================
+  // BADGE PROGRESS CALCULATION
+  // ============================================================
+// ignore: unused_element
   List<UserBadgeProgress> _getUserBadgeProgress() {
     List<UserBadgeProgress> progress = [];
 
@@ -177,7 +236,8 @@ class _BadgesScreenState extends State<BadgesScreen> {
         totalPieces: badge.totalPieces,
         unlockedPieces: unlocked,
         isComplete: complete,
-        xpEarned: complete ? 150 : 0, // Bonus XP when badge is completed
+        bonusXpEarned: complete ? 150 : 0,
+        bonusClaimed: false,
       ));
     }
 
@@ -195,13 +255,16 @@ class _BadgesScreenState extends State<BadgesScreen> {
     return count;
   }
 
+  // ============================================================
+  // BUILD METHOD
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
     final userLevel = _getLevel(widget.totalXp);
     final xpToNext = _getXpToNextLevel(widget.totalXp);
     final completedBadges = _getCompletedBadgeCount();
     final totalBadges = _allBadges.length;
-    final badgeProgressList = _getUserBadgeProgress();
 
     return Column(
       children: [
@@ -223,19 +286,19 @@ class _BadgesScreenState extends State<BadgesScreen> {
                   totalBadges: totalBadges,
                 ),
               ),
-              // Badge Collection Grid
+              // Badge Collection Header
               SliverPadding(
                 padding: const EdgeInsets.all(20),
                 sliver: SliverToBoxAdapter(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
+                      const Text(
                         'State Badges',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0F8A5F),
+                          color: Color(0xFF0F8A5F),
                         ),
                       ),
                       Text(
@@ -249,6 +312,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
                   ),
                 ),
               ),
+              // Badge Grid
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverGrid(
@@ -317,9 +381,18 @@ class _XpProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = xpToNext > 0
-        ? (xp % 1000) / 1000 // Simplified progress calculation
+    // Calculate progress to next level
+    // Using LevelConfig to get accurate progress
+    final currentLevelConfig = LevelConfig.getLevelByXp(xp);
+    final nextLevel = LevelConfig.getNextLevel(currentLevelConfig.level);
+    final double progress = nextLevel != null && nextLevel != currentLevelConfig
+        ? (xp - currentLevelConfig.xpRequired) /
+        (nextLevel.xpRequired - currentLevelConfig.xpRequired)
         : 1.0;
+
+    final xpDisplay = nextLevel != null && nextLevel != currentLevelConfig
+        ? '${xp - currentLevelConfig.xpRequired} / ${nextLevel.xpRequired - currentLevelConfig.xpRequired} XP'
+        : 'Max Level Reached!';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -380,20 +453,21 @@ class _XpProgressCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                '${xp % 1000} / 1000 XP',
+                xpDisplay,
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.8),
                   fontSize: 12,
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                '$xpToNext XP to next level',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
-                  fontSize: 11,
+              if (xpToNext > 0)
+                Text(
+                  '$xpToNext XP to next level',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 11,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -424,7 +498,10 @@ class _XpProgressCard extends StatelessWidget {
             children: [
               _StatChip(icon: '🏅', label: '$completedBadges/$totalBadges Badges'),
               const SizedBox(width: 10),
-              _StatChip(icon: '🌟', label: '${(completedBadges / totalBadges * 100).toInt()}% Complete'),
+              _StatChip(
+                icon: '🌟',
+                label: '${(completedBadges / totalBadges * 100).toInt()}% Complete',
+              ),
             ],
           ),
         ],
@@ -652,7 +729,7 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // Check if badge is complete and bonus hasn't been claimed
+    // Check if badge is complete
     if (widget.badge.isComplete(widget.visitedSites)) {
       // In production, check if bonus was already claimed from Firestore
       // For now, we'll check local state
