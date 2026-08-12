@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import '../widgets/app_header.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../models.dart';
+import 'travel_info.dart'; // Make sure this matches your Travel Info file name
 
 /// Heritage Explorer / Browse Heritage Sites screen.
 /// Reached by tapping the "Traveller's Guide" card on HomeScreen.
-/// Layout top to bottom:
-/// AppHeader -> Segmented tab (Heritage Sites / Travel Info)
-/// -> Search bar -> Category filter chips -> Editor's Pick card
-/// -> Site list.
 class HeritageExplorerScreen extends StatefulWidget {
   final int totalXp;
   final ValueChanged<BottomTab> onTabSelected;
@@ -75,9 +72,6 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final editorPick = _sites.firstWhere((s) => s.isEditorPick, orElse: () => _sites.first);
-    final listSites = _filteredSites;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
       body: SafeArea(
@@ -97,48 +91,12 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SearchBarField(controller: _searchController, onChanged: (_) => setState(() {})),
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              height: 40,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                scrollDirection: Axis.horizontal,
-                itemCount: _categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final category = _categories[index];
-                  return CategoryChip(
-                    label: category,
-                    selected: _selectedCategory == category,
-                    onTap: () => setState(() => _selectedCategory = category),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 18),
+
+            // Dynamic Body: Swaps between Heritage Sites View and Travel Info View
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
-                  const Text("Editor's Pick",
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
-                  const SizedBox(height: 10),
-                  EditorPickCard(site: editorPick),
-                  const SizedBox(height: 20),
-                  Text('${listSites.length} sites',
-                      style: const TextStyle(fontSize: 13, color: Colors.grey)),
-                  const SizedBox(height: 12),
-                  ...listSites.map((site) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: SiteCard(site: site),
-                  )),
-                  const SizedBox(height: 24),
-                ],
-              ),
+              child: _selectedTabIndex == 1
+                  ? TravelInfoPage(totalXp: widget.totalXp) // Loads your Travel Info page
+                  : _buildHeritageSitesView(), // Teammate's list view
             ),
           ],
         ),
@@ -155,6 +113,59 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
           Navigator.pop(context);
         },
       ),
+    );
+  }
+
+  Widget _buildHeritageSitesView() {
+    final editorPick = _sites.firstWhere((s) => s.isEditorPick, orElse: () => _sites.first);
+    final listSites = _filteredSites;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: SearchBarField(controller: _searchController, onChanged: (_) => setState(() {})),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 40,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            scrollDirection: Axis.horizontal,
+            itemCount: _categories.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final category = _categories[index];
+              return CategoryChip(
+                label: category,
+                selected: _selectedCategory == category,
+                onTap: () => setState(() => _selectedCategory = category),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 18),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            children: [
+              const Text("Editor's Pick",
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
+              const SizedBox(height: 10),
+              EditorPickCard(site: editorPick),
+              const SizedBox(height: 20),
+              Text('${listSites.length} sites',
+                  style: const TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 12),
+              ...listSites.map((site) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: SiteCard(site: site),
+              )),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
