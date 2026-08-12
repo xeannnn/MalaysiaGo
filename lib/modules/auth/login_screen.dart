@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'auth_service.dart';
 import 'register_screen.dart';
 
-/// Displays the login form for registered users.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -22,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _hidePassword = true;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
 
   @override
   void dispose() {
@@ -47,9 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       Navigator.pushNamedAndRemoveUntil(
         context,
@@ -57,12 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
             (route) => false,
       );
     } on FirebaseAuthException catch (error) {
-      debugPrint('Login Firebase Code: ${error.code}');
-      debugPrint('Login Firebase Message: ${error.message}');
-
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       String message;
 
@@ -91,18 +84,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
-    } catch (error) {
-      debugPrint('Login error: $error');
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Something went wrong: $error'),
-        ),
-      );
     } finally {
       if (mounted) {
         setState(() {
@@ -110,6 +91,141 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
+  }
+
+  Future<void> _googleLogin() async {
+    setState(() {
+      _isGoogleLoading = true;
+    });
+
+    try {
+      await _authService.signInWithGoogle();
+
+      if (!mounted) return;
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/home',
+            (route) => false,
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.message ?? 'Google Sign-In failed.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Google Sign-In failed: $error'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGoogleLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final TextEditingController resetEmailController =
+    TextEditingController(text: _emailController.text.trim());
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Forgot Password'),
+          content: TextField(
+            controller: resetEmailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              hintText: 'Enter your email address',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final String email =
+                resetEmailController.text.trim();
+
+                if (email.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter your email address.'),
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  await _authService.sendPasswordResetEmail(email);
+
+                  if (!mounted) return;
+
+                  Navigator.pop(dialogContext);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Password reset email sent. Please check your inbox.',
+                      ),
+                    ),
+                  );
+                } on FirebaseAuthException catch (error) {
+                  if (!mounted) return;
+
+                  String message;
+
+                  switch (error.code) {
+                    case 'invalid-email':
+                      message = 'Please enter a valid email address.';
+                      break;
+                    case 'user-not-found':
+                      message = 'No account was found with this email.';
+                      break;
+                    case 'too-many-requests':
+                      message =
+                      'Too many requests. Please try again later.';
+                      break;
+                    case 'network-request-failed':
+                      message =
+                      'Network error. Please check your internet connection.';
+                      break;
+                    default:
+                      message =
+                          error.message ?? 'Unable to send reset email.';
+                  }
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(message)),
+                  );
+                }
+              },
+              child: const Text('Send'),
+            ),
+          ],
+        );
+      },
+    );
+
+    resetEmailController.dispose();
   }
 
   @override
@@ -148,11 +264,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
+
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
-                      autocorrect: false,
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(Icons.email_outlined),
@@ -173,7 +289,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 16),
+
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _hidePassword,
@@ -208,25 +326,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 8),
+
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Forgot Password will be added next.',
-                              ),
-                            ),
-                          );
-                        },
+                        onPressed: _showForgotPasswordDialog,
                         child: const Text('Forgot Password?'),
                       ),
                     ),
+
                     const SizedBox(height: 8),
+
                     FilledButton(
                       onPressed: _isLoading ? null : _login,
                       child: _isLoading
@@ -239,11 +351,45 @@ class _LoginScreenState extends State<LoginScreen> {
                       )
                           : const Text('Login'),
                     ),
+
+                    const SizedBox(height: 20),
+
+                    const Row(
+                      children: [
+                        Expanded(child: Divider()),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('OR'),
+                        ),
+                        Expanded(child: Divider()),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    OutlinedButton.icon(
+                      onPressed:
+                      _isGoogleLoading ? null : _googleLogin,
+                      icon: _isGoogleLoading
+                          ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                          : const Icon(Icons.g_mobiledata, size: 28),
+                      label: Text(
+                        _isGoogleLoading
+                            ? 'Signing in...'
+                            : 'Continue with Google',
+                      ),
+                    ),
+
                     const SizedBox(height: 12),
+
                     OutlinedButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () {
+                      onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute<void>(
@@ -253,19 +399,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                       child: const Text('Register Account'),
                     ),
+
                     const SizedBox(height: 12),
+
                     TextButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Guest login will be added next.',
-                            ),
-                          ),
-                        );
-                      },
+                      onPressed: () {},
                       child: const Text('Continue as Guest'),
                     ),
                   ],
