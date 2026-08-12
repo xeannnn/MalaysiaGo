@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'models.dart';
 import 'modules/homepage.dart';
 import 'modules/mappage.dart';
 import 'modules/passport.dart';
 import 'modules/placeholder.dart';
-import 'widgets/app_bottom_bar.dart';
 import 'modules/badges.dart';
+import 'services/achievement_provider.dart';
+import 'widgets/app_bottom_bar.dart';
 
 void main() {
-  runApp(const MalaysiaGoApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => AchievementProvider()..loadUserData(),
+      child: const MalaysiaGoApp(),
+    ),
+  );
 }
 
 class MalaysiaGoApp extends StatelessWidget {
@@ -28,9 +35,6 @@ class MalaysiaGoApp extends StatelessWidget {
   }
 }
 
-/// Holds which bottom-nav tab is selected and routes to the matching
-/// screen. To add a new screen: add a case to the switch below and
-/// build it the same way HomeScreen / PassportScreen are structured.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -40,34 +44,34 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   BottomTab _selectedTab = BottomTab.home;
-  int _totalXp = 0;
 
-  void _addXp(int amount) {
-    setState(() => _totalXp += amount);
-  }
-
-  Widget _buildBody() {
-    switch (_selectedTab) {
-      case BottomTab.home:
-        return HomeScreen(totalXp: _totalXp);
-      case BottomTab.map:
-        return MapScreen(onXpEarned: _addXp);
-      case BottomTab.passport:
-        return const PassportScreen();
-      case BottomTab.badges:
-        return BadgesScreen(
-          totalXp: _totalXp,
-          onXpEarned: _addXp,  // Pass the XP callback
-        );
-      default:
-        return PlaceholderScreen(tab: _selectedTab);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
+
+    final provider = Provider.of<AchievementProvider>(context);
+
+    Widget buildBody() {
+      switch (_selectedTab) {
+        case BottomTab.home:
+          return HomeScreen(totalXp: provider.totalXp);
+        case BottomTab.map:
+          return MapScreen(
+            onXpEarned: (xp) => provider.addXp(xp),
+          );
+        case BottomTab.passport:
+          return const PassportScreen();
+        case BottomTab.badges:
+          return BadgesScreen(
+            onXpEarned: (xp) => provider.addXp(xp),
+          );
+        default:
+          return PlaceholderScreen(tab: _selectedTab);
+      }
+    }
+
     return Scaffold(
-      body: SafeArea(child: _buildBody()),
+      body: SafeArea(child: buildBody()),
       bottomNavigationBar: AppBottomBar(
         selected: _selectedTab,
         onSelect: (tab) => setState(() => _selectedTab = tab),
