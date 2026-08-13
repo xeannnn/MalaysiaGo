@@ -1,3 +1,6 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'models.dart';
@@ -8,6 +11,10 @@ import 'modules/placeholder.dart';
 import 'modules/badges.dart';
 import 'services/achievement_provider.dart';
 import 'widgets/app_bottom_bar.dart';
+import 'modules/auth/login_screen.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
 void main() {
   runApp(
@@ -16,6 +23,18 @@ void main() {
       child: const MalaysiaGoApp(),
     ),
   );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 15));
+
+    debugPrint('Firebase connected successfully.');
+  } catch (error, stackTrace) {
+    debugPrint('Firebase initialization failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+
+  runApp(const MalaysiaGoApp());
 }
 
 class MalaysiaGoApp extends StatelessWidget {
@@ -30,7 +49,10 @@ class MalaysiaGoApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
-      home: const MainScreen(),
+      home: const LoginScreen(),
+      routes: {
+        '/home': (context) => const MainScreen(),
+      },
     );
   }
 }
@@ -69,6 +91,23 @@ class _MainScreenState extends State<MainScreen> {
           return PlaceholderScreen(tab: _selectedTab);
       }
     }
+  Widget _buildBody() {
+    switch (_selectedTab) {
+      case BottomTab.home:
+        return HomeScreen(
+          totalXp: _totalXp,
+          onTabSelected: (tab) {
+            setState(() => _selectedTab = tab);
+          },
+        );
+      case BottomTab.map:
+        return MapScreen(totalXp: _totalXp, onXpEarned: _addXp);
+      case BottomTab.passport:
+        return const PassportScreen();
+      default:
+        return PlaceholderScreen(tab: _selectedTab);
+    }
+  }
 
     return Scaffold(
       body: SafeArea(child: buildBody()),
