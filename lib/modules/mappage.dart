@@ -18,30 +18,62 @@ import '../widgets/app_header.dart';
 /// changing how this screen talks to the quiz module.
 /// ---------------------------------------------------------------
 
+/// Projects real-world latitude/longitude onto the map canvas (0..1
+/// fractional space), using Peninsular Malaysia's approximate
+/// bounding box. Both the coastline outline (_MalaysiaSilhouettePainter)
+/// and every site marker are projected through this *same* function,
+/// so a site's marker position is always derived from its actual
+/// coordinates rather than a hand-placed guess — that's what makes
+/// the markers "pinpoint accurate" relative to the drawn coastline.
+///
+/// Caveat: the coastline itself is a simplified set of ~14 hand-picked
+/// coastal reference points (not a surveyed GeoJSON boundary), so this
+/// is geographically *proportioned*, not cartographically precise.
+class MalaysiaGeoBounds {
+  MalaysiaGeoBounds._();
+
+  static const double latMin = 1.2; // Tanjung Piai (southern tip)
+  static const double latMax = 6.7; // Perlis (Thai border)
+  static const double lngMin = 99.5; // Perak/Kedah coast (west)
+  static const double lngMax = 104.0; // Terengganu/Johor coast (east)
+
+  static Offset project(double lat, double lng) {
+    final x = (lng - lngMin) / (lngMax - lngMin);
+    final y = 1 - (lat - latMin) / (latMax - latMin);
+    return Offset(x.clamp(0.0, 1.0), y.clamp(0.0, 1.0));
+  }
+}
+
 class HeritageMapSite {
   final String id;
   final String icon;
   final String name;
   final String location;
+  final double latitude;
+  final double longitude;
   final double distanceKm;
   final int xpReward;
   final String category; // 'UNESCO' | 'Religious' | 'Nature' | 'National'
   final bool visited;
   final bool hasQuiz;
-  final Offset position; // fractional (0..1) position on the map canvas
 
   const HeritageMapSite({
     required this.id,
     required this.icon,
     required this.name,
     required this.location,
+    required this.latitude,
+    required this.longitude,
     required this.distanceKm,
     required this.xpReward,
     required this.category,
     required this.visited,
     required this.hasQuiz,
-    required this.position,
   });
+
+  /// Fractional (0..1) position on the map canvas, derived from this
+  /// site's real coordinates — see [MalaysiaGeoBounds].
+  Offset get position => MalaysiaGeoBounds.project(latitude, longitude);
 }
 
 const List<HeritageMapSite> heritageMapSites = [
@@ -50,72 +82,78 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '⛩️',
     name: 'Batu Caves',
     location: 'Selangor',
+    latitude: 3.2379,
+    longitude: 101.6840,
     distanceKm: 0.3,
     xpReward: 80,
     category: 'Religious',
     visited: false,
     hasQuiz: true,
-    position: Offset(0.30, 0.48),
   ),
   HeritageMapSite(
     id: 'merdeka_square',
     icon: '🏳️',
     name: 'Dataran Merdeka',
     location: 'Kuala Lumpur',
+    latitude: 3.1478,
+    longitude: 101.6953,
     distanceKm: 2.1,
     xpReward: 80,
     category: 'National',
     visited: true,
     hasQuiz: true,
-    position: Offset(0.36, 0.53),
   ),
   HeritageMapSite(
     id: 'george_town',
     icon: '🏛️',
     name: 'George Town',
     location: 'Penang',
+    latitude: 5.4141,
+    longitude: 100.3288,
     distanceKm: 280,
     xpReward: 120,
     category: 'UNESCO',
     visited: true,
     hasQuiz: true,
-    position: Offset(0.21, 0.20),
   ),
   HeritageMapSite(
     id: 'malacca_city',
     icon: '🏯',
     name: 'Malacca City',
     location: 'Melaka',
+    latitude: 2.1896,
+    longitude: 102.2501,
     distanceKm: 145,
     xpReward: 120,
     category: 'UNESCO',
     visited: true,
     hasQuiz: true,
-    position: Offset(0.28, 0.62),
   ),
   HeritageMapSite(
     id: 'kek_lok_si',
     icon: '🛕',
     name: 'Kek Lok Si Temple',
     location: 'Penang',
+    latitude: 5.3994,
+    longitude: 100.2739,
     distanceKm: 282,
     xpReward: 90,
     category: 'Religious',
     visited: false,
     hasQuiz: false,
-    position: Offset(0.19, 0.28),
   ),
   HeritageMapSite(
     id: 'cameron_highlands',
     icon: '⛰️',
     name: 'Cameron Highlands',
     location: 'Pahang',
+    latitude: 4.4696,
+    longitude: 101.3808,
     distanceKm: 90,
     xpReward: 100,
     category: 'Nature',
     visited: false,
     hasQuiz: false,
-    position: Offset(0.48, 0.30),
   ),
 ];
 
@@ -123,8 +161,17 @@ const List<String> _filterCategories = ['All', 'UNESCO', 'Religious', 'Nature', 
 
 class MapScreen extends StatefulWidget {
   final int totalXp;
-  final ValueChanged<int> onXpEarned;
-  const MapScreen({super.key, required this.totalXp, required this.onXpEarned});
+  final Set<String> completedQuizIds;
+  final List<QuizAttempt> quizHistory;
+  final QuizCompleteCallback onQuizComplete;
+
+  const MapScreen({
+    super.key,
+    required this.totalXp,
+    required this.completedQuizIds,
+    required this.quizHistory,
+    required this.onQuizComplete,
+  });
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -142,6 +189,8 @@ class _MapScreenState extends State<MapScreen> {
 
   int get _visitedCount => heritageMapSites.where((s) => s.visited).length;
 
+  bool _isCompleted(HeritageMapSite site) => widget.completedQuizIds.contains(site.id);
+
   void _openSite(HeritageMapSite site) {
     if (!site.hasQuiz) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -149,10 +198,28 @@ class _MapScreenState extends State<MapScreen> {
       );
       return;
     }
+    if (_isCompleted(site)) {
+      final attempt = widget.quizHistory.lastWhere((a) => a.siteId == site.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'You\'ve already completed the ${site.name} quiz — scored ${attempt.correctCount}/${attempt.totalQuestions}.'),
+        ),
+      );
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => QuizIntroScreen(siteId: site.id, onXpEarned: widget.onXpEarned),
+        builder: (_) => QuizIntroScreen(siteId: site.id, onQuizComplete: widget.onQuizComplete),
+      ),
+    );
+  }
+
+  void _openHistory() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => QuizHistoryScreen(attempts: widget.quizHistory),
       ),
     );
   }
@@ -160,7 +227,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final nearest = _nearestSite;
-    final showNearbyBanner = nearest.distanceKm < 1.0 && nearest.hasQuiz;
+    final showNearbyBanner = nearest.distanceKm < 1.0 && nearest.hasQuiz && !_isCompleted(nearest);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
@@ -186,22 +253,32 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ],
               const SizedBox(height: 16),
-              SizedBox(
-                height: 40,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: _filterCategories.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final category = _filterCategories[index];
-                    final selected = category == _selectedCategory;
-                    return _FilterChip(
-                      label: category,
-                      selected: selected,
-                      onTap: () => setState(() => _selectedCategory = category),
-                    );
-                  },
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 40,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _filterCategories.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final category = _filterCategories[index];
+                            final selected = category == _selectedCategory;
+                            return _FilterChip(
+                              label: category,
+                              selected: selected,
+                              onTap: () => setState(() => _selectedCategory = category),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _HistoryButton(count: widget.quizHistory.length, onTap: _openHistory),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -217,7 +294,7 @@ class _MapScreenState extends State<MapScreen> {
                   children: _filteredSites
                       .map((site) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _SiteListCard(site: site, onTap: () => _openSite(site)),
+                    child: _SiteListCard(site: site, completed: _isCompleted(site), onTap: () => _openSite(site)),
                   ))
                       .toList(),
                 ),
@@ -225,6 +302,45 @@ class _MapScreenState extends State<MapScreen> {
               const SizedBox(height: 24),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryButton extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+  const _HistoryButton({required this.count, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE5E5EA)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.history, size: 16, color: Color(0xFF0F8A5F)),
+            const SizedBox(width: 6),
+            Text('History', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F8A5F))),
+            if (count > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(10)),
+                child: Text('$count', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -249,7 +365,7 @@ class _MapCanvas extends StatefulWidget {
 class _MapCanvasState extends State<_MapCanvas> {
   final TransformationController _transformController = TransformationController();
   static const double _minScale = 1.0;
-  static const double _maxScale = 3.5;
+  static const double _maxScale = 5.0;
   double _scale = _minScale;
 
   @override
@@ -369,25 +485,26 @@ class _MapCanvasState extends State<_MapCanvas> {
 /// segments rather than heavy smoothing, so it reads clearly as a
 /// landmass instead of a blob. Illustrative, not survey-accurate.
 class _MalaysiaSilhouettePainter extends CustomPainter {
-  // Fractional (0..1) points tracing the coastline clockwise from
+  // Approximate (lat, lng) coastal reference towns, clockwise from
   // Perlis (NW) down the east coast to the Johor tip, then back up
-  // the west coast.
-  static const List<Offset> _points = [
-    Offset(0.42, 0.04), // Perlis (Thai border, west)
-    Offset(0.58, 0.03), // north border (central)
-    Offset(0.72, 0.10), // Kelantan (NE)
-    Offset(0.78, 0.22), // Terengganu coast bulge
-    Offset(0.74, 0.34), // Pahang east coast (Kuantan)
-    Offset(0.68, 0.46), // Pahang / Johor east coast
-    Offset(0.60, 0.58), // Johor east (Mersing)
-    Offset(0.50, 0.70), // Johor south-central
-    Offset(0.42, 0.78), // Johor southern tip
-    Offset(0.34, 0.72), // Johor west (Batu Pahat)
-    Offset(0.28, 0.62), // Melaka coast
-    Offset(0.24, 0.50), // Negeri Sembilan / Selangor coast
-    Offset(0.22, 0.38), // Selangor / Perak coast
-    Offset(0.20, 0.26), // Perak coast
-    Offset(0.24, 0.14), // Kedah coast
+  // the west coast. Projected through the same MalaysiaGeoBounds used
+  // for site markers, so the coastline and every marker share one
+  // consistent coordinate space.
+  static final List<Offset> _points = [
+    MalaysiaGeoBounds.project(6.5, 100.2), // Perlis (Thai border)
+    MalaysiaGeoBounds.project(6.2, 101.8), // north border (central)
+    MalaysiaGeoBounds.project(6.1, 102.3), // Kota Bharu (Kelantan)
+    MalaysiaGeoBounds.project(5.3, 103.1), // Kuala Terengganu
+    MalaysiaGeoBounds.project(3.8, 103.3), // Kuantan (Pahang)
+    MalaysiaGeoBounds.project(3.0, 103.5), // Pekan (Pahang coast)
+    MalaysiaGeoBounds.project(2.4, 103.8), // Mersing (Johor)
+    MalaysiaGeoBounds.project(1.3, 103.5), // Tanjung Piai (southern tip)
+    MalaysiaGeoBounds.project(1.85, 102.9), // Batu Pahat (Johor)
+    MalaysiaGeoBounds.project(2.2, 102.25), // Malacca coast
+    MalaysiaGeoBounds.project(3.0, 101.4), // Port Klang (Selangor)
+    MalaysiaGeoBounds.project(3.8, 100.9), // Bagan Datuk (Perak coast)
+    MalaysiaGeoBounds.project(4.23, 100.63), // Lumut (Perak)
+    MalaysiaGeoBounds.project(6.1, 100.35), // Alor Setar (Kedah)
   ];
 
   Path _buildPath(Size size) {
@@ -620,8 +737,9 @@ class _FilterChip extends StatelessWidget {
 
 class _SiteListCard extends StatelessWidget {
   final HeritageMapSite site;
+  final bool completed;
   final VoidCallback onTap;
-  const _SiteListCard({required this.site, required this.onTap});
+  const _SiteListCard({required this.site, required this.completed, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -632,7 +750,7 @@ class _SiteListCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: completed ? const Color(0xFFF3F4F6) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFE5E5EA)),
         ),
@@ -657,22 +775,36 @@ class _SiteListCard extends StatelessWidget {
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text('+${site.xpReward} XP',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFB8720A))),
-                const SizedBox(height: 4),
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: site.visited ? const Color(0xFF4ADE80) : const Color(0xFF60A5FA),
-                  ),
+            if (completed)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(10)),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle, size: 12, color: Color(0xFF16A34A)),
+                    SizedBox(width: 4),
+                    Text('Completed', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
+                  ],
                 ),
-              ],
-            ),
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('+${site.xpReward} XP',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFB8720A))),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: site.visited ? const Color(0xFF4ADE80) : const Color(0xFF60A5FA),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
