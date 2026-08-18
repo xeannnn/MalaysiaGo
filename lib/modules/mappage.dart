@@ -1,48 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'quiz.dart';
 import '../widgets/app_header.dart';
 
 /// ---------------------------------------------------------------
 /// HERITAGE MAP MODULE
 /// ---------------------------------------------------------------
-/// Replaces the temporary "Map UI pending" placeholder with a real
-/// (illustrative, non-GPS) heritage map: a pannable/zoomable canvas
-/// of site markers, a nearby-site quiz banner, category filters, and
-/// a scrollable site list. Tapping a marker or list row that has a
-/// quiz opens it via QuizIntroScreen from quiz.dart.
+/// A real map (flutter_map, rendering OpenStreetMap tiles) showing
+/// every heritage site at its true lat/lng, a nearby-site quiz
+/// banner, category filters, and a scrollable site list. Tapping a
+/// marker or a list row that has a quiz opens it via QuizIntroScreen
+/// from quiz.dart.
 ///
-/// This is a stand-in for a real GPS/Google-Maps-based map — marker
-/// positions are fixed fractional coordinates on a stylised canvas,
-/// not real GPS coordinates, and "GPS Active" / distances are
-/// hardcoded demo values. Swap in real location data later without
-/// changing how this screen talks to the quiz module.
+/// No API key required — OSM's default tile server
+/// (tile.openstreetmap.org) is free to use for light/dev traffic, on
+/// the condition that requests set a real User-Agent identifying the
+/// app (done below) and don't hammer the server. If this app ever
+/// gets heavy production traffic, switch the tile URL to a paid
+/// provider (e.g. MapTiler, Stadia Maps) or self-hosted tiles — see
+/// MAPS_SETUP.md for details. "Distance away" values in
+/// [heritageMapSites] are still hardcoded demo data; wiring real GPS
+/// distance needs a location permission plugin (e.g. geolocator),
+/// which isn't included yet.
 /// ---------------------------------------------------------------
-
-/// Projects real-world latitude/longitude onto the map canvas (0..1
-/// fractional space), using Peninsular Malaysia's approximate
-/// bounding box. Both the coastline outline (_MalaysiaSilhouettePainter)
-/// and every site marker are projected through this *same* function,
-/// so a site's marker position is always derived from its actual
-/// coordinates rather than a hand-placed guess — that's what makes
-/// the markers "pinpoint accurate" relative to the drawn coastline.
-///
-/// Caveat: the coastline itself is a simplified set of ~14 hand-picked
-/// coastal reference points (not a surveyed GeoJSON boundary), so this
-/// is geographically *proportioned*, not cartographically precise.
-class MalaysiaGeoBounds {
-  MalaysiaGeoBounds._();
-
-  static const double latMin = 1.2; // Tanjung Piai (southern tip)
-  static const double latMax = 6.7; // Perlis (Thai border)
-  static const double lngMin = 99.5; // Perak/Kedah coast (west)
-  static const double lngMax = 104.0; // Terengganu/Johor coast (east)
-
-  static Offset project(double lat, double lng) {
-    final x = (lng - lngMin) / (lngMax - lngMin);
-    final y = 1 - (lat - latMin) / (latMax - latMin);
-    return Offset(x.clamp(0.0, 1.0), y.clamp(0.0, 1.0));
-  }
-}
 
 class HeritageMapSite {
   final String id;
@@ -71,9 +52,7 @@ class HeritageMapSite {
     required this.hasQuiz,
   });
 
-  /// Fractional (0..1) position on the map canvas, derived from this
-  /// site's real coordinates — see [MalaysiaGeoBounds].
-  Offset get position => MalaysiaGeoBounds.project(latitude, longitude);
+  ll.LatLng get latLng => ll.LatLng(latitude, longitude);
 }
 
 const List<HeritageMapSite> heritageMapSites = [
@@ -347,10 +326,10 @@ class _HistoryButton extends StatelessWidget {
   }
 }
 
-/// The pannable/zoomable map canvas. Overlays (GPS badge, legend,
-/// visited counter, zoom buttons) stay fixed outside the
-/// InteractiveViewer so they don't zoom/pan with the map content —
-/// matching how real map apps keep their HUD fixed.
+/// The pannable/zoomable map canvas. Overlays (legend, visited
+/// counter, zoom buttons) sit in a Stack on top of the FlutterMap
+/// widget, which renders OpenStreetMap tiles and handles its own
+/// native pan/pinch-zoom gestures.
 class _MapCanvas extends StatefulWidget {
   final List<HeritageMapSite> sites;
   final int visitedCount;
@@ -363,81 +342,87 @@ class _MapCanvas extends StatefulWidget {
 }
 
 class _MapCanvasState extends State<_MapCanvas> {
-  final TransformationController _transformController = TransformationController();
-  static const double _minScale = 1.0;
-  static const double _maxScale = 5.0;
-  double _scale = _minScale;
+  final MapController _controller = MapController();
 
-  @override
-  void dispose() {
-    _transformController.dispose();
-    super.dispose();
+  // Centre + default zoom chosen to frame all of Peninsular Malaysia;
+  // refined to the exact site bounds once the map has laid out below.
+  static const ll.LatLng _initialCenter = ll.LatLng(3.9, 102.0);
+  static const double _initialZoom = 6.3;
+
+  /// Bounding box around every site, padded a little so markers near
+  /// the edge aren't flush against the canvas border.
+  LatLngBounds get _siteBounds {
+    final lats = widget.sites.map((s) => s.latitude);
+    final lngs = widget.sites.map((s) => s.longitude);
+    return LatLngBounds(
+      ll.LatLng(lats.reduce((a, b) => a < b ? a : b) - 0.35, lngs.reduce((a, b) => a < b ? a : b) - 0.35),
+      ll.LatLng(lats.reduce((a, b) => a > b ? a : b) + 0.35, lngs.reduce((a, b) => a > b ? a : b) + 0.35),
+    );
   }
 
-  void _setZoom(double newScale) {
-    final clamped = newScale.clamp(_minScale, _maxScale);
-    setState(() {
-      _scale = clamped;
-      _transformController.value = Matrix4.identity()..scale(clamped);
-    });
+  List<Marker> get _markers => widget.sites
+      .map(
+        (site) => Marker(
+      point: site.latLng,
+      width: 44,
+      height: 54,
+      alignment: Alignment.topCenter,
+      child: GestureDetector(
+        onTap: () => widget.onTapSite(site),
+        child: _MapPin(site: site),
+      ),
+    ),
+  )
+      .toList();
+
+  void _onMapReady() {
+    // Fit the view to the real site bounds once the map has laid
+    // out, rather than relying on a guessed centre/zoom.
+    _controller.fitCamera(CameraFit.bounds(bounds: _siteBounds, padding: const EdgeInsets.all(36)));
+  }
+
+  void _zoomBy(double delta) {
+    _controller.move(_controller.camera.center, _controller.camera.zoom + delta);
   }
 
   @override
   Widget build(BuildContext context) {
-    const canvasHeight = 320.0;
+    const canvasHeight = 380.0;
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: SizedBox(
         height: canvasHeight,
         child: Stack(
           children: [
-            Positioned.fill(
-              child: Container(color: const Color(0xFF0B1130)),
-            ),
-            Positioned.fill(
-              child: InteractiveViewer(
-                transformationController: _transformController,
-                minScale: _minScale,
-                maxScale: _maxScale,
-                boundaryMargin: const EdgeInsets.all(100),
-                // Keep the zoom buttons' displayed scale in sync when
-                // the user pinch-zooms manually instead of using them.
-                onInteractionEnd: (_) {
-                  final currentScale = _transformController.value.getMaxScaleOnAxis();
-                  if ((currentScale - _scale).abs() > 0.01) {
-                    setState(() => _scale = currentScale.clamp(_minScale, _maxScale));
-                  }
-                },
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final w = constraints.maxWidth;
-                    final h = constraints.maxHeight;
-                    return Stack(
-                      children: [
-                        // Stylised silhouette of Peninsular Malaysia.
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: _MalaysiaSilhouettePainter(),
-                          ),
-                        ),
-                        for (final site in widget.sites)
-                          Positioned(
-                            left: w * site.position.dx - 22,
-                            top: h * site.position.dy - 22,
-                            child: GestureDetector(
-                              onTap: () => widget.onTapSite(site),
-                              child: _MapPin(site: site),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
+            FlutterMap(
+              mapController: _controller,
+              options: MapOptions(
+                initialCenter: _initialCenter,
+                initialZoom: _initialZoom,
+                minZoom: 5,
+                maxZoom: 18,
+                onMapReady: _onMapReady,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag | InteractiveFlag.doubleTapZoom,
                 ),
               ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  // OSM's usage policy asks every app to identify
+                  // itself with a real User-Agent, not a placeholder.
+                  userAgentPackageName: 'com.example.malaysiago',
+                  maxZoom: 19,
+                ),
+                MarkerLayer(markers: _markers),
+                const RichAttributionWidget(
+                  attributions: [
+                    TextSourceAttribution('© OpenStreetMap contributors'),
+                  ],
+                ),
+              ],
             ),
             // Fixed overlays
-            const Positioned(top: 12, left: 12, child: _Pill(icon: '🟢', label: 'GPS Active', dark: true)),
-            const Positioned(top: 48, left: 12, child: _Pill(label: '±12 m accuracy', dark: true)),
             Positioned(
               top: 12,
               right: 12,
@@ -459,16 +444,16 @@ class _MapCanvasState extends State<_MapCanvas> {
               right: 12,
               child: _Pill(label: '${widget.visitedCount}/${widget.sites.length} Visited', dark: true),
             ),
-            // Explicit zoom controls — more discoverable/reliable than
-            // relying on a pinch gesture alone, especially on emulators.
+            // Explicit zoom controls, in addition to native pinch-zoom —
+            // more discoverable/reliable, especially on emulators.
             Positioned(
               bottom: 12,
               left: 12,
               child: Column(
                 children: [
-                  _ZoomButton(icon: Icons.add, onTap: () => _setZoom(_scale + 0.5)),
+                  _ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
                   const SizedBox(height: 6),
-                  _ZoomButton(icon: Icons.remove, onTap: () => _setZoom(_scale - 0.5)),
+                  _ZoomButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
                 ],
               ),
             ),
@@ -477,63 +462,6 @@ class _MapCanvasState extends State<_MapCanvas> {
       ),
     );
   }
-}
-
-/// Draws a simplified silhouette of Peninsular Malaysia — wide across
-/// the north with the Kelantan/Terengganu east-coast bulge, tapering
-/// to a point at the southern tip (Johor) — using straight coastline
-/// segments rather than heavy smoothing, so it reads clearly as a
-/// landmass instead of a blob. Illustrative, not survey-accurate.
-class _MalaysiaSilhouettePainter extends CustomPainter {
-  // Approximate (lat, lng) coastal reference towns, clockwise from
-  // Perlis (NW) down the east coast to the Johor tip, then back up
-  // the west coast. Projected through the same MalaysiaGeoBounds used
-  // for site markers, so the coastline and every marker share one
-  // consistent coordinate space.
-  static final List<Offset> _points = [
-    MalaysiaGeoBounds.project(6.5, 100.2), // Perlis (Thai border)
-    MalaysiaGeoBounds.project(6.2, 101.8), // north border (central)
-    MalaysiaGeoBounds.project(6.1, 102.3), // Kota Bharu (Kelantan)
-    MalaysiaGeoBounds.project(5.3, 103.1), // Kuala Terengganu
-    MalaysiaGeoBounds.project(3.8, 103.3), // Kuantan (Pahang)
-    MalaysiaGeoBounds.project(3.0, 103.5), // Pekan (Pahang coast)
-    MalaysiaGeoBounds.project(2.4, 103.8), // Mersing (Johor)
-    MalaysiaGeoBounds.project(1.3, 103.5), // Tanjung Piai (southern tip)
-    MalaysiaGeoBounds.project(1.85, 102.9), // Batu Pahat (Johor)
-    MalaysiaGeoBounds.project(2.2, 102.25), // Malacca coast
-    MalaysiaGeoBounds.project(3.0, 101.4), // Port Klang (Selangor)
-    MalaysiaGeoBounds.project(3.8, 100.9), // Bagan Datuk (Perak coast)
-    MalaysiaGeoBounds.project(4.23, 100.63), // Lumut (Perak)
-    MalaysiaGeoBounds.project(6.1, 100.35), // Alor Setar (Kedah)
-  ];
-
-  Path _buildPath(Size size) {
-    final pts = _points.map((p) => Offset(p.dx * size.width, p.dy * size.height)).toList();
-    final path = Path()..moveTo(pts.first.dx, pts.first.dy);
-    for (final p in pts.skip(1)) {
-      path.lineTo(p.dx, p.dy);
-    }
-    path.close();
-    return path;
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = _buildPath(size);
-    final fillPaint = Paint()
-      ..color = const Color(0xFF14532D).withOpacity(0.55)
-      ..style = PaintingStyle.fill;
-    final borderPaint = Paint()
-      ..color = const Color(0xFF4ADE80).withOpacity(0.7)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, fillPaint);
-    canvas.drawPath(path, borderPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _MalaysiaSilhouettePainter oldDelegate) => false;
 }
 
 class _ZoomButton extends StatelessWidget {
@@ -560,40 +488,50 @@ class _ZoomButton extends StatelessWidget {
   }
 }
 
+/// A conventional map-pin teardrop, anchored so its point (not its
+/// centre) marks the actual site location. flutter_map's Marker
+/// takes a plain widget child (unlike google_maps_flutter's bitmap
+/// icons), so this is what actually gets drawn.
 class _MapPin extends StatelessWidget {
   final HeritageMapSite site;
   const _MapPin({required this.site});
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = site.visited ? const Color(0xFF4ADE80) : const Color(0xFF60A5FA);
+    final baseColor = site.visited ? const Color(0xFF16A34A) : const Color(0xFF2563EB);
     return SizedBox(
       width: 44,
-      height: 44,
+      height: 54,
       child: Stack(
         clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: baseColor.withOpacity(0.22),
-              border: Border.all(color: baseColor, width: 2),
-            ),
-            alignment: Alignment.center,
-            child: Text(site.icon, style: const TextStyle(fontSize: 18)),
+          Icon(
+            Icons.location_on,
+            size: 48,
+            color: baseColor,
+            shadows: [Shadow(color: Colors.black.withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2))],
           ),
           Positioned(
-            right: -2,
+            top: 6,
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+              alignment: Alignment.center,
+              child: Text(site.icon, style: const TextStyle(fontSize: 14)),
+            ),
+          ),
+          Positioned(
             top: -2,
+            right: 0,
             child: Container(
               width: 18,
               height: 18,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: site.visited ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
-                border: Border.all(color: const Color(0xFF0B1130), width: 1.5),
+                border: Border.all(color: Colors.white, width: 1.5),
               ),
               alignment: Alignment.center,
               child: Icon(
