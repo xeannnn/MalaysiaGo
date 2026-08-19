@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models.dart';
 import '../widgets/app_header.dart';
+import '../services/achievement_provider.dart';
 import 'heritage_explorer.dart';
 
-/// Home screen. Order top to bottom:
-/// AppHeader -> WelcomeCard -> QuickActionsRow -> ExploreGuideCard
-/// -> Daily Missions -> Weekly Rankings.
-/// `totalXp` is the user's current XP (starts at 0, grows as quizzes
-/// are completed) — passed down from MainScreen in main.dart.
 class HomeScreen extends StatelessWidget {
   final int totalXp;
   final ValueChanged<BottomTab> onTabSelected;
@@ -20,12 +17,32 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<AchievementProvider>(context);
+
+    // ✅ Real data from provider
+    final completedBadges = provider.completedBadges;
+    final totalBadges = provider.totalBadges;
+    final level = provider.level.level;
+    final xpToNext = provider.xpToNextLevel;
+    final currentXp = provider.totalXp;
+    final levelTitle = provider.level.title;
+
+    // Calculate pieces = total sites visited across all badges
+    int pieces = 0;
+    for (var sites in provider.visitedSites.values) {
+      pieces += sites.length;
+    }
+
+    // Calculate states = number of badges with at least 1 visit
+    int states = provider.visitedSites.values.where((sites) => sites.isNotEmpty).length;
+
     const missions = [
       Mission('📍', 'Visit a heritage site today', '+50 XP', true),
       Mission('📷', 'Scan a QR code at any site', '+30 XP', false),
       Mission('📝', 'Complete a heritage quiz', '+40 XP', false),
       Mission('🤝', 'Refer a friend to MalaysiaGO', '+100 XP', false),
     ];
+
     const rankings = [
       RankEntry(1, '🧕', 'Albert Chin', 'Selangor', '4,820 XP', false),
       RankEntry(2, '🧑', 'Kaiser Tan', 'Penang', '4,310 XP', false),
@@ -35,7 +52,11 @@ class HomeScreen extends StatelessWidget {
 
     return Column(
       children: [
-        AppHeader(title: 'MalaysiaGO', subtitle: 'Your Heritage Journey 🇲🇾', xp: '$totalXp'),
+        AppHeader(
+          title: 'MalaysiaGO',
+          subtitle: 'Your Heritage Journey 🇲🇾',
+          xp: '$currentXp',
+        ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -43,14 +64,15 @@ class HomeScreen extends StatelessWidget {
               WelcomeCard(
                 name: 'Alston Chung',
                 avatarEmoji: '🤓',
-                level: 6,
-                nextLevel: 7,
-                streakDays: 7,
-                currentXp: totalXp,
-                xpToNextLevel: 1500,
-                badges: 5,
-                pieces: 24,
-                states: 5,
+                level: level,                      // ✅ Real
+                nextLevel: level + 1,               // ✅ Real
+                streakDays: 7,                      // ⚠️ Still hardcoded (optional)
+                currentXp: currentXp,               // ✅ Real
+                xpToNextLevel: xpToNext,            // ✅ Real
+                badges: completedBadges,            // ✅ Real
+                pieces: pieces,                     // ✅ Real
+                states: states,                     // ✅ Real
+                levelTitle: levelTitle,             // ✅ Real
               ),
               const SizedBox(height: 16),
               const QuickActionsRow(),
@@ -61,7 +83,7 @@ class HomeScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => HeritageExplorerScreen(
-                        totalXp: totalXp,
+                        totalXp: currentXp,
                         onTabSelected: onTabSelected,
                       ),
                     ),
@@ -73,12 +95,20 @@ class HomeScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Daily Missions', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Daily Missions',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                        color: const Color(0xFFFDECC8), borderRadius: BorderRadius.circular(12)),
-                    child: const Text('1/4 Done', style: TextStyle(fontSize: 12, color: Color(0xFFB8720A))),
+                      color: const Color(0xFFFDECC8),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      '1/4 Done',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFB8720A)),
+                    ),
                   ),
                 ],
               ),
@@ -88,7 +118,10 @@ class HomeScreen extends StatelessWidget {
                 child: MissionCard(mission: m),
               )),
               const SizedBox(height: 16),
-              const Text('Weekly Rankings', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              const Text(
+                'Weekly Rankings',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 12),
               ...rankings.map((r) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -103,7 +136,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// ---------- Welcome / profile card ----------
+// ---------- Welcome / profile card (updated to include levelTitle) ----------
 class WelcomeCard extends StatelessWidget {
   final String name;
   final String avatarEmoji;
@@ -115,6 +148,7 @@ class WelcomeCard extends StatelessWidget {
   final int badges;
   final int pieces;
   final int states;
+  final String levelTitle;
 
   const WelcomeCard({
     super.key,
@@ -128,6 +162,7 @@ class WelcomeCard extends StatelessWidget {
     required this.badges,
     required this.pieces,
     required this.states,
+    this.levelTitle = 'Heritage Adventurer',
   });
 
   @override
@@ -172,10 +207,19 @@ class WelcomeCard extends StatelessWidget {
                         child: Container(
                           width: 18,
                           height: 18,
-                          decoration: const BoxDecoration(color: Color(0xFFF5A623), shape: BoxShape.circle),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF5A623),
+                            shape: BoxShape.circle,
+                          ),
                           alignment: Alignment.center,
-                          child: Text('$level',
-                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white)),
+                          child: Text(
+                            '$level',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -184,18 +228,45 @@ class WelcomeCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Selamat Datang,', style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.75))),
-                      Text(name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
+                      Text(
+                        'Selamat Datang,',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.75),
+                        ),
+                      ),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration:
-                        BoxDecoration(color: const Color(0xFFF5A623), borderRadius: BorderRadius.circular(10)),
-                        child: Text('✦ Level $level',
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5A623),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '✦ Level $level',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 4),
-                      Text('Heritage Adventurer', style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.7))),
+                      Text(
+                        levelTitle,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -204,7 +275,14 @@ class WelcomeCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const Text('🔥', style: TextStyle(fontSize: 18)),
-                  Text('${streakDays}d', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(
+                    '${streakDays}d',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -213,9 +291,21 @@ class WelcomeCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('XP to Level $nextLevel', style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.75))),
-              Text('$currentXp / $xpToNextLevel',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text(
+                'XP to Level $nextLevel',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withOpacity(0.75),
+                ),
+              ),
+              Text(
+                '$currentXp / $xpToNextLevel',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -229,7 +319,9 @@ class WelcomeCard extends StatelessWidget {
                   child: Container(
                     height: 7,
                     decoration: const BoxDecoration(
-                      gradient: LinearGradient(colors: [Color(0xFF34D6C7), Color(0xFF8B5CF6)]),
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF34D6C7), Color(0xFF8B5CF6)],
+                      ),
                     ),
                   ),
                 ),
@@ -257,7 +349,12 @@ class StatMiniCard extends StatelessWidget {
   final String value;
   final String label;
 
-  const StatMiniCard({super.key, required this.icon, required this.value, required this.label});
+  const StatMiniCard({
+    super.key,
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -271,8 +368,21 @@ class StatMiniCard extends StatelessWidget {
         children: [
           Text(icon, style: const TextStyle(fontSize: 16)),
           const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-          Text(label, style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.75))),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.white.withOpacity(0.75),
+            ),
+          ),
         ],
       ),
     );
@@ -315,8 +425,13 @@ class QuickActionCard extends StatelessWidget {
   final String subtitle;
   final List<Color> colors;
 
-  const QuickActionCard(
-      {super.key, required this.icon, required this.title, required this.subtitle, required this.colors});
+  const QuickActionCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -331,8 +446,21 @@ class QuickActionCard extends StatelessWidget {
         children: [
           Text(icon, style: const TextStyle(fontSize: 18)),
           const SizedBox(height: 8),
-          Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
-          Text(subtitle, style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.85))),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.white.withOpacity(0.85),
+            ),
+          ),
         ],
       ),
     );
@@ -359,7 +487,9 @@ class ExploreGuideCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)]),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,8 +499,10 @@ class ExploreGuideCard extends StatelessWidget {
               Container(
                 width: 40,
                 height: 40,
-                decoration:
-                BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 alignment: Alignment.center,
                 child: const Text('📖', style: TextStyle(fontSize: 18)),
               ),
@@ -379,11 +511,28 @@ class ExploreGuideCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Explore Malaysia', style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.75))),
-                    const Text("Traveller's Guide",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                    Text('12 heritage sites · Transport · Etiquette · Safety',
-                        style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.8))),
+                    Text(
+                      'Explore Malaysia',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white.withOpacity(0.75),
+                      ),
+                    ),
+                    const Text(
+                      "Traveller's Guide",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '12 heritage sites · Transport · Etiquette · Safety',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -410,7 +559,10 @@ class ExploreGuideCard extends StatelessWidget {
                     children: [
                       Text(chip.icon, style: const TextStyle(fontSize: 16)),
                       const SizedBox(height: 2),
-                      Text(chip.label, style: const TextStyle(fontSize: 10, color: Colors.white)),
+                      Text(
+                        chip.label,
+                        style: const TextStyle(fontSize: 10, color: Colors.white),
+                      ),
                     ],
                   ),
                 );
@@ -454,7 +606,10 @@ class MissionCard extends StatelessWidget {
                       color: mission.done ? const Color(0xFF16A34A) : Colors.black,
                     ),
                   ),
-                  Text(mission.xp, style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A))),
+                  Text(
+                    mission.xp,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A)),
+                  ),
                 ],
               ),
             ],
@@ -469,7 +624,10 @@ class MissionCard extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               mission.done ? '✓' : '→',
-              style: TextStyle(color: mission.done ? Colors.white : Colors.grey, fontSize: 13),
+              style: TextStyle(
+                color: mission.done ? Colors.white : Colors.grey,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -504,7 +662,10 @@ class RankRow extends StatelessWidget {
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(color: Color(0xFFF0F0F0), shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF0F0F0),
+              shape: BoxShape.circle,
+            ),
             alignment: Alignment.center,
             child: Text(entry.avatar, style: const TextStyle(fontSize: 16)),
           ),
@@ -521,11 +682,21 @@ class RankRow extends StatelessWidget {
                     color: entry.isYou ? const Color(0xFF16A34A) : Colors.black,
                   ),
                 ),
-                Text(entry.state, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(
+                  entry.state,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               ],
             ),
           ),
-          Text(entry.xp, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFB8720A))),
+          Text(
+            entry.xp,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFB8720A),
+            ),
+          ),
         ],
       ),
     );

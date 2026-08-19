@@ -1,31 +1,53 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'firebase_options.dart';
 import 'models.dart';
 import 'modules/homepage.dart';
 import 'modules/mappage.dart';
 import 'modules/passport.dart';
 import 'modules/placeholder.dart';
+import 'modules/badges.dart';
 import 'modules/quiz.dart';
-import 'widgets/app_bottom_bar.dart';
 import 'modules/auth/login_screen.dart';
+import 'services/achievement_provider.dart';
+import 'widgets/app_bottom_bar.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // ✅ Initialize Hive for local persistence
+  await Hive.initFlutter();
+  await Hive.openBox('userProgress');
+
+  // ✅ Initialize Firebase
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
-    ).timeout(const Duration(seconds: 15));
-
-    debugPrint('Firebase connected successfully.');
+    );
+    debugPrint('✅ Firebase initialized');
   } catch (error, stackTrace) {
-    debugPrint('Firebase initialization failed: $error');
+    debugPrint('⚠️ Firebase initialization failed: $error');
     debugPrintStack(stackTrace: stackTrace);
   }
 
-  runApp(const MalaysiaGoApp());
+  // ✅ Run app with Provider
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) {
+        try {
+          final provider = AchievementProvider();
+          provider.loadUserData();
+          return provider;
+        } catch (e) {
+          debugPrint('⚠️ Provider init error: $e');
+          return AchievementProvider();
+        }
+      },
+      child: const MalaysiaGoApp(),
+    ),
+  );
 }
 
 class MalaysiaGoApp extends StatelessWidget {
@@ -48,9 +70,6 @@ class MalaysiaGoApp extends StatelessWidget {
   }
 }
 
-/// Holds which bottom-nav tab is selected and routes to the matching
-/// screen. To add a new screen: add a case to the switch below and
-/// build it the same way HomeScreen / PassportScreen are structured.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -60,45 +79,45 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   BottomTab _selectedTab = BottomTab.home;
-  int _totalXp = 0;
-  final Set<String> _completedQuizIds = {};
-  final List<QuizAttempt> _quizHistory = [];
 
   void _handleQuizComplete(QuizAttempt attempt) {
-    setState(() {
-      _totalXp += attempt.xpEarned;
-      _completedQuizIds.add(attempt.siteId);
-      _quizHistory.add(attempt);
-    });
-  }
-
-  Widget _buildBody() {
-    switch (_selectedTab) {
-      case BottomTab.home:
-        return HomeScreen(
-          totalXp: _totalXp,
-          onTabSelected: (tab) {
-            setState(() => _selectedTab = tab);
-          },
-        );
-      case BottomTab.map:
-        return MapScreen(
-          totalXp: _totalXp,
-          completedQuizIds: _completedQuizIds,
-          quizHistory: _quizHistory,
-          onQuizComplete: _handleQuizComplete,
-        );
-      case BottomTab.passport:
-        return const PassportScreen();
-      default:
-        return PlaceholderScreen(tab: _selectedTab);
-    }
+    final provider = Provider.of<AchievementProvider>(context, listen: false);
+    provider.addXp(attempt.xpEarned);
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<AchievementProvider>(context);
+
+    Widget buildBody() {
+      switch (_selectedTab) {
+        case BottomTab.home:
+          return HomeScreen(
+            totalXp: provider.totalXp,
+            onTabSelected: (tab) {
+              setState(() => _selectedTab = tab);
+            },
+          );
+        case BottomTab.map:
+          return MapScreen(
+            totalXp: provider.totalXp,
+            completedQuizIds: {},   // ⚠️ Replace with actual data later
+            quizHistory: [],        // ⚠️ Replace with actual data later
+            onQuizComplete: _handleQuizComplete,
+          );
+        case BottomTab.passport:
+          return const PassportScreen();
+        case BottomTab.badges:
+          return BadgesScreen(
+            onXpEarned: (xp) => provider.addXp(xp),
+          );
+        default:
+          return PlaceholderScreen(tab: _selectedTab);
+      }
+    }
+
     return Scaffold(
-      body: SafeArea(child: _buildBody()),
+      body: SafeArea(child: buildBody()),
       bottomNavigationBar: AppBottomBar(
         selected: _selectedTab,
         onSelect: (tab) => setState(() => _selectedTab = tab),
