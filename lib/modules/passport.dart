@@ -73,6 +73,7 @@ class PassportScreen extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Text(
                             'Tap any piece to view site details',
+                            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey[600],
@@ -92,6 +93,35 @@ class PassportScreen extends StatelessWidget {
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
                     childAspectRatio: 1,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                      final unlocked = index < collected;
+                      final color = unlocked
+                          ? _pieceColors[index % _pieceColors.length]
+                          : const Color(0xFFF0F0F0);
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: unlocked
+                            ? Text(
+                          _pieceIcons[index % _pieceIcons.length],
+                          style: const TextStyle(fontSize: 20),
+                        )
+                            : const Text(
+                          '?',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFB0B0B0),
+                          ),
+                        ),
+                      );
+                    },
+                    childCount: totalPieces,
                   ),
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final unlocked = index < collected;

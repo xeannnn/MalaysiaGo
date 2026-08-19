@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models.dart';
+import 'travel_info.dart';
+import '../services/heritage_api_service.dart';
 import '../services/heritage_api_service.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_header.dart';
@@ -25,6 +27,16 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
   String _selectedCategory = "All";
   final TextEditingController _searchController = TextEditingController();
 
+  List<HeritageSite> _sites = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  static const List<String> _categories = [
+    'All',
+    'UNESCO',
+    'Religious',
+    'Nature',
+    'National',
   static const List<String> _categories = [
     "All",
     "UNESCO",
@@ -36,6 +48,12 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
   List<HeritageSite> _sites = [];
   bool _isLoading = true;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHeritage();
+  }
 
   @override
   void initState() {
@@ -80,6 +98,9 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
     final query = _searchController.text.trim().toLowerCase();
 
     return _sites.where((site) {
+      final matchesCategory =
+          _selectedCategory == 'All' || site.category == _selectedCategory;
+      final matchesQuery = query.isEmpty ||
       final categoryMatch =
           _selectedCategory == "All" ||
           site.category.toLowerCase() == _selectedCategory.toLowerCase();
@@ -161,6 +182,10 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
 
     final displaySites = _filteredSites;
 
+    // Safely retrieve editor pick or fallback
+    final HeritageSite? editorPick = _sites.isNotEmpty
+        ? _sites.where((site) => site.category == "UNESCO").firstOrNull ??
+        _sites[0]
     // Safely retrieve editor pick or fallback without index out of bounds error
     final HeritageSite? editorPick = _sites.isNotEmpty
         ? _sites.where((site) => site.category == "UNESCO").firstOrNull ??
@@ -173,6 +198,7 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: SearchBarField(
             controller: _searchController,
+            onChanged: (_) => setState(() {}),
             onChanged: (value) {
               // Local instantaneous filtering
               setState(() {});
@@ -203,6 +229,49 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
         Expanded(
           child: displaySites.isEmpty
               ? Center(
+            child: Text(
+              "No heritage sites found matching '${_searchController.text}'",
+              style: const TextStyle(color: Colors.grey),
+            ),
+          )
+              : ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            children: [
+              if (editorPick != null &&
+                  _searchController.text.isEmpty &&
+                  _selectedCategory == "All") ...[
+                const Text(
+                  "Editor's Pick",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                EditorPickCard(site: editorPick),
+                const SizedBox(height: 20),
+              ],
+              Text(
+                "${displaySites.length} sites found",
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              ...displaySites.map(
+                    (site) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: SiteCard(site: site),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------- Segmented tab (Heritage Sites / Travel Info) ----------
                   child: Text(
                     "No heritage sites found matching '${_searchController.text}'",
                     style: const TextStyle(color: Colors.grey),
@@ -340,6 +409,13 @@ class CategoryChip extends StatelessWidget {
     required this.onTap,
   });
 
+  static const Map<String, Color> _categoryColors = {
+    'UNESCO': Color(0xFF2563EB),
+    'Religious': Color(0xFFB8720A),
+    'Nature': Color(0xFF16A34A),
+    'National': Color(0xFFDC2626),
+  };
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -363,6 +439,33 @@ class CategoryChip extends StatelessWidget {
   }
 }
 
+// ---------- Small status/tag pill used on cards ----------
+class TagPill extends StatelessWidget {
+  final String label;
+  final Color background;
+  final Color textColor;
+
+  const TagPill({
+    super.key,
+    required this.label,
+    required this.background,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(10)),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textColor),
+      ),
+    );
+  }
+}
+
+// ---------- Editor's Pick large card ----------
 class EditorPickCard extends StatelessWidget {
   final HeritageSite site;
 
@@ -382,6 +485,20 @@ class EditorPickCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const TagPill(label: '📍', background: Colors.transparent, textColor: Colors.white),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(color: const Color(0xFFF5A623), borderRadius: BorderRadius.circular(12)),
+                child: Text(
+                  '+${site.xp} XP',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
           TagPill(text: site.category),
           const Spacer(),
           Text(
@@ -395,6 +512,17 @@ class EditorPickCard extends StatelessWidget {
           Text(
             site.location,
             style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            site.name,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          Text(
+            '${site.location} · ${site.description}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.9)),
           ),
         ],
       ),
@@ -419,6 +547,26 @@ class SiteCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFDECC8),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: site.imageUrl.isNotEmpty
+                ? ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                site.imageUrl,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(Icons.account_balance, color: Colors.grey);
+                },
+              ),
+            )
             width: 55,
             height: 55,
             decoration: BoxDecoration(
@@ -455,6 +603,51 @@ class SiteCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        site.name,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Text(
+                      '+${site.xp} XP',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
+                    ),
+                  ],
+                ),
+                Text(site.location, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 6),
+                Text(
+                  site.description,
+                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    TagPill(
+                      label: site.category,
+                      background: const Color(0xFFFDECC8),
+                      textColor: const Color(0xFFB8720A),
+                    ),
+                    ...site.tags.where((t) => t != site.category).map(
+                          (t) => TagPill(
+                        label: t,
+                        background: const Color(0xFFF0F0F0),
+                        textColor: Colors.grey.shade700,
+                      ),
+                    ),
+                    if (site.visited)
+                      const TagPill(
+                        label: '✓ Visited',
+                        background: Color(0xFFE9F9EF),
+                        textColor: Color(0xFF16A34A),
+                      ),
+                  ],
                 Text(
                   site.name,
                   style: const TextStyle(fontWeight: FontWeight.w600),

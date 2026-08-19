@@ -65,12 +65,19 @@ class GuideChip {
   const GuideChip(this.icon, this.label);
 }
 
+// ============================================================
+// HERITAGE SITE MODEL (for Map module – added from teammate)
+// ============================================================
+
 class HeritageSite {
   final String id;
   final String name;
   final String location;
   final String description;
   final String category;
+  final double latitude;
+  final double longitude;
+  final String imageUrl;
 
   final double latitude;
   final double longitude;
@@ -88,6 +95,9 @@ class HeritageSite {
     required this.location,
     required this.description,
     required this.category,
+    required this.latitude,
+    required this.longitude,
+    required this.imageUrl,
 
     required this.latitude,
     required this.longitude,
@@ -103,6 +113,192 @@ class HeritageSite {
   factory HeritageSite.fromJson(Map<String, dynamic> json) {
     return HeritageSite(
       id: json['id'].toString(),
+      name: json['name'] ?? 'Unknown Heritage',
+      location: json['state'] ?? json['location'] ?? 'Malaysia',
+      category: json['category'] ?? 'National',
+      latitude: (json['latitude'] ?? 0).toDouble(),
+      longitude: (json['longitude'] ?? 0).toDouble(),
+      description: json['description'] ?? '',
+      imageUrl: json['imageUrl'] ?? '',
+      tags: List<String>.from(json['tags'] ?? []),
+      duration: json['duration'] ?? '1–2 hours',
+      xp: json['xp'] ?? 50,
+      visited: json['visited'] ?? false,
+      isEditorPick: json['isEditorPick'] ?? false,
+    );
+  }
+}
+
+// ============================================================
+// ACHIEVEMENT & REWARDS MODELS (Your module)
+// ============================================================
+
+/// Represents a state-themed badge with pieces that unlock gradually
+class StateBadge {
+  final String id;
+  final String stateName;
+  final String badgeIcon;
+  final String badgeTheme;
+  final List<String> requiredSiteIds;
+  final int totalPieces;
+  final String description;
+  final int bonusXp;
+
+  const StateBadge({
+    required this.id,
+    required this.stateName,
+    required this.badgeIcon,
+    required this.badgeTheme,
+    required this.requiredSiteIds,
+    required this.totalPieces,
+    required this.description,
+    this.bonusXp = 150,
+  });
+
+  int getUnlockedPieces(List<String> visitedSiteIds) {
+    int count = 0;
+    for (String siteId in requiredSiteIds) {
+      if (visitedSiteIds.contains(siteId)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  bool isComplete(List<String> visitedSiteIds) {
+    return getUnlockedPieces(visitedSiteIds) >= totalPieces;
+  }
+
+  double getProgress(List<String> visitedSiteIds) {
+    return totalPieces > 0 ? getUnlockedPieces(visitedSiteIds) / totalPieces : 0.0;
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'stateName': stateName,
+      'badgeIcon': badgeIcon,
+      'badgeTheme': badgeTheme,
+      'requiredSiteIds': requiredSiteIds,
+      'totalPieces': totalPieces,
+      'description': description,
+      'bonusXp': bonusXp,
+    };
+  }
+
+  factory StateBadge.fromMap(Map<String, dynamic> map) {
+    return StateBadge(
+      id: map['id'] ?? '',
+      stateName: map['stateName'] ?? '',
+      badgeIcon: map['badgeIcon'] ?? '',
+      badgeTheme: map['badgeTheme'] ?? '',
+      requiredSiteIds: List<String>.from(map['requiredSiteIds'] ?? []),
+      totalPieces: map['totalPieces'] ?? 0,
+      description: map['description'] ?? '',
+      bonusXp: map['bonusXp'] ?? 150,
+    );
+  }
+}
+
+/// Represents a user's progress for a specific badge
+class UserBadgeProgress {
+  final String badgeId;
+  final String stateName;
+  final String badgeIcon;
+  final String badgeTheme;
+  final int totalPieces;
+  final int unlockedPieces;
+  final bool isComplete;
+  final int bonusXpEarned;
+  final bool bonusClaimed;
+
+  const UserBadgeProgress({
+    required this.badgeId,
+    required this.stateName,
+    required this.badgeIcon,
+    required this.badgeTheme,
+    required this.totalPieces,
+    required this.unlockedPieces,
+    required this.isComplete,
+    required this.bonusXpEarned,
+    this.bonusClaimed = false,
+  });
+
+  double get progress => totalPieces > 0 ? unlockedPieces / totalPieces : 0.0;
+  int get remainingPieces => totalPieces - unlockedPieces;
+}
+
+/// Represents a user's overall achievement progress
+class UserAchievement {
+  final int totalXp;
+  final int level;
+  final int xpToNextLevel;
+  final int totalBadges;
+  final int completedBadges;
+  final List<UserBadgeProgress> badgeProgress;
+
+  const UserAchievement({
+    required this.totalXp,
+    required this.level,
+    required this.xpToNextLevel,
+    required this.totalBadges,
+    required this.completedBadges,
+    required this.badgeProgress,
+  });
+
+  double get completionRate =>
+      totalBadges > 0 ? completedBadges / totalBadges : 0.0;
+}
+
+/// User level configuration
+class LevelConfig {
+  final int level;
+  final int xpRequired;
+  final String title;
+
+  const LevelConfig({
+    required this.level,
+    required this.xpRequired,
+    required this.title,
+  });
+
+  static const List<LevelConfig> levels = [
+    LevelConfig(level: 1, xpRequired: 0, title: 'Tourist'),
+    LevelConfig(level: 2, xpRequired: 100, title: 'Explorer'),
+    LevelConfig(level: 3, xpRequired: 250, title: 'Adventurer'),
+    LevelConfig(level: 4, xpRequired: 450, title: 'Historian'),
+    LevelConfig(level: 5, xpRequired: 700, title: 'Heritage Enthusiast'),
+    LevelConfig(level: 6, xpRequired: 1000, title: 'Culture Lover'),
+    LevelConfig(level: 7, xpRequired: 1500, title: 'Malaysia Insider'),
+    LevelConfig(level: 8, xpRequired: 2200, title: 'Heritage Master'),
+    LevelConfig(level: 9, xpRequired: 3200, title: 'Cultural Ambassador'),
+    LevelConfig(level: 10, xpRequired: 5000, title: 'Heritage Legend'),
+  ];
+
+  static LevelConfig getLevelByXp(int xp) {
+    LevelConfig? result = levels.first;
+    for (var level in levels) {
+      if (xp >= level.xpRequired) {
+        result = level;
+      }
+    }
+    return result!;
+  }
+
+  static LevelConfig? getNextLevel(int currentLevel) {
+    return levels.firstWhere(
+          (l) => l.level == currentLevel + 1,
+      orElse: () => levels.last,
+    );
+  }
+
+  static int getXpToNextLevel(int currentXp) {
+    int currentLevel = getLevelByXp(currentXp).level;
+    var next = getNextLevel(currentLevel);
+    if (next == null || next == levels.last) return 0;
+    return next.xpRequired - currentXp;
+  }
+}
 
       name: json['name'] ?? 'Unknown Heritage',
 

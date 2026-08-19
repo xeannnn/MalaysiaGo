@@ -328,6 +328,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _isLoading ? null : _login,
                       child: _isLoading
                           ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
@@ -354,6 +358,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _isGoogleLoading ? null : _googleLogin,
                       icon: _isGoogleLoading
                           ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),

@@ -5,6 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 /// Handles Firebase Authentication and user profile storage.
 class AuthService {
   AuthService({FirebaseAuth? firebaseAuth, FirebaseFirestore? firestore})
+      : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance;
     : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
       _firestore = firestore ?? FirebaseFirestore.instance;
 
@@ -20,6 +22,9 @@ class AuthService {
   }) async {
     final UserCredential credential = await _firebaseAuth
         .createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
           email: email.trim(),
           password: password,
         );

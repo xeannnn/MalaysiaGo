@@ -29,6 +29,7 @@ out center;
     final safeKeyword = RegExp.escape(keyword);
 
     final query =
+    """
         """
 [out:json][timeout:25];
 
@@ -119,6 +120,8 @@ out center;
             longitude: longitude,
 
             imageUrl:
+            await ImageService.getHeritageImage(
+                tags["name"] ?? ""
               await ImageService.getHeritageImage(
           tags["name"] ?? ""
             ),
@@ -134,6 +137,7 @@ out center;
             isEditorPick: false,
           );
         })
+            .toList()
         .toList()
     );
   }
@@ -157,4 +161,5 @@ out center;
 
     return "National";
   }
+}
 }

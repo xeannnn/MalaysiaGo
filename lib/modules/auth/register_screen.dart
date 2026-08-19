@@ -267,6 +267,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: _isLoading ? null : _createAccount,
                       child: _isLoading
                           ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
@@ -278,6 +282,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: _isLoading
                           ? null
                           : () {
+                        Navigator.pop(context);
+                      },
                               Navigator.pop(context);
                             },
                       child: const Text('Already have an account? Login'),

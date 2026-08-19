@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models.dart';
 import '../widgets/app_header.dart';
+import '../services/achievement_provider.dart';
 import 'heritage_explorer.dart';
 
-/// Home screen. Order top to bottom:
-/// AppHeader -> WelcomeCard -> QuickActionsRow -> ExploreGuideCard
-/// -> Daily Missions -> Weekly Rankings.
-/// `totalXp` is the user's current XP (starts at 0, grows as quizzes
-/// are completed) — passed down from MainScreen in main.dart.
 class HomeScreen extends StatelessWidget {
   final int totalXp;
   final ValueChanged<BottomTab> onTabSelected;
@@ -20,12 +17,32 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<AchievementProvider>(context);
+
+    // ✅ Real data from provider
+    final completedBadges = provider.completedBadges;
+    final totalBadges = provider.totalBadges;
+    final level = provider.level.level;
+    final xpToNext = provider.xpToNextLevel;
+    final currentXp = provider.totalXp;
+    final levelTitle = provider.level.title;
+
+    // Calculate pieces = total sites visited across all badges
+    int pieces = 0;
+    for (var sites in provider.visitedSites.values) {
+      pieces += sites.length;
+    }
+
+    // Calculate states = number of badges with at least 1 visit
+    int states = provider.visitedSites.values.where((sites) => sites.isNotEmpty).length;
+
     const missions = [
       Mission('📍', 'Visit a heritage site today', '+50 XP', true),
       Mission('📷', 'Scan a QR code at any site', '+30 XP', false),
       Mission('📝', 'Complete a heritage quiz', '+40 XP', false),
       Mission('🤝', 'Refer a friend to MalaysiaGO', '+100 XP', false),
     ];
+
     const rankings = [
       RankEntry(1, '🧕', 'Albert Chin', 'Selangor', '4,820 XP', false),
       RankEntry(2, '🧑', 'Kaiser Tan', 'Penang', '4,310 XP', false),
@@ -38,6 +55,7 @@ class HomeScreen extends StatelessWidget {
         AppHeader(
           title: 'MalaysiaGO',
           subtitle: 'Your Heritage Journey 🇲🇾',
+          xp: '$currentXp',
           xp: '$totalXp',
         ),
         Expanded(
@@ -47,14 +65,15 @@ class HomeScreen extends StatelessWidget {
               WelcomeCard(
                 name: 'Alston Chung',
                 avatarEmoji: '🤓',
-                level: 6,
-                nextLevel: 7,
+                level: level,
+                nextLevel: level + 1,
                 streakDays: 7,
-                currentXp: totalXp,
-                xpToNextLevel: 1500,
-                badges: 5,
-                pieces: 24,
-                states: 5,
+                currentXp: currentXp,
+                xpToNextLevel: xpToNext,
+                badges: completedBadges,
+                pieces: pieces,
+                states: states,
+                levelTitle: levelTitle,
               ),
               const SizedBox(height: 16),
               const QuickActionsRow(),
@@ -65,7 +84,7 @@ class HomeScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => HeritageExplorerScreen(
-                        totalXp: totalXp,
+                        totalXp: currentXp,
                         onTabSelected: onTabSelected,
                       ),
                     ),
@@ -137,6 +156,7 @@ class WelcomeCard extends StatelessWidget {
   final int badges;
   final int pieces;
   final int states;
+  final String levelTitle;
 
   const WelcomeCard({
     super.key,
@@ -150,6 +170,7 @@ class WelcomeCard extends StatelessWidget {
     required this.badges,
     required this.pieces,
     required this.states,
+    this.levelTitle = 'Heritage Adventurer',
   });
 
   @override
@@ -235,6 +256,7 @@ class WelcomeCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 2,
@@ -254,6 +276,7 @@ class WelcomeCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
+                        levelTitle,
                         'Heritage Adventurer',
                         style: TextStyle(
                           fontSize: 11,
@@ -578,6 +601,7 @@ class ExploreGuideCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         chip.label,
+                        style: const TextStyle(fontSize: 10, color: Colors.white),
                         style: const TextStyle(
                           fontSize: 10,
                           color: Colors.white,
@@ -634,6 +658,10 @@ class MissionCard extends StatelessWidget {
                       fontSize: 12,
                       color: Color(0xFF16A34A),
                     ),
+                  ),
+                  Text(
+                    mission.xp,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A)),
                   ),
                 ],
               ),
