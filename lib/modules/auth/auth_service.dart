@@ -4,11 +4,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 /// Handles Firebase Authentication and user profile storage.
 class AuthService {
-  AuthService({
-    FirebaseAuth? firebaseAuth,
-    FirebaseFirestore? firestore,
-  })  : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  AuthService({FirebaseAuth? firebaseAuth, FirebaseFirestore? firestore})
+    : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
@@ -20,11 +18,11 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final UserCredential credential =
-    await _firebaseAuth.createUserWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
-    );
+    final UserCredential credential = await _firebaseAuth
+        .createUserWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        );
 
     final User? user = credential.user;
 
@@ -57,21 +55,19 @@ class AuthService {
 
     await googleSignIn.initialize(
       serverClientId:
-      '280746057244-egjn1iq2f3e06us8r2nt9ti5kvo1vli7.apps.googleusercontent.com',
+          '280746057244-egjn1iq2f3e06us8r2nt9ti5kvo1vli7.apps.googleusercontent.com',
     );
 
-    final GoogleSignInAccount googleUser =
-    await googleSignIn.authenticate();
+    final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
 
-    final GoogleSignInAuthentication googleAuth =
-        googleUser.authentication;
+    final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
     final OAuthCredential credential = GoogleAuthProvider.credential(
       idToken: googleAuth.idToken,
     );
 
-    final UserCredential userCredential =
-    await _firebaseAuth.signInWithCredential(credential);
+    final UserCredential userCredential = await _firebaseAuth
+        .signInWithCredential(credential);
 
     final User? user = userCredential.user;
 
@@ -83,11 +79,11 @@ class AuthService {
   }
 
   Future<void> _saveUserProfile(User user) async {
-    final DocumentReference<Map<String, dynamic>> userDoc =
-    _firestore.collection('users').doc(user.uid);
+    final DocumentReference<Map<String, dynamic>> userDoc = _firestore
+        .collection('users')
+        .doc(user.uid);
 
-    final DocumentSnapshot<Map<String, dynamic>> existing =
-    await userDoc.get();
+    final DocumentSnapshot<Map<String, dynamic>> existing = await userDoc.get();
 
     if (!existing.exists) {
       await userDoc.set({
@@ -111,9 +107,7 @@ class AuthService {
   }
 
   Future<void> sendPasswordResetEmail(String email) {
-    return _firebaseAuth.sendPasswordResetEmail(
-      email: email.trim(),
-    );
+    return _firebaseAuth.sendPasswordResetEmail(email: email.trim());
   }
 
   Future<UserCredential> continueAsGuest() {
