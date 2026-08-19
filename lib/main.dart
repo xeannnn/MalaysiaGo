@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 
 import 'package:flutter/material.dart';
@@ -40,7 +41,9 @@ class MalaysiaGoApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: FirebaseAuth.instance.currentUser == null
+          ? const LoginScreen()
+          : const MainScreen(),
       routes: {
         '/home': (context) => const MainScreen(),
       },
