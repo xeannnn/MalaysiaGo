@@ -59,7 +59,61 @@ class GuideChip {
 }
 
 // ============================================================
-// ACHIEVEMENT & REWARDS MODELS NANAT
+// HERITAGE SITE MODEL (for Map module – added from teammate)
+// ============================================================
+
+class HeritageSite {
+  final String id;
+  final String name;
+  final String location;
+  final String description;
+  final String category;
+  final double latitude;
+  final double longitude;
+  final String imageUrl;
+  final List<String> tags;
+  final String duration;
+  final int xp;
+  final bool visited;
+  final bool isEditorPick;
+
+  HeritageSite({
+    required this.id,
+    required this.name,
+    required this.location,
+    required this.description,
+    required this.category,
+    required this.latitude,
+    required this.longitude,
+    required this.imageUrl,
+    required this.tags,
+    required this.duration,
+    required this.xp,
+    required this.visited,
+    required this.isEditorPick,
+  });
+
+  factory HeritageSite.fromJson(Map<String, dynamic> json) {
+    return HeritageSite(
+      id: json['id'].toString(),
+      name: json['name'] ?? 'Unknown Heritage',
+      location: json['state'] ?? json['location'] ?? 'Malaysia',
+      category: json['category'] ?? 'National',
+      latitude: (json['latitude'] ?? 0).toDouble(),
+      longitude: (json['longitude'] ?? 0).toDouble(),
+      description: json['description'] ?? '',
+      imageUrl: json['imageUrl'] ?? '',
+      tags: List<String>.from(json['tags'] ?? []),
+      duration: json['duration'] ?? '1–2 hours',
+      xp: json['xp'] ?? 50,
+      visited: json['visited'] ?? false,
+      isEditorPick: json['isEditorPick'] ?? false,
+    );
+  }
+}
+
+// ============================================================
+// ACHIEVEMENT & REWARDS MODELS (Your module)
 // ============================================================
 
 /// Represents a state-themed badge with pieces that unlock gradually

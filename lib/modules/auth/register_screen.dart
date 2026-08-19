@@ -58,9 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Account created successfully. Please log in.',
-          ),
+          content: Text('Account created successfully. Please log in.'),
         ),
       );
 
@@ -92,9 +90,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           message = error.message ?? 'Account creation failed.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
       debugPrint('Registration error: $error');
 
@@ -102,11 +100,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Something went wrong: $error'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Something went wrong: $error')));
     } finally {
       if (mounted) {
         setState(() {
@@ -120,9 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
-      appBar: AppBar(
-        title: const Text('Register Account'),
-      ),
+      appBar: AppBar(title: const Text('Register Account')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -184,8 +178,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return 'Please enter your email.';
                         }
 
-                        final emailPattern =
-                        RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                        final emailPattern = RegExp(
+                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                        );
 
                         if (!emailPattern.hasMatch(value.trim())) {
                           return 'Please enter a valid email.';
@@ -245,8 +240,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         suffixIcon: IconButton(
                           onPressed: () {
                             setState(() {
-                              _hideConfirmPassword =
-                              !_hideConfirmPassword;
+                              _hideConfirmPassword = !_hideConfirmPassword;
                             });
                           },
                           icon: Icon(
@@ -275,9 +269,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
                           : const Text('Create Account'),
                     ),
@@ -288,9 +280,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           : () {
                         Navigator.pop(context);
                       },
-                      child: const Text(
-                        'Already have an account? Login',
-                      ),
+                      child: const Text('Already have an account? Login'),
                     ),
                   ],
                 ),

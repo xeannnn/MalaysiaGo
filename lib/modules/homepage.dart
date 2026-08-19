@@ -64,15 +64,15 @@ class HomeScreen extends StatelessWidget {
               WelcomeCard(
                 name: 'Alston Chung',
                 avatarEmoji: '🤓',
-                level: level,                      // ✅ Real
-                nextLevel: level + 1,               // ✅ Real
-                streakDays: 7,                      // ⚠️ Still hardcoded (optional)
-                currentXp: currentXp,               // ✅ Real
-                xpToNextLevel: xpToNext,            // ✅ Real
-                badges: completedBadges,            // ✅ Real
-                pieces: pieces,                     // ✅ Real
-                states: states,                     // ✅ Real
-                levelTitle: levelTitle,             // ✅ Real
+                level: level,
+                nextLevel: level + 1,
+                streakDays: 7,
+                currentXp: currentXp,
+                xpToNextLevel: xpToNext,
+                badges: completedBadges,
+                pieces: pieces,
+                states: states,
+                levelTitle: levelTitle,
               ),
               const SizedBox(height: 16),
               const QuickActionsRow(),
@@ -136,7 +136,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// ---------- Welcome / profile card (updated to include levelTitle) ----------
+// ---------- Welcome / profile card ----------
 class WelcomeCard extends StatelessWidget {
   final String name;
   final String avatarEmoji;

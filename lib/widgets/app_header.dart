@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 /// Shared header used at the top of every screen: title, subtitle,

@@ -17,11 +17,11 @@ import 'widgets/app_bottom_bar.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Initialize Hive for local persistence
+  // Hive initialization
   await Hive.initFlutter();
   await Hive.openBox('userProgress');
 
-  // ✅ Initialize Firebase
+  // Firebase initialization
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -32,7 +32,7 @@ Future<void> main() async {
     debugPrintStack(stackTrace: stackTrace);
   }
 
-  // ✅ Run app with Provider
+  // Run app with Provider
   runApp(
     ChangeNotifierProvider(
       create: (context) {
@@ -101,8 +101,8 @@ class _MainScreenState extends State<MainScreen> {
         case BottomTab.map:
           return MapScreen(
             totalXp: provider.totalXp,
-            completedQuizIds: {},   // ⚠️ Replace with actual data later
-            quizHistory: [],        // ⚠️ Replace with actual data later
+            completedQuizIds: {},   // Will connect later
+            quizHistory: [],        // Will connect later
             onQuizComplete: _handleQuizComplete,
           );
         case BottomTab.passport:

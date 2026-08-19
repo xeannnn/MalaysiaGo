@@ -49,11 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/home',
-            (route) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
@@ -81,9 +77,9 @@ class _LoginScreenState extends State<LoginScreen> {
           message = error.message ?? 'Login failed.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
         setState(() {
@@ -103,29 +99,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/home',
-            (route) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            error.message ?? 'Google Sign-In failed.',
-          ),
-        ),
+        SnackBar(content: Text(error.message ?? 'Google Sign-In failed.')),
       );
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Google Sign-In failed: $error'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Google Sign-In failed: $error')));
     } finally {
       if (mounted) {
         setState(() {
@@ -136,8 +122,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _showForgotPasswordDialog() async {
-    final TextEditingController resetEmailController =
-    TextEditingController(text: _emailController.text.trim());
+    final TextEditingController resetEmailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
 
     await showDialog<void>(
       context: context,
@@ -162,8 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             FilledButton(
               onPressed: () async {
-                final String email =
-                resetEmailController.text.trim();
+                final String email = resetEmailController.text.trim();
 
                 if (email.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -201,21 +187,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       message = 'No account was found with this email.';
                       break;
                     case 'too-many-requests':
-                      message =
-                      'Too many requests. Please try again later.';
+                      message = 'Too many requests. Please try again later.';
                       break;
                     case 'network-request-failed':
                       message =
                       'Network error. Please check your internet connection.';
                       break;
                     default:
-                      message =
-                          error.message ?? 'Unable to send reset email.';
+                      message = error.message ?? 'Unable to send reset email.';
                   }
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(message)),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(message)));
                 }
               },
               child: const Text('Send'),
@@ -279,8 +263,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           return 'Please enter your email.';
                         }
 
-                        final emailPattern =
-                        RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                        final emailPattern = RegExp(
+                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                        );
 
                         if (!emailPattern.hasMatch(value.trim())) {
                           return 'Please enter a valid email.';
@@ -345,9 +330,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
                           : const Text('Login'),
                     ),
@@ -368,15 +351,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 20),
 
                     OutlinedButton.icon(
-                      onPressed:
-                      _isGoogleLoading ? null : _googleLogin,
+                      onPressed: _isGoogleLoading ? null : _googleLogin,
                       icon: _isGoogleLoading
                           ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
                           : const Icon(Icons.g_mobiledata, size: 28),
                       label: Text(

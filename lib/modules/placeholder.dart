@@ -19,8 +19,11 @@ class PlaceholderScreen extends StatelessWidget {
           children: [
             Text(tab.emoji, style: const TextStyle(fontSize: 40)),
             const SizedBox(height: 8),
-            Text('${tab.label} — coming soon',
-                style: const TextStyle(fontSize: 16, color: Colors.grey), textAlign: TextAlign.center),
+            Text(
+              '${tab.label} — coming soon',
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),

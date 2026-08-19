@@ -50,8 +50,10 @@ class PassportScreen extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: Text('Tap any piece to view site details',
-                              style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                          child: Text(
+                            'Tap any piece to view site details',
+                            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                          ),
                         ),
                       ),
                     ],
@@ -70,14 +72,28 @@ class PassportScreen extends StatelessWidget {
                   delegate: SliverChildBuilderDelegate(
                         (context, index) {
                       final unlocked = index < collected;
-                      final color = unlocked ? _pieceColors[index % _pieceColors.length] : const Color(0xFFF0F0F0);
+                      final color = unlocked
+                          ? _pieceColors[index % _pieceColors.length]
+                          : const Color(0xFFF0F0F0);
                       return Container(
-                        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         alignment: Alignment.center,
                         child: unlocked
-                            ? Text(_pieceIcons[index % _pieceIcons.length], style: const TextStyle(fontSize: 20))
-                            : const Text('?',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFB0B0B0))),
+                            ? Text(
+                          _pieceIcons[index % _pieceIcons.length],
+                          style: const TextStyle(fontSize: 20),
+                        )
+                            : const Text(
+                          '?',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFB0B0B0),
+                          ),
+                        ),
                       );
                     },
                     childCount: totalPieces,
@@ -106,26 +122,59 @@ class PassportHeroCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(colors: [Color(0xFF6D5BD0), Color(0xFF8B7FE8)]),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6D5BD0), Color(0xFF8B7FE8)],
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('DIGITAL PASSPORT',
-              style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(
+            'DIGITAL PASSPORT',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 4),
-          const Text('Malaysia Heritage Mosaic',
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'Malaysia Heritage Mosaic',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text('Collect all $total pieces to reveal the masterpiece',
-              style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12)),
+          Text(
+            'Collect all $total pieces to reveal the masterpiece',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.85),
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('$collected / $total', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-              Text('$percent%', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(
+                '$collected / $total',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '$percent%',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
