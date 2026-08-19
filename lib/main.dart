@@ -63,9 +63,7 @@ class MalaysiaGoApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const LoginScreen(),
-      routes: {
-        '/home': (context) => const MainScreen(),
-      },
+      routes: {'/home': (context) => const MainScreen()},
     );
   }
 }

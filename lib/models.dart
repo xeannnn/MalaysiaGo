@@ -49,7 +49,14 @@ class RankEntry {
   final String state;
   final String xp;
   final bool isYou;
-  const RankEntry(this.rank, this.avatar, this.name, this.state, this.xp, this.isYou);
+  const RankEntry(
+    this.rank,
+    this.avatar,
+    this.name,
+    this.state,
+    this.xp,
+    this.isYou,
+  );
 }
 
 class GuideChip {
@@ -71,6 +78,11 @@ class HeritageSite {
   final double latitude;
   final double longitude;
   final String imageUrl;
+
+  final double latitude;
+  final double longitude;
+  final String imageUrl;
+
   final List<String> tags;
   final String duration;
   final int xp;
@@ -86,6 +98,11 @@ class HeritageSite {
     required this.latitude,
     required this.longitude,
     required this.imageUrl,
+
+    required this.latitude,
+    required this.longitude,
+    required this.imageUrl,
+
     required this.tags,
     required this.duration,
     required this.xp,
@@ -280,5 +297,33 @@ class LevelConfig {
     var next = getNextLevel(currentLevel);
     if (next == null || next == levels.last) return 0;
     return next.xpRequired - currentXp;
+  }
+}
+
+      name: json['name'] ?? 'Unknown Heritage',
+
+      location: json['state'] ?? json['location'] ?? 'Malaysia',
+
+      category: json['category'] ?? 'National',
+
+      latitude: (json['latitude'] ?? 0).toDouble(),
+
+      longitude: (json['longitude'] ?? 0).toDouble(),
+
+      description: json['description'] ?? '',
+
+      imageUrl: json['imageUrl'] ?? '',
+
+      // Default values because API does not provide these
+      tags: List<String>.from(json['tags'] ?? []),
+
+      duration: json['duration'] ?? '1–2 hours',
+
+      xp: json['xp'] ?? 50,
+
+      visited: json['visited'] ?? false,
+
+      isEditorPick: json['isEditorPick'] ?? false,
+    );
   }
 }

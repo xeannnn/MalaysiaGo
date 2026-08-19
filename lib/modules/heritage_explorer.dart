@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import '../widgets/app_header.dart';
-import '../widgets/app_bottom_bar.dart';
+
 import '../models.dart';
 import 'travel_info.dart';
 import '../services/heritage_api_service.dart';
+import '../services/heritage_api_service.dart';
+import '../widgets/app_bottom_bar.dart';
+import '../widgets/app_header.dart';
+import 'travel_info.dart';
 
-/// Heritage Explorer / Browse Heritage Sites screen.
-/// Reached by tapping the "Traveller's Guide" card on HomeScreen.
 class HeritageExplorerScreen extends StatefulWidget {
   final int totalXp;
   final ValueChanged<BottomTab> onTabSelected;
@@ -18,13 +19,12 @@ class HeritageExplorerScreen extends StatefulWidget {
   });
 
   @override
-  State<HeritageExplorerScreen> createState() =>
-      _HeritageExplorerScreenState();
+  State<HeritageExplorerScreen> createState() => _HeritageExplorerScreenState();
 }
 
 class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
-  int _selectedTabIndex = 0; // 0 = Heritage Sites, 1 = Travel Info
-  String _selectedCategory = 'All';
+  int _selectedTabIndex = 0;
+  String _selectedCategory = "All";
   final TextEditingController _searchController = TextEditingController();
 
   List<HeritageSite> _sites = [];
@@ -37,7 +37,23 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
     'Religious',
     'Nature',
     'National',
+  static const List<String> _categories = [
+    "All",
+    "UNESCO",
+    "Religious",
+    "Nature",
+    "National",
   ];
+
+  List<HeritageSite> _sites = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHeritage();
+  }
 
   @override
   void initState() {
@@ -85,35 +101,42 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
       final matchesCategory =
           _selectedCategory == 'All' || site.category == _selectedCategory;
       final matchesQuery = query.isEmpty ||
+      final categoryMatch =
+          _selectedCategory == "All" ||
+          site.category.toLowerCase() == _selectedCategory.toLowerCase();
+
+      final searchMatch =
+          query.isEmpty ||
           site.name.toLowerCase().contains(query) ||
           site.location.toLowerCase().contains(query);
-      return matchesCategory && matchesQuery;
+
+      return categoryMatch && searchMatch;
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: const Color(0xffF5F5F7),
       body: SafeArea(
         child: Column(
           children: [
             AppHeader(
               title: "Traveller's Guide",
-              subtitle: 'Heritage Sites · Travel Info',
-              xp: '${widget.totalXp}',
+              subtitle: "Heritage Sites · Travel Info",
+              xp: "${widget.totalXp}",
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SegmentedTabBar(
                 selectedIndex: _selectedTabIndex,
-                labels: const ['🏛 Heritage Sites', '🎫 Travel Info'],
-                onChanged: (i) => setState(() => _selectedTabIndex = i),
+                labels: const ["🏛 Heritage Sites", "🎫 Travel Info"],
+                onChanged: (index) {
+                  setState(() => _selectedTabIndex = index);
+                },
               ),
             ),
-            const SizedBox(height: 14),
-
-            // Dynamic Body: Swaps between Heritage Sites View and Travel Info View
+            const SizedBox(height: 15),
             Expanded(
               child: _selectedTabIndex == 1
                   ? TravelInfoPage(totalXp: widget.totalXp)
@@ -163,6 +186,10 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
     final HeritageSite? editorPick = _sites.isNotEmpty
         ? _sites.where((site) => site.category == "UNESCO").firstOrNull ??
         _sites[0]
+    // Safely retrieve editor pick or fallback without index out of bounds error
+    final HeritageSite? editorPick = _sites.isNotEmpty
+        ? _sites.where((site) => site.category == "UNESCO").firstOrNull ??
+              _sites[0]
         : null;
 
     return Column(
@@ -172,6 +199,10 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
           child: SearchBarField(
             controller: _searchController,
             onChanged: (_) => setState(() {}),
+            onChanged: (value) {
+              // Local instantaneous filtering
+              setState(() {});
+            },
           ),
         ),
         const SizedBox(height: 14),
@@ -181,13 +212,15 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             scrollDirection: Axis.horizontal,
             itemCount: _categories.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final category = _categories[index];
               return CategoryChip(
                 label: category,
                 selected: _selectedCategory == category,
-                onTap: () => setState(() => _selectedCategory = category),
+                onTap: () {
+                  setState(() => _selectedCategory = category);
+                },
               );
             },
           ),
@@ -239,6 +272,50 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
 }
 
 // ---------- Segmented tab (Heritage Sites / Travel Info) ----------
+                  child: Text(
+                    "No heritage sites found matching '${_searchController.text}'",
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    if (editorPick != null &&
+                        _searchController.text.isEmpty &&
+                        _selectedCategory == "All") ...[
+                      const Text(
+                        "Editor's Pick",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      EditorPickCard(site: editorPick),
+                      const SizedBox(height: 20),
+                    ],
+                    Text(
+                      "${displaySites.length} sites found",
+                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    ...displaySites.map(
+                      (site) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: SiteCard(site: site),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------- Sub-Widgets ----------
+
 class SegmentedTabBar extends StatelessWidget {
   final int selectedIndex;
   final List<String> labels;
@@ -254,34 +331,32 @@ class SegmentedTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(4),
+      height: 45,
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F0F0),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: List.generate(labels.length, (index) {
-          final selected = index == selectedIndex;
+          final selected = selectedIndex == index;
           return Expanded(
             child: GestureDetector(
               onTap: () => onChanged(index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Container(
+                margin: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: selected ? Colors.white : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
-                  boxShadow: selected
-                      ? [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2))]
-                      : null,
                 ),
-                alignment: Alignment.center,
-                child: Text(
-                  labels[index],
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: selected ? Colors.black87 : Colors.grey,
+                child: Center(
+                  child: Text(
+                    labels[index],
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: selected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
                   ),
                 ),
               ),
@@ -293,7 +368,6 @@ class SegmentedTabBar extends StatelessWidget {
   }
 }
 
-// ---------- Search bar ----------
 class SearchBarField extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
@@ -323,7 +397,6 @@ class SearchBarField extends StatelessWidget {
   }
 }
 
-// ---------- Category filter chip ----------
 class CategoryChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -345,23 +418,20 @@ class CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _categoryColors[label] ?? const Color(0xFF16A34A);
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? color : Colors.white,
+          color: selected ? Colors.green : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? color : const Color(0xFFE5E5E5)),
+          border: Border.all(color: Colors.grey.shade300),
         ),
         child: Text(
           label,
           style: TextStyle(
+            color: selected ? Colors.white : Colors.black,
             fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : color,
           ),
         ),
       ),
@@ -404,16 +474,13 @@ class EditorPickCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      height: 180,
-      padding: const EdgeInsets.all(16),
+      height: 150,
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF6EE7B7), Color(0xFF0F8A5F)],
+          colors: [Color(0xff63D6A5), Color(0xff159B72)],
         ),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,15 +499,19 @@ class EditorPickCard extends StatelessWidget {
               ),
             ],
           ),
+          TagPill(text: site.category),
           const Spacer(),
-          Row(
-            children: [
-              TagPill(label: site.category, background: const Color(0xFFFDECC8), textColor: const Color(0xFFB8720A)),
-              if (site.visited) ...[
-                const SizedBox(width: 8),
-                const TagPill(label: '✓ Visited', background: Color(0xFF16A34A), textColor: Colors.white),
-              ],
-            ],
+          Text(
+            site.name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          Text(
+            site.location,
+            style: const TextStyle(color: Colors.white, fontSize: 12),
           ),
           const SizedBox(height: 8),
           Text(
@@ -459,7 +530,6 @@ class EditorPickCard extends StatelessWidget {
   }
 }
 
-// ---------- Site list card ----------
 class SiteCard extends StatelessWidget {
   final HeritageSite site;
 
@@ -471,11 +541,10 @@ class SiteCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: const Border(left: BorderSide(color: Color(0xFF16A34A), width: 4)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.green),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 48,
@@ -498,9 +567,38 @@ class SiteCard extends StatelessWidget {
                 },
               ),
             )
+            width: 55,
+            height: 55,
+            decoration: BoxDecoration(
+              color: const Color(0xffffefc8),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: site.imageUrl.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+
+                    child: Image.network(
+                      site.imageUrl,
+
+                      width: 55,
+
+                      height: 55,
+
+                      fit: BoxFit.cover,
+
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.account_balance,
+                          color: Colors.grey,
+                        );
+                      },
+                    ),
+                  )
                 : const Icon(Icons.account_balance, color: Colors.grey),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,20 +648,50 @@ class SiteCard extends StatelessWidget {
                         textColor: Color(0xFF16A34A),
                       ),
                   ],
+                Text(
+                  site.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  site.location,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time, size: 13, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(site.duration, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
+                Text(
+                  site.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
                 ),
+                const SizedBox(height: 8),
+                TagPill(text: site.category),
               ],
             ),
           ),
+          Text(
+            "+${site.xp} XP",
+            style: const TextStyle(color: Colors.green, fontSize: 11),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class TagPill extends StatelessWidget {
+  final String text;
+
+  const TagPill({super.key, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xffffe6a8),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(text, style: const TextStyle(fontSize: 10)),
     );
   }
 }

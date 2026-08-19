@@ -191,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       break;
                     case 'network-request-failed':
                       message =
-                      'Network error. Please check your internet connection.';
+                          'Network error. Please check your internet connection.';
                       break;
                     default:
                       message = error.message ?? 'Unable to send reset email.';
@@ -332,6 +332,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Text('Login'),
                     ),
 
@@ -358,6 +362,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Icon(Icons.g_mobiledata, size: 28),
                       label: Text(
                         _isGoogleLoading

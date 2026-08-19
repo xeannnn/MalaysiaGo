@@ -7,7 +7,11 @@ class AppBottomBar extends StatelessWidget {
   final BottomTab selected;
   final ValueChanged<BottomTab> onSelect;
 
-  const AppBottomBar({super.key, required this.selected, required this.onSelect});
+  const AppBottomBar({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,10 +25,12 @@ class AppBottomBar extends StatelessWidget {
       selectedFontSize: 11,
       unselectedFontSize: 11,
       items: BottomTab.values
-          .map((tab) => BottomNavigationBarItem(
-        icon: Text(tab.emoji, style: const TextStyle(fontSize: 18)),
-        label: tab.label,
-      ))
+          .map(
+            (tab) => BottomNavigationBarItem(
+              icon: Text(tab.emoji, style: const TextStyle(fontSize: 18)),
+              label: tab.label,
+            ),
+          )
           .toList(),
     );
   }

@@ -30,6 +30,7 @@ out center;
 
     final query =
     """
+        """
 [out:json][timeout:25];
 
 area["ISO3166-1"="MY"]->.searchArea;
@@ -121,6 +122,8 @@ out center;
             imageUrl:
             await ImageService.getHeritageImage(
                 tags["name"] ?? ""
+              await ImageService.getHeritageImage(
+          tags["name"] ?? ""
             ),
 
             tags: [category],
@@ -135,6 +138,7 @@ out center;
           );
         })
             .toList()
+        .toList()
     );
   }
 
@@ -157,4 +161,5 @@ out center;
 
     return "National";
   }
+}
 }

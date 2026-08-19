@@ -271,6 +271,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Text('Create Account'),
                     ),
                     const SizedBox(height: 12),
@@ -280,6 +284,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           : () {
                         Navigator.pop(context);
                       },
+                              Navigator.pop(context);
+                            },
                       child: const Text('Already have an account? Login'),
                     ),
                   ],

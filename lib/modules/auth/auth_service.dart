@@ -7,6 +7,8 @@ class AuthService {
   AuthService({FirebaseAuth? firebaseAuth, FirebaseFirestore? firestore})
       : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
@@ -23,6 +25,9 @@ class AuthService {
       email: email.trim(),
       password: password,
     );
+          email: email.trim(),
+          password: password,
+        );
 
     final User? user = credential.user;
 
@@ -55,7 +60,7 @@ class AuthService {
 
     await googleSignIn.initialize(
       serverClientId:
-      '280746057244-egjn1iq2f3e06us8r2nt9ti5kvo1vli7.apps.googleusercontent.com',
+          '280746057244-egjn1iq2f3e06us8r2nt9ti5kvo1vli7.apps.googleusercontent.com',
     );
 
     final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
