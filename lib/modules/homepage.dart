@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../widgets/app_header.dart';
+import 'heritage_explorer.dart';
 
 /// Home screen. Order top to bottom:
 /// AppHeader -> WelcomeCard -> QuickActionsRow -> ExploreGuideCard
@@ -9,7 +10,13 @@ import '../widgets/app_header.dart';
 /// are completed) — passed down from MainScreen in main.dart.
 class HomeScreen extends StatelessWidget {
   final int totalXp;
-  const HomeScreen({super.key, required this.totalXp});
+  final ValueChanged<BottomTab> onTabSelected;
+
+  const HomeScreen({
+    super.key,
+    required this.totalXp,
+    required this.onTabSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +55,20 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 16),
               const QuickActionsRow(),
               const SizedBox(height: 16),
-              const ExploreGuideCard(),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => HeritageExplorerScreen(
+                        totalXp: totalXp,
+                        onTabSelected: onTabSelected,
+                      ),
+                    ),
+                  );
+                },
+                child: const ExploreGuideCard(),
+              ),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

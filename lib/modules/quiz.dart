@@ -52,6 +52,33 @@ class QuizSite {
   });
 }
 
+/// A record of one completed quiz attempt — used to block retakes and
+/// to power the quiz history/scores screen.
+class QuizAttempt {
+  final String siteId;
+  final String siteName;
+  final String siteIcon;
+  final int correctCount;
+  final int totalQuestions;
+  final int xpEarned;
+  final DateTime completedAt;
+
+  const QuizAttempt({
+    required this.siteId,
+    required this.siteName,
+    required this.siteIcon,
+    required this.correctCount,
+    required this.totalQuestions,
+    required this.xpEarned,
+    required this.completedAt,
+  });
+}
+
+/// Called when a quiz is finished. MainScreen (main.dart) uses this to
+/// add the XP to the running total, mark the site as completed so it
+/// can't be retaken, and record a QuizAttempt for the history screen.
+typedef QuizCompleteCallback = void Function(QuizAttempt attempt);
+
 // ========================= QUESTION RETRIEVAL =========================
 
 /// Retrieves quiz site info and quiz questions for a given heritage
@@ -232,8 +259,8 @@ class QuizRepository {
 /// without real location data wired up yet.
 class QuizIntroScreen extends StatelessWidget {
   final String siteId;
-  final ValueChanged<int> onXpEarned;
-  const QuizIntroScreen({super.key, required this.siteId, required this.onXpEarned});
+  final QuizCompleteCallback onQuizComplete;
+  const QuizIntroScreen({super.key, required this.siteId, required this.onQuizComplete});
 
   @override
   Widget build(BuildContext context) {
@@ -391,7 +418,7 @@ class QuizIntroScreen extends StatelessWidget {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           fullscreenDialog: true,
-                          builder: (_) => QuizScreen(siteId: siteId, onXpEarned: onXpEarned),
+                          builder: (_) => QuizScreen(siteId: siteId, onQuizComplete: onQuizComplete),
                         ),
                       );
                     },
@@ -449,8 +476,8 @@ class _StatBox extends StatelessWidget {
 /// purely presentation + answer-state logic.
 class QuizScreen extends StatefulWidget {
   final String siteId;
-  final ValueChanged<int> onXpEarned;
-  const QuizScreen({super.key, required this.siteId, required this.onXpEarned});
+  final QuizCompleteCallback onQuizComplete;
+  const QuizScreen({super.key, required this.siteId, required this.onQuizComplete});
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -464,6 +491,7 @@ class _QuizScreenState extends State<QuizScreen> {
   int? _selectedIndex;
   bool _answered = false;
   int _xpEarned = 0;
+  int _correctCount = 0;
 
   QuizQuestion get _current => _questions[_currentIndex];
   bool get _isLastQuestion => _currentIndex == _questions.length - 1;
@@ -475,13 +503,22 @@ class _QuizScreenState extends State<QuizScreen> {
       _answered = true;
       if (index == _current.correctIndex) {
         _xpEarned += _current.xpReward;
+        _correctCount++;
       }
     });
   }
 
   void _nextQuestion() {
     if (_isLastQuestion) {
-      widget.onXpEarned(_xpEarned);
+      widget.onQuizComplete(QuizAttempt(
+        siteId: widget.siteId,
+        siteName: _site?.name ?? '',
+        siteIcon: _site?.icon ?? '📍',
+        correctCount: _correctCount,
+        totalQuestions: _questions.length,
+        xpEarned: _xpEarned,
+        completedAt: DateTime.now(),
+      ));
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => QuizCompleteScreen(
@@ -843,6 +880,139 @@ class QuizCompleteScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+// ============================ HISTORY SCREEN ============================
+
+/// Shows every completed quiz attempt with its score and XP earned —
+/// reachable via the "History" button on the Map screen.
+class QuizHistoryScreen extends StatelessWidget {
+  final List<QuizAttempt> attempts;
+  const QuizHistoryScreen({super.key, required this.attempts});
+
+  @override
+  Widget build(BuildContext context) {
+    // Most recent first.
+    final sorted = List<QuizAttempt>.from(attempts)
+      ..sort((a, b) => b.completedAt.compareTo(a.completedAt));
+    final totalXp = attempts.fold<int>(0, (sum, a) => sum + a.xpEarned);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F7),
+      appBar: AppBar(
+        title: const Text('Quiz History', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
+      body: sorted.isEmpty
+          ? Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('📋', style: TextStyle(fontSize: 40)),
+              const SizedBox(height: 8),
+              Text('No quizzes completed yet',
+                  style: TextStyle(fontSize: 15, color: Colors.grey[600]), textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      )
+          : ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F8A5F),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Quizzes Completed',
+                        style: TextStyle(fontSize: 12, color: Colors.white70)),
+                    Text('${sorted.length}',
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('Total XP Earned',
+                        style: TextStyle(fontSize: 12, color: Colors.white70)),
+                    Text('+$totalXp',
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFFBBF24))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...sorted.map((attempt) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _AttemptCard(attempt: attempt),
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttemptCard extends StatelessWidget {
+  final QuizAttempt attempt;
+  const _AttemptCard({required this.attempt});
+
+  @override
+  Widget build(BuildContext context) {
+    final scorePercent = attempt.totalQuestions == 0
+        ? 0
+        : ((attempt.correctCount / attempt.totalQuestions) * 100).round();
+    final date = attempt.completedAt;
+    final dateLabel = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E5EA)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(12)),
+            alignment: Alignment.center,
+            child: Text(attempt.siteIcon, style: const TextStyle(fontSize: 20)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(attempt.siteName,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
+                const SizedBox(height: 2),
+                Text('$dateLabel · ${attempt.correctCount}/${attempt.totalQuestions} correct ($scorePercent%)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              ],
+            ),
+          ),
+          Text('+${attempt.xpEarned} XP',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFB8720A))),
+        ],
       ),
     );
   }

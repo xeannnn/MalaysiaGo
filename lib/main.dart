@@ -7,6 +7,7 @@ import 'modules/homepage.dart';
 import 'modules/mappage.dart';
 import 'modules/passport.dart';
 import 'modules/placeholder.dart';
+import 'modules/quiz.dart';
 import 'widgets/app_bottom_bar.dart';
 import 'modules/auth/login_screen.dart';
 
@@ -60,17 +61,33 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   BottomTab _selectedTab = BottomTab.home;
   int _totalXp = 0;
+  final Set<String> _completedQuizIds = {};
+  final List<QuizAttempt> _quizHistory = [];
 
-  void _addXp(int amount) {
-    setState(() => _totalXp += amount);
+  void _handleQuizComplete(QuizAttempt attempt) {
+    setState(() {
+      _totalXp += attempt.xpEarned;
+      _completedQuizIds.add(attempt.siteId);
+      _quizHistory.add(attempt);
+    });
   }
 
   Widget _buildBody() {
     switch (_selectedTab) {
       case BottomTab.home:
-        return HomeScreen(totalXp: _totalXp);
+        return HomeScreen(
+          totalXp: _totalXp,
+          onTabSelected: (tab) {
+            setState(() => _selectedTab = tab);
+          },
+        );
       case BottomTab.map:
-        return MapScreen(totalXp: _totalXp, onXpEarned: _addXp);
+        return MapScreen(
+          totalXp: _totalXp,
+          completedQuizIds: _completedQuizIds,
+          quizHistory: _quizHistory,
+          onQuizComplete: _handleQuizComplete,
+        );
       case BottomTab.passport:
         return const PassportScreen();
       default:
