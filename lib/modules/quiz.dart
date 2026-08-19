@@ -52,6 +52,33 @@ class QuizSite {
   });
 }
 
+/// A record of one completed quiz attempt — used to block retakes and
+/// to power the quiz history/scores screen.
+class QuizAttempt {
+  final String siteId;
+  final String siteName;
+  final String siteIcon;
+  final int correctCount;
+  final int totalQuestions;
+  final int xpEarned;
+  final DateTime completedAt;
+
+  const QuizAttempt({
+    required this.siteId,
+    required this.siteName,
+    required this.siteIcon,
+    required this.correctCount,
+    required this.totalQuestions,
+    required this.xpEarned,
+    required this.completedAt,
+  });
+}
+
+/// Called when a quiz is finished. MainScreen (main.dart) uses this to
+/// add the XP to the running total, mark the site as completed so it
+/// can't be retaken, and record a QuizAttempt for the history screen.
+typedef QuizCompleteCallback = void Function(QuizAttempt attempt);
+
 // ========================= QUESTION RETRIEVAL =========================
 
 /// Retrieves quiz site info and quiz questions for a given heritage
@@ -101,6 +128,51 @@ class QuizRepository {
       category: 'National',
       description: 'Historic square where Malaysia\'s independence was declared in 1957',
       difficulty: 'Easy',
+    ),
+    'masjid_zahir': const QuizSite(
+      id: 'masjid_zahir',
+      icon: '🕌',
+      name: 'Zahir Mosque',
+      location: 'Kedah · Religious',
+      category: 'Religious',
+      description: 'One of Malaysia\'s oldest and grandest mosques, completed in 1912',
+      difficulty: 'Easy',
+    ),
+    'lenggong_valley': const QuizSite(
+      id: 'lenggong_valley',
+      icon: '🏺',
+      name: 'Lenggong Valley',
+      location: 'Perak · UNESCO',
+      category: 'UNESCO',
+      description: 'UNESCO-listed archaeological valley where "Perak Man" was discovered',
+      difficulty: 'Medium',
+    ),
+    'crystal_mosque': const QuizSite(
+      id: 'crystal_mosque',
+      icon: '🕌',
+      name: 'Crystal Mosque',
+      location: 'Terengganu · Religious',
+      category: 'Religious',
+      description: 'A steel-and-glass mosque on an island in the Terengganu River',
+      difficulty: 'Easy',
+    ),
+    'taman_negara': const QuizSite(
+      id: 'taman_negara',
+      icon: '🌳',
+      name: 'Taman Negara',
+      location: 'Pahang · Nature',
+      category: 'Nature',
+      description: 'Widely cited as one of the world\'s oldest rainforests',
+      difficulty: 'Medium',
+    ),
+    'sultan_abu_bakar_mosque': const QuizSite(
+      id: 'sultan_abu_bakar_mosque',
+      icon: '🕌',
+      name: 'Sultan Abu Bakar State Mosque',
+      location: 'Johor · Religious',
+      category: 'Religious',
+      description: 'A Victorian-Moorish mosque overlooking the Johor Strait',
+      difficulty: 'Medium',
     ),
   };
 
@@ -209,6 +281,127 @@ class QuizRepository {
         xpReward: 26,
       ),
     ],
+    'masjid_zahir': const [
+      QuizQuestion(
+        question: 'In what year was Zahir Mosque completed?',
+        options: ['1887', '1912', '1935', '1957'],
+        correctIndex: 1,
+        explanation: 'Zahir Mosque was completed in 1912, commissioned by the Sultan of Kedah.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'Zahir Mosque\'s five black domes are said to represent what in Islam?',
+        options: ['The Five Pillars of Islam', 'The five daily prayers only', 'The five founders of Kedah', 'The five states of Malaysia'],
+        correctIndex: 0,
+        explanation: 'The mosque\'s five domes are widely said to symbolise the Five Pillars of Islam.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'Zahir Mosque was built on ground with what earlier significance?',
+        options: [
+          'The burial site of Kedah warriors who died fighting Siamese forces in 1821',
+          'The site of the first Kedah royal palace',
+          'A former British army barracks',
+          'An ancient Buddhist temple ruin',
+        ],
+        correctIndex: 0,
+        explanation:
+        'The mosque stands where Kedah warriors killed defending the state against Siamese invasion in 1821 were laid to rest.',
+        xpReward: 30,
+      ),
+    ],
+    'lenggong_valley': const [
+      QuizQuestion(
+        question: 'In what year was Lenggong Valley inscribed as a UNESCO World Heritage Site?',
+        options: ['2000', '2008', '2012', '2019'],
+        correctIndex: 2,
+        explanation: 'Lenggong Valley was inscribed by UNESCO in 2012 for its exceptional prehistoric record.',
+        xpReward: 40,
+      ),
+      QuizQuestion(
+        question: 'The skeleton known as "Perak Man," found in Lenggong Valley, is estimated to be roughly how old?',
+        options: ['5,000 years', '8,000 years', '11,000 years', '20,000 years'],
+        correctIndex: 2,
+        explanation: 'Perak Man is estimated at around 11,000 years old, one of the most complete prehistoric skeletons found in Southeast Asia.',
+        xpReward: 40,
+      ),
+      QuizQuestion(
+        question: 'Perak Man was discovered in what type of site?',
+        options: ['A limestone cave', 'A riverbank rice field', 'A hilltop temple ruin', 'A coastal shell midden'],
+        correctIndex: 0,
+        explanation: 'Perak Man was unearthed in Gua Gunung Runtuh, a limestone cave within the Lenggong Valley.',
+        xpReward: 40,
+      ),
+    ],
+    'crystal_mosque': const [
+      QuizQuestion(
+        question: 'In what year did the Crystal Mosque officially open?',
+        options: ['1998', '2003', '2008', '2015'],
+        correctIndex: 2,
+        explanation: 'The Crystal Mosque opened in 2008 as part of the Islamic Heritage Park in Kuala Terengganu.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'What modern materials give the Crystal Mosque its name?',
+        options: ['Steel and glass', 'Marble and gold leaf', 'Bamboo and thatch', 'Granite and copper'],
+        correctIndex: 0,
+        explanation: 'Its steel-and-glass structure, which catches and reflects light, gives the mosque its "crystal" name.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'The Crystal Mosque sits on an island within which river?',
+        options: ['Terengganu River', 'Pahang River', 'Perak River', 'Kelantan River'],
+        correctIndex: 0,
+        explanation: 'The mosque is built on Wan Man Island in the Terengganu River.',
+        xpReward: 30,
+      ),
+    ],
+    'taman_negara': const [
+      QuizQuestion(
+        question: 'Taman Negara is often cited as one of the world\'s oldest rainforests — roughly how old is it estimated to be?',
+        options: ['10 million years', '50 million years', '130 million years', '500 million years'],
+        correctIndex: 2,
+        explanation: 'Taman Negara\'s rainforest is estimated at around 130 million years old, older than the Amazon.',
+        xpReward: 37,
+      ),
+      QuizQuestion(
+        question: 'Taman Negara is home to a canopy walkway considered among the longest in the world — roughly how long is it?',
+        options: ['Around 100 metres', 'Around 250 metres', 'Over 500 metres', 'Over 2 kilometres'],
+        correctIndex: 2,
+        explanation: 'The canopy walkway near Kuala Tahan stretches over 500 metres, strung high above the forest floor.',
+        xpReward: 37,
+      ),
+      QuizQuestion(
+        question: 'Which village serves as the main gateway for treks into Taman Negara?',
+        options: ['Kuala Tahan', 'Kuala Besut', 'Kuala Kubu Bharu', 'Kuala Lipis'],
+        correctIndex: 0,
+        explanation: 'Kuala Tahan, where the Tahan and Tembeling rivers meet, is the usual starting point for the park.',
+        xpReward: 36,
+      ),
+    ],
+    'sultan_abu_bakar_mosque': const [
+      QuizQuestion(
+        question: 'Sultan Abu Bakar State Mosque is named after the Johor ruler often called the "Father of Modern Johor" — who was he?',
+        options: ['Sultan Abu Bakar', 'Sultan Ibrahim', 'Sultan Iskandar', 'Sultan Mahmud Shah'],
+        correctIndex: 0,
+        explanation: 'The mosque honours Sultan Abu Bakar, credited with modernising Johor in the late 19th century.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'The mosque overlooks which strait, with views toward Singapore?',
+        options: ['Johor Strait', 'Malacca Strait', 'Penang Strait', 'Karimata Strait'],
+        correctIndex: 0,
+        explanation: 'Perched on a hill in Johor Bahru, the mosque looks out over the Johor Strait.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'The mosque\'s architecture is an unusual blend of Islamic style with which other influence?',
+        options: ['Victorian British', 'Japanese', 'Spanish colonial', 'Scandinavian'],
+        correctIndex: 0,
+        explanation: 'Built between 1892 and 1900, it combines Moorish Islamic elements with Victorian British architectural style.',
+        xpReward: 30,
+      ),
+    ],
   };
 
   /// Returns site metadata for the quiz intro card, or null if no
@@ -232,8 +425,8 @@ class QuizRepository {
 /// without real location data wired up yet.
 class QuizIntroScreen extends StatelessWidget {
   final String siteId;
-  final ValueChanged<int> onXpEarned;
-  const QuizIntroScreen({super.key, required this.siteId, required this.onXpEarned});
+  final QuizCompleteCallback onQuizComplete;
+  const QuizIntroScreen({super.key, required this.siteId, required this.onQuizComplete});
 
   @override
   Widget build(BuildContext context) {
@@ -391,7 +584,7 @@ class QuizIntroScreen extends StatelessWidget {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           fullscreenDialog: true,
-                          builder: (_) => QuizScreen(siteId: siteId, onXpEarned: onXpEarned),
+                          builder: (_) => QuizScreen(siteId: siteId, onQuizComplete: onQuizComplete),
                         ),
                       );
                     },
@@ -449,8 +642,8 @@ class _StatBox extends StatelessWidget {
 /// purely presentation + answer-state logic.
 class QuizScreen extends StatefulWidget {
   final String siteId;
-  final ValueChanged<int> onXpEarned;
-  const QuizScreen({super.key, required this.siteId, required this.onXpEarned});
+  final QuizCompleteCallback onQuizComplete;
+  const QuizScreen({super.key, required this.siteId, required this.onQuizComplete});
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -464,6 +657,7 @@ class _QuizScreenState extends State<QuizScreen> {
   int? _selectedIndex;
   bool _answered = false;
   int _xpEarned = 0;
+  int _correctCount = 0;
 
   QuizQuestion get _current => _questions[_currentIndex];
   bool get _isLastQuestion => _currentIndex == _questions.length - 1;
@@ -475,13 +669,22 @@ class _QuizScreenState extends State<QuizScreen> {
       _answered = true;
       if (index == _current.correctIndex) {
         _xpEarned += _current.xpReward;
+        _correctCount++;
       }
     });
   }
 
   void _nextQuestion() {
     if (_isLastQuestion) {
-      widget.onXpEarned(_xpEarned);
+      widget.onQuizComplete(QuizAttempt(
+        siteId: widget.siteId,
+        siteName: _site?.name ?? '',
+        siteIcon: _site?.icon ?? '📍',
+        correctCount: _correctCount,
+        totalQuestions: _questions.length,
+        xpEarned: _xpEarned,
+        completedAt: DateTime.now(),
+      ));
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => QuizCompleteScreen(
@@ -843,6 +1046,139 @@ class QuizCompleteScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+// ============================ HISTORY SCREEN ============================
+
+/// Shows every completed quiz attempt with its score and XP earned —
+/// reachable via the "History" button on the Map screen.
+class QuizHistoryScreen extends StatelessWidget {
+  final List<QuizAttempt> attempts;
+  const QuizHistoryScreen({super.key, required this.attempts});
+
+  @override
+  Widget build(BuildContext context) {
+    // Most recent first.
+    final sorted = List<QuizAttempt>.from(attempts)
+      ..sort((a, b) => b.completedAt.compareTo(a.completedAt));
+    final totalXp = attempts.fold<int>(0, (sum, a) => sum + a.xpEarned);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F7),
+      appBar: AppBar(
+        title: const Text('Quiz History', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
+      body: sorted.isEmpty
+          ? Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('📋', style: TextStyle(fontSize: 40)),
+              const SizedBox(height: 8),
+              Text('No quizzes completed yet',
+                  style: TextStyle(fontSize: 15, color: Colors.grey[600]), textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      )
+          : ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F8A5F),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Quizzes Completed',
+                        style: TextStyle(fontSize: 12, color: Colors.white70)),
+                    Text('${sorted.length}',
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('Total XP Earned',
+                        style: TextStyle(fontSize: 12, color: Colors.white70)),
+                    Text('+$totalXp',
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFFBBF24))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...sorted.map((attempt) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _AttemptCard(attempt: attempt),
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttemptCard extends StatelessWidget {
+  final QuizAttempt attempt;
+  const _AttemptCard({required this.attempt});
+
+  @override
+  Widget build(BuildContext context) {
+    final scorePercent = attempt.totalQuestions == 0
+        ? 0
+        : ((attempt.correctCount / attempt.totalQuestions) * 100).round();
+    final date = attempt.completedAt;
+    final dateLabel = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E5EA)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(12)),
+            alignment: Alignment.center,
+            child: Text(attempt.siteIcon, style: const TextStyle(fontSize: 20)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(attempt.siteName,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black)),
+                const SizedBox(height: 2),
+                Text('$dateLabel · ${attempt.correctCount}/${attempt.totalQuestions} correct ($scorePercent%)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              ],
+            ),
+          ),
+          Text('+${attempt.xpEarned} XP',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFB8720A))),
+        ],
       ),
     );
   }
