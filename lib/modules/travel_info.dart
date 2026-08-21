@@ -67,12 +67,20 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
         children: const [
           Text(
             'Essential Reading',
-            style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           SizedBox(height: 4),
           Text(
             'Travel in Malaysia',
-            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           SizedBox(height: 4),
           Text(
@@ -111,12 +119,12 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: isSelected
                       ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
                       : [],
                 ),
                 child: Column(
@@ -124,14 +132,18 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                     Icon(
                       tabs[index]['icon'] as IconData,
                       size: 20,
-                      color: isSelected ? const Color(0xFF1E3C72) : Colors.black45,
+                      color: isSelected
+                          ? const Color(0xFF1E3C72)
+                          : Colors.black45,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       tabs[index]['label'] as String,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                         color: isSelected ? Colors.black : Colors.black54,
                       ),
                     ),
@@ -155,7 +167,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           headerColor: Color(0xFFDCEBFE),
           badgeColor: Color(0xFF2563EB),
           description:
-          'Intercity rail linking KL Sentral to Seremban, Rawang, Port Klang, and Batu Caves. Ideal for visiting suburban heritage sites.',
+              'Intercity rail linking KL Sentral to Seremban, Rawang, Port Klang, and Batu Caves. Ideal for visiting suburban heritage sites.',
           tips: [
             'Buy a Touch \'n Go card for seamless travel across all rail lines',
             'Trains run approx every 20–30 min; check MyRapid app for live schedules',
@@ -169,7 +181,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           headerColor: Color(0xFFEDE9FE),
           badgeColor: Color(0xFF7C3AED),
           description:
-          'Urban metro network covering Kuala Lumpur and the Klang Valley. MRT Putrajaya Line, Kajang Line, and LRT Kelana Jaya & Ampang lines.',
+              'Urban metro network covering Kuala Lumpur and the Klang Valley. MRT Putrajaya Line, Kajang Line, and LRT Kelana Jaya & Ampang lines.',
           tips: [
             'Runs from ~6 AM to midnight daily',
             'Women-only coaches are marked — please respect the signage',
@@ -183,7 +195,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           headerColor: Color(0xFFE0F2FE),
           badgeColor: Color(0xFF0284C7),
           description:
-          'Extensive bus network across the Klang Valley. GoKL City Bus offers free service within central KL on 4 colour-coded routes.',
+              'Extensive bus network across the Klang Valley. GoKL City Bus offers free service within central KL on 4 colour-coded routes.',
           tips: [
             'GoKL routes (Red, Blue, Green, Purple) are free — great for heritage areas',
             'Download MyRapid or Moovit app for real-time bus tracking',
@@ -197,7 +209,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           headerColor: Color(0xFFDCFCE7),
           badgeColor: Color(0xFF16A34A),
           description:
-          'Southeast Asia\'s leading ride-hailing app. Available in all major Malaysian cities, including airport transfers and food delivery.',
+              'Southeast Asia\'s leading ride-hailing app. Available in all major Malaysian cities, including airport transfers and food delivery.',
           tips: [
             'Book via the Grab app; payment by card, e-wallet, or cash',
             'GrabCar Pool is the most affordable option for solo travellers',
@@ -211,7 +223,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           headerColor: Color(0xFFFEF3C7),
           badgeColor: Color(0xFFD97706),
           description:
-          'Long-distance buses connect KL to Penang, Malacca, Ipoh, JB, and East Malaysia. Operators: Transnational, Aeroline, CatchThatBus.',
+              'Long-distance buses connect KL to Penang, Malacca, Ipoh, JB, and East Malaysia. Operators: Transnational, Aeroline, CatchThatBus.',
           tips: [
             'Book via CatchThatBus or BusOnlineTicket for the best prices',
             'Premium coach seats recline flat — worth it for overnight journeys',
@@ -225,7 +237,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           headerColor: Color(0xFFE0F2FE),
           badgeColor: Color(0xFF0284C7),
           description:
-          'Essential for island destinations: Langkawi (from Kuala Kedah/Kuala Perlis), Penang (from Butterworth), and Perhentian Islands.',
+              'Essential for island destinations: Langkawi (from Kuala Kedah/Kuala Perlis), Penang (from Butterworth), and Perhentian Islands.',
           tips: [
             'Langkawi ferries run multiple times daily; book in advance during school holidays',
             'Penang ferry from Butterworth takes just 20 min (pedestrians only)',
@@ -478,14 +490,20 @@ class _TransportCard extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: headerColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
             ),
             child: Row(
               children: [
                 CircleAvatar(
                   backgroundColor: badgeColor,
                   radius: 16,
-                  child: const Icon(Icons.directions_subway, size: 18, color: Colors.white),
+                  child: const Icon(
+                    Icons.directions_subway,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Column(
@@ -519,7 +537,11 @@ class _TransportCard extends StatelessWidget {
               children: [
                 Text(
                   description,
-                  style: const TextStyle(fontSize: 12.5, color: Colors.black87, height: 1.3),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: Colors.black87,
+                    height: 1.3,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 ...List.generate(tips.length, (index) {
@@ -544,7 +566,10 @@ class _TransportCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             tips[index],
-                            style: const TextStyle(fontSize: 11.5, color: Colors.black87),
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: Colors.black87,
+                            ),
                           ),
                         ),
                       ],
@@ -595,7 +620,9 @@ class _EtiquetteCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: headerColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
             ),
             child: Row(
               children: [
@@ -696,7 +723,9 @@ class _SafetyCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: headerColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
             ),
             child: Row(
               children: [
@@ -713,7 +742,10 @@ class _SafetyCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: badgeBgColor,
                     borderRadius: BorderRadius.circular(12),

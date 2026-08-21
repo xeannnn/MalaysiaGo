@@ -1,17 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models.dart';
+import '../services/achievement_provider.dart';
 import '../widgets/app_header.dart';
 import 'heritage_explorer.dart';
 
-/// Home screen. Order top to bottom:
-/// AppHeader -> WelcomeCard -> QuickActionsRow -> ExploreGuideCard
-/// -> Daily Missions -> Weekly Rankings.
-///
-/// `totalXp` is the user's current XP (starts at 0, grows as quizzes
-/// are completed) — passed down from MainScreen in main.dart.
+/// Home screen.
 class HomeScreen extends StatefulWidget {
   final int totalXp;
   final ValueChanged<BottomTab> onTabSelected;
@@ -81,6 +78,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final AchievementProvider provider =
+    Provider.of<AchievementProvider>(context);
+
+    // Real achievement data from provider.
+    final int completedBadges = provider.completedBadges;
+    final int level = provider.level.level;
+    final int xpToNext = provider.xpToNextLevel;
+    final int currentXp = provider.totalXp;
+    final String levelTitle = provider.level.title;
+
+    // Total heritage sites visited.
+    int pieces = 0;
+
+    for (final sites in provider.visitedSites.values) {
+      pieces += sites.length;
+    }
+
+    // Number of states with at least one visited site.
+    final int states = provider.visitedSites.values
+        .where((sites) => sites.isNotEmpty)
+        .length;
+
     const missions = [
       Mission(
         '📍',
@@ -148,44 +167,58 @@ class _HomeScreenState extends State<HomeScreen> {
         AppHeader(
           title: 'MalaysiaGO',
           subtitle: 'Your Heritage Journey 🇲🇾',
-          xp: '${widget.totalXp}',
+          xp: '$currentXp',
         ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+            ),
             children: [
               WelcomeCard(
-                name: _isLoadingName ? 'Loading...' : _userName,
+                name: _isLoadingName
+                    ? 'Loading...'
+                    : _userName,
                 avatarEmoji: '🤓',
-                level: 6,
-                nextLevel: 7,
+                level: level,
+                nextLevel: level + 1,
                 streakDays: 7,
-                currentXp: widget.totalXp,
-                xpToNextLevel: 1500,
-                badges: 5,
-                pieces: 24,
-                states: 5,
+                currentXp: currentXp,
+                xpToNextLevel: xpToNext,
+                badges: completedBadges,
+                pieces: pieces,
+                states: states,
+                levelTitle: levelTitle,
               ),
+
               const SizedBox(height: 16),
+
               const QuickActionsRow(),
+
               const SizedBox(height: 16),
+
               GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => HeritageExplorerScreen(
-                        totalXp: widget.totalXp,
-                        onTabSelected: widget.onTabSelected,
-                      ),
+                    MaterialPageRoute<void>(
+                      builder: (context) =>
+                          HeritageExplorerScreen(
+                            totalXp: currentXp,
+                            onTabSelected:
+                            widget.onTabSelected,
+                          ),
                     ),
                   );
                 },
                 child: const ExploreGuideCard(),
               ),
+
               const SizedBox(height: 20),
+
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'Daily Missions',
@@ -195,13 +228,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
+                    padding:
+                    const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFDECC8),
-                      borderRadius: BorderRadius.circular(12),
+                      color:
+                      const Color(0xFFFDECC8),
+                      borderRadius:
+                      BorderRadius.circular(12),
                     ),
                     child: const Text(
                       '1/4 Done',
@@ -213,14 +249,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
+
               const SizedBox(height: 12),
+
               ...missions.map(
-                    (m) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: MissionCard(mission: m),
+                    (mission) => Padding(
+                  padding:
+                  const EdgeInsets.only(
+                    bottom: 10,
+                  ),
+                  child:
+                  MissionCard(mission: mission),
                 ),
               ),
+
               const SizedBox(height: 16),
+
               const Text(
                 'Weekly Rankings',
                 style: TextStyle(
@@ -228,13 +272,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
               const SizedBox(height: 12),
+
               ...rankings.map(
-                    (r) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: RankRow(entry: r),
+                    (ranking) => Padding(
+                  padding:
+                  const EdgeInsets.only(
+                    bottom: 8,
+                  ),
+                  child:
+                  RankRow(entry: ranking),
                 ),
               ),
+
               const SizedBox(height: 24),
             ],
           ),
@@ -244,7 +295,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ---------- Welcome / profile card ----------
+// =====================================================
+// Welcome / Profile Card
+// =====================================================
 
 class WelcomeCard extends StatelessWidget {
   final String name;
@@ -257,6 +310,7 @@ class WelcomeCard extends StatelessWidget {
   final int badges;
   final int pieces;
   final int states;
+  final String levelTitle;
 
   const WelcomeCard({
     super.key,
@@ -270,11 +324,18 @@ class WelcomeCard extends StatelessWidget {
     required this.badges,
     required this.pieces,
     required this.states,
+    this.levelTitle = 'Heritage Adventurer',
   });
 
   @override
   Widget build(BuildContext context) {
-    final progress = (currentXp / xpToNextLevel).clamp(0.0, 1.0);
+    double progress = 0;
+
+    if (xpToNextLevel > 0) {
+      progress =
+          (currentXp / xpToNextLevel)
+              .clamp(0.0, 1.0);
+    }
 
     return Container(
       width: double.infinity,
@@ -291,115 +352,178 @@ class WelcomeCard extends StatelessWidget {
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            mainAxisAlignment:
+            MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Stack(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          avatarEmoji,
-                          style: const TextStyle(fontSize: 26),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF5A623),
-                            shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.center,
+                  children: [
+                    Stack(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration:
+                          BoxDecoration(
+                            color: Colors.white
+                                .withOpacity(0.15),
+                            shape:
+                            BoxShape.circle,
                           ),
-                          alignment: Alignment.center,
+                          alignment:
+                          Alignment.center,
                           child: Text(
-                            '$level',
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                            avatarEmoji,
+                            style:
+                            const TextStyle(
+                              fontSize: 26,
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Selamat Datang,',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.75),
-                        ),
-                      ),
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5A623),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '✦ Level $level',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration:
+                            const BoxDecoration(
+                              color: Color(
+                                0xFFF5A623,
+                              ),
+                              shape:
+                              BoxShape.circle,
+                            ),
+                            alignment:
+                            Alignment.center,
+                            child: Text(
+                              '$level',
+                              style:
+                              const TextStyle(
+                                fontSize: 9,
+                                fontWeight:
+                                FontWeight.bold,
+                                color:
+                                Colors.white,
+                              ),
+                            ),
                           ),
                         ),
+                      ],
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
+                        children: [
+                          Text(
+                            'Selamat Datang,',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white
+                                  .withOpacity(
+                                  0.75),
+                            ),
+                          ),
+                          Text(
+                            name,
+                            overflow:
+                            TextOverflow
+                                .ellipsis,
+                            maxLines: 1,
+                            style:
+                            const TextStyle(
+                              fontSize: 17,
+                              fontWeight:
+                              FontWeight.bold,
+                              color:
+                              Colors.white,
+                            ),
+                          ),
+
+                          const SizedBox(
+                            height: 4,
+                          ),
+
+                          Container(
+                            padding:
+                            const EdgeInsets
+                                .symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration:
+                            BoxDecoration(
+                              color: const Color(
+                                0xFFF5A623,
+                              ),
+                              borderRadius:
+                              BorderRadius
+                                  .circular(10),
+                            ),
+                            child: Text(
+                              '✦ Level $level',
+                              style:
+                              const TextStyle(
+                                fontSize: 10,
+                                fontWeight:
+                                FontWeight.bold,
+                                color:
+                                Colors.white,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(
+                            height: 4,
+                          ),
+
+                          Text(
+                            levelTitle,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.white
+                                  .withOpacity(0.7),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Heritage Adventurer',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
+
+              const SizedBox(width: 8),
+
               Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment:
+                CrossAxisAlignment.end,
                 children: [
                   const Text(
                     '🔥',
-                    style: TextStyle(fontSize: 18),
+                    style: TextStyle(
+                      fontSize: 18,
+                    ),
                   ),
                   Text(
                     '${streakDays}d',
-                    style: const TextStyle(
+                    style:
+                    const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontWeight:
+                      FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
@@ -407,15 +531,21 @@ class WelcomeCard extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 16),
+
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment:
+            MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'XP to Level $nextLevel',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white.withOpacity(0.75),
+                  color:
+                  Colors.white.withOpacity(
+                    0.75,
+                  ),
                 ),
               ),
               Text(
@@ -428,21 +558,29 @@ class WelcomeCard extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 6),
+
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius:
+            BorderRadius.circular(4),
             child: Stack(
               children: [
                 Container(
                   height: 7,
-                  color: Colors.white.withOpacity(0.2),
+                  color:
+                  Colors.white.withOpacity(
+                    0.2,
+                  ),
                 ),
                 FractionallySizedBox(
                   widthFactor: progress,
                   child: Container(
                     height: 7,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
+                    decoration:
+                    const BoxDecoration(
+                      gradient:
+                      LinearGradient(
                         colors: [
                           Color(0xFF34D6C7),
                           Color(0xFF8B5CF6),
@@ -454,7 +592,9 @@ class WelcomeCard extends StatelessWidget {
               ],
             ),
           ),
+
           const SizedBox(height: 16),
+
           Row(
             children: [
               Expanded(
@@ -488,6 +628,10 @@ class WelcomeCard extends StatelessWidget {
   }
 }
 
+// =====================================================
+// Stat Mini Card
+// =====================================================
+
 class StatMiniCard extends StatelessWidget {
   final String icon;
   final String value;
@@ -503,16 +647,23 @@ class StatMiniCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding:
+      const EdgeInsets.symmetric(
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
+        color:
+        Colors.white.withOpacity(0.12),
+        borderRadius:
+        BorderRadius.circular(14),
       ),
       child: Column(
         children: [
           Text(
             icon,
-            style: const TextStyle(fontSize: 16),
+            style: const TextStyle(
+              fontSize: 16,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -527,7 +678,10 @@ class StatMiniCard extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 10,
-              color: Colors.white.withOpacity(0.75),
+              color:
+              Colors.white.withOpacity(
+                0.75,
+              ),
             ),
           ),
         ],
@@ -536,10 +690,15 @@ class StatMiniCard extends StatelessWidget {
   }
 }
 
-// ---------- Quick action cards ----------
+// =====================================================
+// Quick Action Cards
+// =====================================================
 
-class QuickActionsRow extends StatelessWidget {
-  const QuickActionsRow({super.key});
+class QuickActionsRow
+    extends StatelessWidget {
+  const QuickActionsRow({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -549,7 +708,8 @@ class QuickActionsRow extends StatelessWidget {
           child: QuickActionCard(
             icon: '📷',
             title: 'Scan QR Code',
-            subtitle: 'Collect XP at sites',
+            subtitle:
+            'Collect XP at sites',
             colors: [
               Color(0xFF16A34A),
               Color(0xFF0D9488),
@@ -561,7 +721,8 @@ class QuickActionsRow extends StatelessWidget {
           child: QuickActionCard(
             icon: '🗺️',
             title: 'Nearby Sites',
-            subtitle: '3 sites within 5 km',
+            subtitle:
+            '3 sites within 5 km',
             colors: [
               Color(0xFF4F46E5),
               Color(0xFF7C3AED),
@@ -573,7 +734,8 @@ class QuickActionsRow extends StatelessWidget {
   }
 }
 
-class QuickActionCard extends StatelessWidget {
+class QuickActionCard
+    extends StatelessWidget {
   final String icon;
   final String title;
   final String subtitle;
@@ -592,15 +754,20 @@ class QuickActionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(colors: colors),
+        borderRadius:
+        BorderRadius.circular(16),
+        gradient:
+        LinearGradient(colors: colors),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
           Text(
             icon,
-            style: const TextStyle(fontSize: 18),
+            style: const TextStyle(
+              fontSize: 18,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -615,7 +782,10 @@ class QuickActionCard extends StatelessWidget {
             subtitle,
             style: TextStyle(
               fontSize: 10,
-              color: Colors.white.withOpacity(0.85),
+              color:
+              Colors.white.withOpacity(
+                0.85,
+              ),
             ),
           ),
         ],
@@ -624,10 +794,15 @@ class QuickActionCard extends StatelessWidget {
   }
 }
 
-// ---------- Traveller's Guide card ----------
+// =====================================================
+// Traveller's Guide Card
+// =====================================================
 
-class ExploreGuideCard extends StatelessWidget {
-  const ExploreGuideCard({super.key});
+class ExploreGuideCard
+    extends StatelessWidget {
+  const ExploreGuideCard({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -644,8 +819,10 @@ class ExploreGuideCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
+        borderRadius:
+        BorderRadius.circular(18),
+        gradient:
+        const LinearGradient(
           colors: [
             Color(0xFF4F46E5),
             Color(0xFF7C3AED),
@@ -653,53 +830,74 @@ class ExploreGuideCard extends StatelessWidget {
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
+                decoration:
+                BoxDecoration(
+                  color: Colors.white
+                      .withOpacity(0.15),
+                  borderRadius:
+                  BorderRadius
+                      .circular(12),
                 ),
-                alignment: Alignment.center,
+                alignment:
+                Alignment.center,
                 child: const Text(
                   '📖',
-                  style: TextStyle(fontSize: 18),
+                  style: TextStyle(
+                    fontSize: 18,
+                  ),
                 ),
               ),
+
               const SizedBox(width: 12),
+
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
                   children: [
                     Text(
                       'Explore Malaysia',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white.withOpacity(0.75),
+                        color: Colors.white
+                            .withOpacity(
+                          0.75,
+                        ),
                       ),
                     ),
                     const Text(
                       "Traveller's Guide",
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        fontWeight:
+                        FontWeight.bold,
+                        color:
+                        Colors.white,
                       ),
                     ),
                     Text(
                       '12 heritage sites · Transport · Etiquette · Safety',
                       style: TextStyle(
                         fontSize: 10,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white
+                            .withOpacity(
+                          0.8,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
+
               const Text(
                 '›',
                 style: TextStyle(
@@ -709,38 +907,66 @@ class ExploreGuideCard extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 14),
+
           SizedBox(
             height: 56,
             child: ListView.separated(
-              scrollDirection: Axis.horizontal,
+              scrollDirection:
+              Axis.horizontal,
               itemCount: chips.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (context, index) {
-                final chip = chips[index];
+              separatorBuilder:
+                  (_, __) =>
+              const SizedBox(
+                width: 10,
+              ),
+              itemBuilder:
+                  (context, index) {
+                final GuideChip chip =
+                chips[index];
 
                 return Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding:
+                  const EdgeInsets
+                      .symmetric(
                     horizontal: 12,
                     vertical: 8,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
+                  decoration:
+                  BoxDecoration(
+                    color: Colors.white
+                        .withOpacity(
+                      0.12,
+                    ),
+                    borderRadius:
+                    BorderRadius
+                        .circular(
+                      12,
+                    ),
                   ),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment:
+                    MainAxisAlignment
+                        .center,
                     children: [
                       Text(
                         chip.icon,
-                        style: const TextStyle(fontSize: 16),
+                        style:
+                        const TextStyle(
+                          fontSize: 16,
+                        ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(
+                        height: 2,
+                      ),
                       Text(
                         chip.label,
-                        style: const TextStyle(
+                        style:
+                        const TextStyle(
                           fontSize: 10,
-                          color: Colors.white,
+                          color:
+                          Colors.white,
                         ),
                       ),
                     ],
@@ -755,9 +981,12 @@ class ExploreGuideCard extends StatelessWidget {
   }
 }
 
-// ---------- Missions & rankings ----------
+// =====================================================
+// Mission Cards
+// =====================================================
 
-class MissionCard extends StatelessWidget {
+class MissionCard
+    extends StatelessWidget {
   final Mission mission;
 
   const MissionCard({
@@ -773,49 +1002,74 @@ class MissionCard extends StatelessWidget {
         color: mission.done
             ? const Color(0xFFE9F9EF)
             : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+        BorderRadius.circular(16),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment:
+        MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Text(
-                mission.icon,
-                style: const TextStyle(fontSize: 18),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    mission.title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: mission.done
-                          ? const Color(0xFF16A34A)
-                          : Colors.black,
-                    ),
+          Expanded(
+            child: Row(
+              children: [
+                Text(
+                  mission.icon,
+                  style: const TextStyle(
+                    fontSize: 18,
                   ),
-                  Text(
-                    mission.xp,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF16A34A),
-                    ),
+                ),
+
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                    CrossAxisAlignment
+                        .start,
+                    children: [
+                      Text(
+                        mission.title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight:
+                          FontWeight.w500,
+                          color: mission.done
+                              ? const Color(
+                            0xFF16A34A,
+                          )
+                              : Colors.black,
+                        ),
+                      ),
+                      Text(
+                        mission.xp,
+                        style:
+                        const TextStyle(
+                          fontSize: 12,
+                          color: Color(
+                            0xFF16A34A,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
+
+          const SizedBox(width: 8),
+
           Container(
             width: 26,
             height: 26,
             decoration: BoxDecoration(
               color: mission.done
-                  ? const Color(0xFF16A34A)
-                  : const Color(0xFFF0F0F0),
+                  ? const Color(
+                0xFF16A34A,
+              )
+                  : const Color(
+                0xFFF0F0F0,
+              ),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
@@ -835,6 +1089,10 @@ class MissionCard extends StatelessWidget {
   }
 }
 
+// =====================================================
+// Weekly Rankings
+// =====================================================
+
 class RankRow extends StatelessWidget {
   final RankEntry entry;
 
@@ -851,7 +1109,8 @@ class RankRow extends StatelessWidget {
         color: entry.isYou
             ? const Color(0xFFE9F9EF)
             : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+        BorderRadius.circular(14),
       ),
       child: Row(
         children: [
@@ -868,32 +1127,43 @@ class RankRow extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
+
           const SizedBox(width: 8),
+
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(
+            decoration:
+            const BoxDecoration(
               color: Color(0xFFF0F0F0),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
             child: Text(
               entry.avatar,
-              style: const TextStyle(fontSize: 16),
+              style: const TextStyle(
+                fontSize: 16,
+              ),
             ),
           ),
+
           const SizedBox(width: 10),
+
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
               children: [
                 Text(
                   entry.name,
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontWeight:
+                    FontWeight.w500,
                     color: entry.isYou
-                        ? const Color(0xFF16A34A)
+                        ? const Color(
+                      0xFF16A34A,
+                    )
                         : Colors.black,
                   ),
                 ),
@@ -907,6 +1177,7 @@ class RankRow extends StatelessWidget {
               ],
             ),
           ),
+
           Text(
             entry.xp,
             style: const TextStyle(

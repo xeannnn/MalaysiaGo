@@ -12,12 +12,13 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+  TextEditingController();
 
   final AuthService _authService = AuthService();
 
@@ -50,6 +51,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
       );
 
+      // Sign out after registration so the user can log in manually.
       await _authService.logout();
 
       if (!mounted) {
@@ -79,21 +81,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
         case 'email-already-in-use':
           message = 'This email is already registered.';
           break;
+
         case 'invalid-email':
           message = 'Please enter a valid email.';
           break;
+
         case 'weak-password':
           message = 'Your password is too weak.';
           break;
+
         case 'network-request-failed':
-          message = 'Network error. Please check your internet connection.';
+          message =
+          'Network error. Please check your internet connection.';
           break;
+
         default:
           message = error.message ?? 'Account creation failed.';
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        SnackBar(
+          content: Text(message),
+        ),
       );
     } catch (error) {
       debugPrint('Registration error: $error');
@@ -104,7 +113,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Something went wrong: $error'),
+          content: Text(
+            'Something went wrong: $error',
+          ),
         ),
       );
     } finally {
@@ -128,7 +139,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(
+                maxWidth: 420,
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -139,7 +152,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       size: 72,
                       color: Color(0xFF2E7D32),
                     ),
+
                     const SizedBox(height: 16),
+
                     const Text(
                       'Create your MalaysiaGo account',
                       textAlign: TextAlign.center,
@@ -148,13 +163,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     const SizedBox(height: 24),
+
                     TextFormField(
                       controller: _nameController,
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Full Name',
-                        prefixIcon: Icon(Icons.person_outline),
+                        prefixIcon: Icon(
+                          Icons.person_outline,
+                        ),
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
@@ -169,14 +188,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 16),
+
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined),
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                        ),
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
@@ -184,8 +207,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return 'Please enter your email.';
                         }
 
-                        final emailPattern =
-                        RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                        final RegExp emailPattern = RegExp(
+                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                        );
 
                         if (!emailPattern.hasMatch(value.trim())) {
                           return 'Please enter a valid email.';
@@ -194,14 +218,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 16),
+
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _hidePassword,
                       textInputAction: TextInputAction.next,
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
+                        prefixIcon: const Icon(
+                          Icons.lock_outline,
+                        ),
                         border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
                           onPressed: () {
@@ -228,7 +256,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 16),
+
                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: _hideConfirmPassword,
@@ -240,7 +270,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       },
                       decoration: InputDecoration(
                         labelText: 'Confirm Password',
-                        prefixIcon: const Icon(Icons.lock_reset),
+                        prefixIcon: const Icon(
+                          Icons.lock_reset,
+                        ),
                         border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
                           onPressed: () {
@@ -268,7 +300,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 24),
+
                     FilledButton(
                       onPressed: _isLoading ? null : _createAccount,
                       child: _isLoading
@@ -279,9 +313,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           strokeWidth: 2,
                         ),
                       )
-                          : const Text('Create Account'),
+                          : const Text(
+                        'Create Account',
+                      ),
                     ),
+
                     const SizedBox(height: 12),
+
                     TextButton(
                       onPressed: _isLoading
                           ? null

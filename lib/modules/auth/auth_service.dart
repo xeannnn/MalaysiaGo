@@ -37,7 +37,16 @@ class AuthService {
 
     await user.updateDisplayName(name.trim());
 
-    await _saveUserProfile(user);
+    await _firestore.collection('users').doc(user.uid).set({
+      'uid': user.uid,
+      'name': name.trim(),
+      'email': email.trim().toLowerCase(),
+      'photoUrl': user.photoURL,
+      'role': 'user',
+      'accountStatus': 'active',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
 
     return credential;
   }
@@ -66,12 +75,15 @@ class AuthService {
     final GoogleSignInAuthentication googleAuth =
         googleUser.authentication;
 
-    final OAuthCredential credential = GoogleAuthProvider.credential(
+    final OAuthCredential credential =
+    GoogleAuthProvider.credential(
       idToken: googleAuth.idToken,
     );
 
     final UserCredential userCredential =
-    await _firebaseAuth.signInWithCredential(credential);
+    await _firebaseAuth.signInWithCredential(
+      credential,
+    );
 
     final User? user = userCredential.user;
 
@@ -89,28 +101,31 @@ class AuthService {
     final DocumentSnapshot<Map<String, dynamic>> existing =
     await userDoc.get();
 
+    final Map<String, dynamic> data = {
+      'uid': user.uid,
+      'name': user.displayName ?? '',
+      'email': user.email?.toLowerCase() ?? '',
+      'photoUrl': user.photoURL,
+      'role': 'user',
+      'accountStatus': 'active',
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
     if (!existing.exists) {
-      await userDoc.set({
-        'uid': user.uid,
-        'name': user.displayName ?? '',
-        'email': user.email?.toLowerCase() ?? '',
-        'photoUrl': user.photoURL,
-        'role': 'user',
-        'accountStatus': 'active',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      data['createdAt'] = FieldValue.serverTimestamp();
+
+      await userDoc.set(data);
     } else {
-      await userDoc.update({
-        'name': user.displayName ?? '',
-        'email': user.email?.toLowerCase() ?? '',
-        'photoUrl': user.photoURL,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await userDoc.set(
+        data,
+        SetOptions(merge: true),
+      );
     }
   }
 
-  Future<void> sendPasswordResetEmail(String email) {
+  Future<void> sendPasswordResetEmail(
+      String email,
+      ) {
     return _firebaseAuth.sendPasswordResetEmail(
       email: email.trim(),
     );
@@ -121,7 +136,13 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    await GoogleSignIn.instance.signOut();
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (error) {
+      // User may have logged in using email/password,
+      // so Google Sign-In may not have an active session.
+    }
+
     await _firebaseAuth.signOut();
   }
 }

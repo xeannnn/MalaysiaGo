@@ -12,16 +12,17 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   final AuthService _authService = AuthService();
 
   bool _hidePassword = true;
   bool _isLoading = false;
   bool _isGoogleLoading = false;
+  bool _isGuestLoading = false;
 
   @override
   void dispose() {
@@ -47,7 +48,9 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       Navigator.pushNamedAndRemoveUntil(
         context,
@@ -55,7 +58,9 @@ class _LoginScreenState extends State<LoginScreen> {
             (route) => false,
       );
     } on FirebaseAuthException catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       String message;
 
@@ -63,26 +68,46 @@ class _LoginScreenState extends State<LoginScreen> {
         case 'invalid-email':
           message = 'Please enter a valid email address.';
           break;
+
         case 'user-disabled':
           message = 'This account has been disabled.';
           break;
+
         case 'invalid-credential':
         case 'user-not-found':
         case 'wrong-password':
           message = 'Incorrect email or password.';
           break;
+
         case 'network-request-failed':
-          message = 'Network error. Please check your internet connection.';
+          message =
+          'Network error. Please check your internet connection.';
           break;
+
         case 'too-many-requests':
           message = 'Too many login attempts. Please try again later.';
           break;
+
         default:
           message = error.message ?? 'Login failed.';
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Something went wrong: $error',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -101,7 +126,9 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _authService.signInWithGoogle();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       Navigator.pushNamedAndRemoveUntil(
         context,
@@ -109,7 +136,9 @@ class _LoginScreenState extends State<LoginScreen> {
             (route) => false,
       );
     } on FirebaseAuthException catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -119,11 +148,15 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Google Sign-In failed: $error'),
+          content: Text(
+            'Google Sign-In failed: $error',
+          ),
         ),
       );
     } finally {
@@ -135,15 +168,69 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _continueAsGuest() async {
+    setState(() {
+      _isGuestLoading = true;
+    });
+
+    try {
+      await _authService.continueAsGuest();
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/home',
+            (route) => false,
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.message ?? 'Guest login failed.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Guest login failed: $error',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGuestLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _showForgotPasswordDialog() async {
     final TextEditingController resetEmailController =
-    TextEditingController(text: _emailController.text.trim());
+    TextEditingController(
+      text: _emailController.text.trim(),
+    );
 
     await showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Forgot Password'),
+          title: const Text(
+            'Forgot Password',
+          ),
           content: TextField(
             controller: resetEmailController,
             keyboardType: TextInputType.emailAddress,
@@ -158,7 +245,9 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: () {
                 Navigator.pop(dialogContext);
               },
-              child: const Text('Cancel'),
+              child: const Text(
+                'Cancel',
+              ),
             ),
             FilledButton(
               onPressed: () async {
@@ -168,57 +257,90 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (email.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Please enter your email address.'),
+                      content: Text(
+                        'Please enter your email address.',
+                      ),
                     ),
                   );
                   return;
                 }
 
                 try {
-                  await _authService.sendPasswordResetEmail(email);
+                  await _authService.sendPasswordResetEmail(
+                    email,
+                  );
 
-                  if (!mounted) return;
+                  if (!mounted) {
+                    return;
+                  }
 
-                  Navigator.pop(dialogContext);
+                  if (Navigator.of(dialogContext).canPop()) {
+                    Navigator.pop(dialogContext);
+                  }
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
-                        'Password reset email sent. Please check your inbox.',
+                        'Password reset email sent. Please check your inbox or spam folder.',
                       ),
                     ),
                   );
                 } on FirebaseAuthException catch (error) {
-                  if (!mounted) return;
+                  if (!mounted) {
+                    return;
+                  }
 
                   String message;
 
                   switch (error.code) {
                     case 'invalid-email':
-                      message = 'Please enter a valid email address.';
+                      message =
+                      'Please enter a valid email address.';
                       break;
+
                     case 'user-not-found':
-                      message = 'No account was found with this email.';
+                      message =
+                      'No account was found with this email.';
                       break;
+
                     case 'too-many-requests':
                       message =
                       'Too many requests. Please try again later.';
                       break;
+
                     case 'network-request-failed':
                       message =
                       'Network error. Please check your internet connection.';
                       break;
+
                     default:
                       message =
-                          error.message ?? 'Unable to send reset email.';
+                          error.message ??
+                              'Unable to send reset email.';
                   }
 
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(message)),
+                    SnackBar(
+                      content: Text(message),
+                    ),
+                  );
+                } catch (error) {
+                  if (!mounted) {
+                    return;
+                  }
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Unable to send reset email: $error',
+                      ),
+                    ),
                   );
                 }
               },
-              child: const Text('Send'),
+              child: const Text(
+                'Send',
+              ),
             ),
           ],
         );
@@ -230,6 +352,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool anyLoading =
+        _isLoading ||
+            _isGoogleLoading ||
+            _isGuestLoading;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
       body: SafeArea(
@@ -237,18 +364,23 @@ class _LoginScreenState extends State<LoginScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(
+                maxWidth: 420,
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment:
+                  CrossAxisAlignment.stretch,
                   children: [
                     const Icon(
                       Icons.travel_explore,
                       size: 80,
                       color: Color(0xFF2E7D32),
                     ),
+
                     const SizedBox(height: 16),
+
                     const Text(
                       'MalaysiaGo',
                       textAlign: TextAlign.center,
@@ -258,31 +390,45 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Color(0xFF1B5E20),
                       ),
                     ),
+
                     const SizedBox(height: 8),
+
                     const Text(
                       'Login to continue your heritage journey',
                       textAlign: TextAlign.center,
                     ),
+
                     const SizedBox(height: 32),
 
                     TextFormField(
                       controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
+                      keyboardType:
+                      TextInputType.emailAddress,
+                      textInputAction:
+                      TextInputAction.next,
+                      enabled: !anyLoading,
+                      decoration:
+                      const InputDecoration(
                         labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined),
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                        ),
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
+                        if (value == null ||
+                            value.trim().isEmpty) {
                           return 'Please enter your email.';
                         }
 
-                        final emailPattern =
-                        RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                        final RegExp emailPattern =
+                        RegExp(
+                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                        );
 
-                        if (!emailPattern.hasMatch(value.trim())) {
+                        if (!emailPattern.hasMatch(
+                          value.trim(),
+                        )) {
                           return 'Please enter a valid email.';
                         }
 
@@ -293,9 +439,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
 
                     TextFormField(
-                      controller: _passwordController,
+                      controller:
+                      _passwordController,
                       obscureText: _hidePassword,
-                      textInputAction: TextInputAction.done,
+                      textInputAction:
+                      TextInputAction.done,
+                      enabled: !anyLoading,
                       onFieldSubmitted: (_) {
                         if (!_isLoading) {
                           _login();
@@ -303,12 +452,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(
+                          Icons.lock_outline,
+                        ),
+                        border:
+                        const OutlineInputBorder(),
                         suffixIcon: IconButton(
-                          onPressed: () {
+                          onPressed: anyLoading
+                              ? null
+                              : () {
                             setState(() {
-                              _hidePassword = !_hidePassword;
+                              _hidePassword =
+                              !_hidePassword;
                             });
                           },
                           icon: Icon(
@@ -319,7 +474,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
+                        if (value == null ||
+                            value.isEmpty) {
                           return 'Please enter your password.';
                         }
 
@@ -330,55 +486,76 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 8),
 
                     Align(
-                      alignment: Alignment.centerRight,
+                      alignment:
+                      Alignment.centerRight,
                       child: TextButton(
-                        onPressed: _showForgotPasswordDialog,
-                        child: const Text('Forgot Password?'),
+                        onPressed: anyLoading
+                            ? null
+                            : _showForgotPasswordDialog,
+                        child: const Text(
+                          'Forgot Password?',
+                        ),
                       ),
                     ),
 
                     const SizedBox(height: 8),
 
                     FilledButton(
-                      onPressed: _isLoading ? null : _login,
+                      onPressed:
+                      anyLoading ? null : _login,
                       child: _isLoading
                           ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
+                        child:
+                        CircularProgressIndicator(
                           strokeWidth: 2,
                         ),
                       )
-                          : const Text('Login'),
+                          : const Text(
+                        'Login',
+                      ),
                     ),
 
                     const SizedBox(height: 20),
 
                     const Row(
                       children: [
-                        Expanded(child: Divider()),
+                        Expanded(
+                          child: Divider(),
+                        ),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          padding:
+                          EdgeInsets.symmetric(
+                            horizontal: 12,
+                          ),
                           child: Text('OR'),
                         ),
-                        Expanded(child: Divider()),
+                        Expanded(
+                          child: Divider(),
+                        ),
                       ],
                     ),
 
                     const SizedBox(height: 20),
 
                     OutlinedButton.icon(
-                      onPressed:
-                      _isGoogleLoading ? null : _googleLogin,
+                      onPressed: anyLoading
+                          ? null
+                          : _googleLogin,
                       icon: _isGoogleLoading
                           ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(
+                        child:
+                        CircularProgressIndicator(
                           strokeWidth: 2,
                         ),
                       )
-                          : const Icon(Icons.g_mobiledata, size: 28),
+                          : const Icon(
+                        Icons.g_mobiledata,
+                        size: 28,
+                      ),
                       label: Text(
                         _isGoogleLoading
                             ? 'Signing in...'
@@ -389,22 +566,40 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 12),
 
                     OutlinedButton(
-                      onPressed: () {
+                      onPressed: anyLoading
+                          ? null
+                          : () {
                         Navigator.push(
                           context,
                           MaterialPageRoute<void>(
-                            builder: (_) => const RegisterScreen(),
+                            builder: (_) =>
+                            const RegisterScreen(),
                           ),
                         );
                       },
-                      child: const Text('Register Account'),
+                      child: const Text(
+                        'Register Account',
+                      ),
                     ),
 
                     const SizedBox(height: 12),
 
                     TextButton(
-                      onPressed: () {},
-                      child: const Text('Continue as Guest'),
+                      onPressed: anyLoading
+                          ? null
+                          : _continueAsGuest,
+                      child: _isGuestLoading
+                          ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child:
+                        CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                          : const Text(
+                        'Continue as Guest',
+                      ),
                     ),
                   ],
                 ),
