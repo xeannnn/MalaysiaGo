@@ -1,17 +1,23 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
 import 'firebase_options.dart';
 import 'models.dart';
+
 import 'modules/homepage.dart';
 import 'modules/mappage.dart';
 import 'modules/passport.dart';
 import 'modules/placeholder.dart';
 import 'modules/badges.dart';
 import 'modules/quiz.dart';
+import 'modules/qr_scanner.dart';
 import 'modules/auth/login_screen.dart';
+
 import 'services/achievement_provider.dart';
+
 import 'widgets/app_bottom_bar.dart';
 
 Future<void> main() async {
@@ -32,18 +38,12 @@ Future<void> main() async {
     debugPrintStack(stackTrace: stackTrace);
   }
 
-  // Run app with Provider
   runApp(
     ChangeNotifierProvider(
       create: (context) {
-        try {
-          final provider = AchievementProvider();
-          provider.loadUserData();
-          return provider;
-        } catch (e) {
-          debugPrint('⚠️ Provider init error: $e');
-          return AchievementProvider();
-        }
+        final provider = AchievementProvider();
+        provider.loadUserData();
+        return provider;
       },
       child: const MalaysiaGoApp(),
     ),
@@ -62,8 +62,14 @@ class MalaysiaGoApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
-      routes: {'/home': (context) => const MainScreen()},
+
+      home: FirebaseAuth.instance.currentUser == null
+          ? const LoginScreen()
+          : const MainScreen(),
+
+      routes: {
+        '/home': (context) => const MainScreen(),
+      },
     );
   }
 }
@@ -79,7 +85,11 @@ class _MainScreenState extends State<MainScreen> {
   BottomTab _selectedTab = BottomTab.home;
 
   void _handleQuizComplete(QuizAttempt attempt) {
-    final provider = Provider.of<AchievementProvider>(context, listen: false);
+    final provider = Provider.of<AchievementProvider>(
+      context,
+      listen: false,
+    );
+
     provider.addXp(attempt.xpEarned);
   }
 
@@ -96,29 +106,40 @@ class _MainScreenState extends State<MainScreen> {
               setState(() => _selectedTab = tab);
             },
           );
+
         case BottomTab.map:
           return MapScreen(
             totalXp: provider.totalXp,
-            completedQuizIds: {},   // Will connect later
-            quizHistory: [],        // Will connect later
+            completedQuizIds: const {},
+            quizHistory: const [],
             onQuizComplete: _handleQuizComplete,
           );
-        case BottomTab.passport:
-          return const PassportScreen();
+
+        case BottomTab.scan:
+          return const ScanPage();
+
         case BottomTab.badges:
           return BadgesScreen(
             onXpEarned: (xp) => provider.addXp(xp),
           );
+
+        case BottomTab.passport:
+          return const PassportScreen();
+
         default:
           return PlaceholderScreen(tab: _selectedTab);
       }
     }
 
     return Scaffold(
-      body: SafeArea(child: buildBody()),
+      body: SafeArea(
+        child: buildBody(),
+      ),
       bottomNavigationBar: AppBottomBar(
         selected: _selectedTab,
-        onSelect: (tab) => setState(() => _selectedTab = tab),
+        onSelect: (tab) {
+          setState(() => _selectedTab = tab);
+        },
       ),
     );
   }
