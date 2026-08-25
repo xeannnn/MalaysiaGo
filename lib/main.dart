@@ -90,7 +90,7 @@ class _MainScreenState extends State<MainScreen> {
       listen: false,
     );
 
-    provider.addXp(attempt.xpEarned);
+    provider.addQuizAttempt(attempt);
   }
 
   @override
@@ -110,8 +110,8 @@ class _MainScreenState extends State<MainScreen> {
         case BottomTab.map:
           return MapScreen(
             totalXp: provider.totalXp,
-            completedQuizIds: const {},
-            quizHistory: const [],
+            completedQuizIds: provider.completedQuizIds,
+            quizHistory: provider.quizHistory,
             onQuizComplete: _handleQuizComplete,
           );
 
