@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'quiz.dart';
+import 'travel_info.dart';
 import '../widgets/app_header.dart';
 
 /// ---------------------------------------------------------------
@@ -71,7 +72,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: false,
     hasQuiz: true,
     briefInfo:
-        'A dramatic limestone cave complex crowned by a giant golden statue of Lord Murugan, reached by 272 rainbow-painted steps. It\'s one of the most visited Hindu shrines outside India and the centre of Malaysia\'s annual Thaipusam festival.',
+    'A dramatic limestone cave complex crowned by a giant golden statue of Lord Murugan, reached by 272 rainbow-painted steps. It\'s one of the most visited Hindu shrines outside India and the centre of Malaysia\'s annual Thaipusam festival.',
   ),
   HeritageMapSite(
     id: 'merdeka_square',
@@ -86,7 +87,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: true,
     hasQuiz: true,
     briefInfo:
-        'The historic padang where Malaysia\'s independence was declared at midnight on 31 August 1957. Ringed by Mughal-style colonial buildings, with one of the world\'s tallest flagpoles at its centre.',
+    'The historic padang where Malaysia\'s independence was declared at midnight on 31 August 1957. Ringed by Mughal-style colonial buildings, with one of the world\'s tallest flagpoles at its centre.',
   ),
   HeritageMapSite(
     id: 'george_town',
@@ -101,7 +102,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: true,
     hasQuiz: true,
     briefInfo:
-        'A UNESCO World Heritage colonial port city blending Chinese, Malay, Indian, and European influences across its shophouses, temples, and street art. Best explored slowly, on foot, through its historic core.',
+    'A UNESCO World Heritage colonial port city blending Chinese, Malay, Indian, and European influences across its shophouses, temples, and street art. Best explored slowly, on foot, through its historic core.',
   ),
   HeritageMapSite(
     id: 'malacca_city',
@@ -116,7 +117,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: true,
     hasQuiz: true,
     briefInfo:
-        'A UNESCO-listed trading port shaped in turn by Portuguese, Dutch, and British rule, still visible in its forts, churches, and Peranakan townhouses. Jonker Street is the heart of its antique-shop and night-market culture.',
+    'A UNESCO-listed trading port shaped in turn by Portuguese, Dutch, and British rule, still visible in its forts, churches, and Peranakan townhouses. Jonker Street is the heart of its antique-shop and night-market culture.',
   ),
   HeritageMapSite(
     id: 'kek_lok_si',
@@ -131,7 +132,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: false,
     hasQuiz: false,
     briefInfo:
-        'Malaysia\'s largest Buddhist temple complex, built up a hillside in Air Itam around a seven-tier pagoda blending Chinese, Thai, and Burmese architecture. A giant bronze statue of Kuan Yin overlooks the grounds.',
+    'Malaysia\'s largest Buddhist temple complex, built up a hillside in Air Itam around a seven-tier pagoda blending Chinese, Thai, and Burmese architecture. A giant bronze statue of Kuan Yin overlooks the grounds.',
   ),
   HeritageMapSite(
     id: 'cameron_highlands',
@@ -146,7 +147,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: false,
     hasQuiz: false,
     briefInfo:
-        'A cool hill-station region of rolling tea plantations, strawberry farms, and mossy forest trails, first developed by the British in the 1920s. A popular escape from Malaysia\'s lowland heat.',
+    'A cool hill-station region of rolling tea plantations, strawberry farms, and mossy forest trails, first developed by the British in the 1920s. A popular escape from Malaysia\'s lowland heat.',
   ),
   HeritageMapSite(
     id: 'masjid_zahir',
@@ -161,7 +162,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: false,
     hasQuiz: true,
     briefInfo:
-        'One of Malaysia\'s oldest and grandest mosques, completed in 1912 in a Moorish-Mughal style with five distinctive black domes. It stands on ground where Kedah warriors who fell defending the state in 1821 are buried.',
+    'One of Malaysia\'s oldest and grandest mosques, completed in 1912 in a Moorish-Mughal style with five distinctive black domes. It stands on ground where Kedah warriors who fell defending the state in 1821 are buried.',
   ),
   HeritageMapSite(
     id: 'lenggong_valley',
@@ -176,7 +177,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: false,
     hasQuiz: true,
     briefInfo:
-        'A UNESCO World Heritage archaeological valley where stone tools and the roughly 11,000-year-old skeleton known as "Perak Man" were unearthed. Its caves and open-air sites trace continuous human activity spanning hundreds of thousands of years.',
+    'A UNESCO World Heritage archaeological valley where stone tools and the roughly 11,000-year-old skeleton known as "Perak Man" were unearthed. Its caves and open-air sites trace continuous human activity spanning hundreds of thousands of years.',
   ),
   HeritageMapSite(
     id: 'crystal_mosque',
@@ -191,7 +192,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: false,
     hasQuiz: true,
     briefInfo:
-        'A striking steel-and-glass mosque on an island in the Terengganu River, illuminated in shifting colours after dark. Opened in 2008 as part of the Islamic Heritage Park.',
+    'A striking steel-and-glass mosque on an island in the Terengganu River, illuminated in shifting colours after dark. Opened in 2008 as part of the Islamic Heritage Park.',
   ),
   HeritageMapSite(
     id: 'taman_negara',
@@ -206,7 +207,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: false,
     hasQuiz: true,
     briefInfo:
-        'Widely cited as one of the world\'s oldest rainforests, home to a canopy walkway strung high above the forest floor. Kuala Tahan village is the usual gateway for jungle treks and river trips.',
+    'Widely cited as one of the world\'s oldest rainforests, home to a canopy walkway strung high above the forest floor. Kuala Tahan village is the usual gateway for jungle treks and river trips.',
   ),
   HeritageMapSite(
     id: 'sultan_abu_bakar_mosque',
@@ -221,7 +222,7 @@ const List<HeritageMapSite> heritageMapSites = [
     visited: false,
     hasQuiz: true,
     briefInfo:
-        'A grand Victorian-Moorish mosque perched above the Johor Strait with views toward Singapore, built under Sultan Abu Bakar, the "Father of Modern Johor." Its blend of British and Islamic architecture is unusual among Malaysian mosques.',
+    'A grand Victorian-Moorish mosque perched above the Johor Strait with views toward Singapore, built under Sultan Abu Bakar, the "Father of Modern Johor." Its blend of British and Islamic architecture is unusual among Malaysian mosques.',
   ),
 ];
 
@@ -301,13 +302,14 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  /// Opens the brief Traveller's Guide detail screen for a site.
+  /// Opens the brief site info screen for a site.
   void _openGuide(HeritageMapSite site) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => SiteGuideScreen(
           site: site,
           completed: _isCompleted(site),
+          totalXp: widget.totalXp,
           onTakeQuiz: () => _startQuiz(site),
         ),
       ),
@@ -317,7 +319,7 @@ class _MapScreenState extends State<MapScreen> {
   /// Tapping a heritage site — a map marker, a list card, or the
   /// nearby-site banner — opens a small options sheet rather than
   /// jumping straight into the quiz, so the user can choose between
-  /// taking the quiz or reading the brief Traveller's Guide first.
+  /// taking the quiz or reading the brief site info first.
   void _openSite(HeritageMapSite site) {
     showModalBottomSheet(
       context: context,
@@ -362,7 +364,7 @@ class _MapScreenState extends State<MapScreen> {
               AppHeader(
                 title: 'Heritage Map',
                 subtitle:
-                    '$_visitedCount/${heritageMapSites.length} Sites Visited',
+                '$_visitedCount/${heritageMapSites.length} Sites Visited',
                 xp: '${widget.totalXp}',
               ),
               Padding(
@@ -431,14 +433,14 @@ class _MapScreenState extends State<MapScreen> {
                   children: _filteredSites
                       .map(
                         (site) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _SiteListCard(
-                            site: site,
-                            completed: _isCompleted(site),
-                            onTap: () => _openSite(site),
-                          ),
-                        ),
-                      )
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _SiteListCard(
+                        site: site,
+                        completed: _isCompleted(site),
+                        onTap: () => _openSite(site),
+                      ),
+                    ),
+                  )
                       .toList(),
                 ),
               ),
@@ -554,16 +556,16 @@ class _MapCanvasState extends State<_MapCanvas> {
   List<Marker> get _markers => widget.sites
       .map(
         (site) => Marker(
-          point: site.latLng,
-          width: 44,
-          height: 54,
-          alignment: Alignment.topCenter,
-          child: GestureDetector(
-            onTap: () => widget.onTapSite(site),
-            child: _MapPin(site: site),
-          ),
-        ),
-      )
+      point: site.latLng,
+      width: 44,
+      height: 54,
+      alignment: Alignment.topCenter,
+      child: GestureDetector(
+        onTap: () => widget.onTapSite(site),
+        child: _MapPin(site: site),
+      ),
+    ),
+  )
       .toList();
 
   void _onMapReady() {
@@ -600,9 +602,9 @@ class _MapCanvasState extends State<_MapCanvas> {
                 onMapReady: _onMapReady,
                 interactionOptions: const InteractionOptions(
                   flags:
-                      InteractiveFlag.pinchZoom |
-                      InteractiveFlag.drag |
-                      InteractiveFlag.doubleTapZoom,
+                  InteractiveFlag.pinchZoom |
+                  InteractiveFlag.drag |
+                  InteractiveFlag.doubleTapZoom,
                 ),
               ),
               children: [
@@ -1052,8 +1054,8 @@ class _SiteListCard extends StatelessWidget {
 
 /// Bottom sheet shown when a heritage site is tapped — from a map
 /// marker, a list card, or the nearby-site banner. Lets the user
-/// choose between jumping into the quiz or reading the brief
-/// Traveller's Guide first, rather than assuming quiz intent.
+/// choose between jumping into the quiz or reading the brief site
+/// info first, rather than assuming quiz intent.
 class _SiteOptionsSheet extends StatelessWidget {
   final HeritageMapSite site;
   final bool completed;
@@ -1190,7 +1192,7 @@ class _SiteOptionsSheet extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.menu_book, size: 18),
                 label: const Text(
-                  "Traveller's Guide",
+                  "Site Info",
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -1202,19 +1204,22 @@ class _SiteOptionsSheet extends StatelessWidget {
   }
 }
 
-/// A brief, self-contained Traveller's Guide detail page for one
-/// heritage site — reachable from the site options sheet. Shows the
-/// site's category, location, and a short description, with a "Take
-/// Quiz" call-to-action if one exists.
+/// A brief, self-contained info page for one heritage site —
+/// reachable from the site options sheet. Shows the site's category,
+/// location, and a short description, with a "Take Quiz" call-to-action
+/// if one exists, and a "Full Guide" button linking to the app's
+/// general Traveller's Guide (transport / etiquette / safety info).
 class SiteGuideScreen extends StatelessWidget {
   final HeritageMapSite site;
   final bool completed;
+  final int totalXp;
   final VoidCallback onTakeQuiz;
 
   const SiteGuideScreen({
     super.key,
     required this.site,
     required this.completed,
+    required this.totalXp,
     required this.onTakeQuiz,
   });
 
@@ -1236,9 +1241,9 @@ class SiteGuideScreen extends StatelessWidget {
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     const SizedBox(width: 4),
-                    const Text(
-                      "Traveller's Guide",
-                      style: TextStyle(
+                    Text(
+                      site.name,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1382,6 +1387,47 @@ class SiteGuideScreen extends StatelessWidget {
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => Scaffold(
+                            backgroundColor: Colors.white,
+                            appBar: AppBar(
+                              title: const Text(
+                                "Traveller's Guide",
+                                style: TextStyle(color: Colors.black),
+                              ),
+                              backgroundColor: Colors.white,
+                              elevation: 0,
+                              iconTheme: const IconThemeData(color: Colors.black),
+                            ),
+                            body: TravelInfoPage(totalXp: totalXp),
+                          ),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0F8A5F),
+                      side: const BorderSide(color: Color(0xFF0F8A5F)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: const Icon(Icons.menu_book, size: 18),
+                    label: const Text(
+                      'Full Guide',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
