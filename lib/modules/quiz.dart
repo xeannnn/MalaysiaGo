@@ -92,6 +92,34 @@ class QuizAttempt {
     required this.xpEarned,
     required this.completedAt,
   });
+
+  // Convert object to Hive-compatible Map
+  Map<String, dynamic> toMap() {
+    return {
+      'siteId': siteId,
+      'siteName': siteName,
+      'siteIcon': siteIcon,
+      'correctCount': correctCount,
+      'totalQuestions': totalQuestions,
+      'xpEarned': xpEarned,
+      'completedAt': completedAt.toIso8601String(),
+    };
+  }
+
+  // Restore object from Hive Map
+  factory QuizAttempt.fromMap(Map<String, dynamic> map) {
+    return QuizAttempt(
+      siteId: map['siteId'] ?? '',
+      siteName: map['siteName'] ?? '',
+      siteIcon: map['siteIcon'] ?? '📍',
+      correctCount: map['correctCount'] ?? 0,
+      totalQuestions: map['totalQuestions'] ?? 0,
+      xpEarned: map['xpEarned'] ?? 0,
+      completedAt: DateTime.parse(
+        map['completedAt'] ?? DateTime.now().toIso8601String(),
+      ),
+    );
+  }
 }
 
 /// Called when a quiz is finished. MainScreen (main.dart) uses this to
