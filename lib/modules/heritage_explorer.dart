@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-
+import 'site_description.dart';
+import '../services/descriptions_api.dart';
 import '../models.dart';
-import '../services/heritage_api_service.dart';
 import '../services/image_service.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_header.dart';
@@ -202,7 +202,7 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             scrollDirection: Axis.horizontal,
             itemCount: _categories.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final String category = _categories[index];
               return CategoryChip(
@@ -538,7 +538,7 @@ class _DynamicSiteImageState extends State<DynamicSiteImage> {
       return Image.network(
         _imageUrl!,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildPlaceholder(),
+        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
       );
     }
 
@@ -554,7 +554,7 @@ class _DynamicSiteImageState extends State<DynamicSiteImage> {
 }
 
 // ============================================================
-// Editor Pick Card
+// Editor Pick Card (With Background Image & Gradient Overlay)
 // ============================================================
 
 class EditorPickCard extends StatelessWidget {
@@ -567,79 +567,129 @@ class EditorPickCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF63D6A5),
-            Color(0xFF159B72),
-          ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SiteDescriptionScreen(site: site),
+          ),
+        );
+      },
+      child: Container(
+        height: 200,
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
         ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TagPill(
-                label: site.category,
-                background: Colors.white.withValues(alpha: 0.18),
-                textColor: Colors.white,
+        child: Stack(
+          children: [
+            // 1. Dynamic Background Image
+            Positioned.fill(
+              child: DynamicSiteImage(
+                siteName: site.name,
+                fallbackUrl: site.imageUrl,
               ),
-              Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            ),
+
+            // 2. Dark Gradient Overlay for Readability
+            Positioned.fill(
+              child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5A623),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '+${site.xp} XP',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.3),
+                      Colors.black.withValues(alpha: 0.8),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Text(
-            site.name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            site.location,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            site.description,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.9),
+
+            // 3. Card Content (Badges & Text Overlays)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Top Row: Category Tag & XP Badge
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TagPill(
+                        label: site.category,
+                        background: Colors.white.withValues(alpha: 0.25),
+                        textColor: Colors.white,
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEAB308),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '+${site.xp} XP',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Bottom Info Section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        site.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        site.location,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        site.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
 // ============================================================
-// Heritage Site Card (Without Numbering Overlay)
+// Heritage Site Card (Standard List Card)
 // ============================================================
 
 class SiteCard extends StatelessWidget {
@@ -652,103 +702,113 @@ class SiteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.green.shade100),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Full-Width Cover Image
-          SizedBox(
-            height: 140,
-            width: double.infinity,
-            child: DynamicSiteImage(
-              siteName: site.name,
-              fallbackUrl: site.imageUrl,
-            ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SiteDescriptionScreen(site: site),
           ),
+        );
+      },
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.green.shade100),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Full-Width Cover Image
+            SizedBox(
+              height: 140,
+              width: double.infinity,
+              child: DynamicSiteImage(
+                siteName: site.name,
+                fallbackUrl: site.imageUrl,
+              ),
+            ),
 
-          // Card Text Content
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        site.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+            // Card Text Content
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          site.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '+${site.xp} XP',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF16A34A),
+                      const SizedBox(width: 8),
+                      Text(
+                        '+${site.xp} XP',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF16A34A),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  site.location,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  site.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.black87,
+                    ],
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    TagPill(
-                      label: site.category,
-                      background: const Color(0xFFFDECC8),
-                      textColor: const Color(0xFFB8720A),
+                  const SizedBox(height: 2),
+                  Text(
+                    site.location,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    site.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.black87,
                     ),
-                    ...site.tags
-                        .where((tag) => tag != site.category)
-                        .map(
-                          (tag) => TagPill(
-                        label: tag,
-                        background: const Color(0xFFF0F0F0),
-                        textColor: Colors.grey.shade700,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      TagPill(
+                        label: site.category,
+                        background: const Color(0xFFFDECC8),
+                        textColor: const Color(0xFFB8720A),
                       ),
-                    ),
-                    if (site.visited)
-                      const TagPill(
-                        label: '✓ Visited',
-                        background: Color(0xFFE9F9EF),
-                        textColor: Color(0xFF16A34A),
+                      ...site.tags
+                          .where((tag) => tag != site.category)
+                          .map(
+                            (tag) => TagPill(
+                          label: tag,
+                          background: const Color(0xFFF0F0F0),
+                          textColor: Colors.grey.shade700,
+                        ),
                       ),
-                  ],
-                ),
-              ],
+                      if (site.visited)
+                        const TagPill(
+                          label: '✓ Visited',
+                          background: Color(0xFFE9F9EF),
+                          textColor: Color(0xFF16A34A),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
