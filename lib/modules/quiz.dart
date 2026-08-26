@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 /// ---------------------------------------------------------------
@@ -28,6 +30,24 @@ class QuizQuestion {
     required this.explanation,
     required this.xpReward,
   });
+
+  /// Returns a copy of this question with its options shuffled into a
+  /// new random order — the correct answer's *text* stays correct,
+  /// its index just moves to wherever it landed. Used so the same
+  /// question doesn't always show its answer in the same position
+  /// (previously ~63% of questions had the correct answer as option
+  /// A, which is guessable).
+  QuizQuestion withShuffledOptions(Random random) {
+    final indices = List<int>.generate(options.length, (i) => i)..shuffle(random);
+    final newOptions = [for (final i in indices) options[i]];
+    return QuizQuestion(
+      question: question,
+      options: newOptions,
+      correctIndex: indices.indexOf(correctIndex),
+      explanation: explanation,
+      xpReward: xpReward,
+    );
+  }
 }
 
 /// Metadata for the heritage site a quiz belongs to — shown on the
@@ -72,29 +92,6 @@ class QuizAttempt {
     required this.xpEarned,
     required this.completedAt,
   });
-
-  /// Plain-map form for Hive persistence (Hive can't store a custom
-  /// class directly without a registered TypeAdapter, so this stores
-  /// it as a Map instead — see AchievementProvider).
-  Map<String, dynamic> toMap() => {
-    'siteId': siteId,
-    'siteName': siteName,
-    'siteIcon': siteIcon,
-    'correctCount': correctCount,
-    'totalQuestions': totalQuestions,
-    'xpEarned': xpEarned,
-    'completedAt': completedAt.toIso8601String(),
-  };
-
-  factory QuizAttempt.fromMap(Map<dynamic, dynamic> map) => QuizAttempt(
-    siteId: map['siteId'] as String,
-    siteName: map['siteName'] as String,
-    siteIcon: map['siteIcon'] as String,
-    correctCount: map['correctCount'] as int,
-    totalQuestions: map['totalQuestions'] as int,
-    xpEarned: map['xpEarned'] as int,
-    completedAt: DateTime.parse(map['completedAt'] as String),
-  );
 }
 
 /// Called when a quiz is finished. MainScreen (main.dart) uses this to
@@ -233,6 +230,24 @@ class QuizRepository {
         'Thaipusam is the largest annual gathering at Batu Caves, with devotees carrying kavadi up the 272 steps as an act of devotion.',
         xpReward: 26,
       ),
+      QuizQuestion(
+        question:
+        'Roughly how old is the limestone hill that Batu Caves is formed within?',
+        options: ['About 400 million years', 'About 4 million years', 'About 40,000 years', 'About 4,000 years'],
+        correctIndex: 0,
+        explanation:
+        'The limestone forming Batu Caves is estimated to be around 400 million years old, among the oldest rock formations in Malaysia.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question:
+        'Which smaller cave near the entrance features statues and dioramas depicting a Hindu epic?',
+        options: ['Ramayana Cave', 'Ganesh Cave', 'Skanda Cave', 'Vishnu Cave'],
+        correctIndex: 0,
+        explanation:
+        'The Ramayana Cave, located near the main entrance, depicts scenes from the Hindu epic Ramayana through statues and murals.',
+        xpReward: 26,
+      ),
     ],
     'george_town': const [
       QuizQuestion(
@@ -272,6 +287,20 @@ class QuizRepository {
         'Jalan Masjid Kapitan Keling (formerly Pitt Street) earned the nickname for the diverse houses of worship along it.',
         xpReward: 26,
       ),
+      QuizQuestion(
+        question: 'In what year did Captain Francis Light found George Town, the first British settlement in the region?',
+        options: ['1786', '1824', '1867', '1900'],
+        correctIndex: 0,
+        explanation: 'Francis Light established George Town for the British East India Company in 1786.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question: 'What is the name of the covered pedestrian walkway in front of George Town\'s shophouses, shielding walkers from sun and rain?',
+        options: ['Five-foot way', 'Skywalk', 'Colonnade', 'Veranda deck'],
+        correctIndex: 0,
+        explanation: 'The "five-foot way" is a covered passage mandated in Straits Settlements shophouse design, a hallmark of the area\'s architecture.',
+        xpReward: 26,
+      ),
     ],
     'malacca_city': const [
       QuizQuestion(
@@ -308,6 +337,20 @@ class QuizRepository {
         correctIndex: 0,
         explanation:
         'Jonker Street (Jalan Hang Jebat) is the heart of Malacca\'s Peranakan and antique trading heritage.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question: 'Which strategic strait, historically vital to global trade, does Malacca sit alongside?',
+        options: ['Strait of Malacca', 'Strait of Hormuz', 'Strait of Gibraltar', 'Bosphorus Strait'],
+        correctIndex: 0,
+        explanation: 'Malacca\'s position on the Strait of Malacca made it a key trading port for centuries.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question: 'Which European power took control of Malacca from the Portuguese in 1641?',
+        options: ['Dutch', 'British', 'Spanish', 'French'],
+        correctIndex: 0,
+        explanation: 'The Dutch East India Company captured Malacca from the Portuguese in 1641, ruling it for over 150 years.',
         xpReward: 26,
       ),
     ],
@@ -354,6 +397,20 @@ class QuizRepository {
         'The flagpole at Dataran Merdeka stands around 95 metres tall, among the tallest in the world.',
         xpReward: 26,
       ),
+      QuizQuestion(
+        question: 'Which black-and-white timber colonial clubhouse borders the padang at Dataran Merdeka?',
+        options: ['Royal Selangor Club', 'KL Railway Station', 'Central Market', 'National Museum'],
+        correctIndex: 0,
+        explanation: 'The Royal Selangor Club, a Tudor-style timber building, has overlooked the padang since the colonial era.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question: 'What architectural style is the Sultan Abdul Samad Building, beside Dataran Merdeka, known for?',
+        options: ['Moorish (Indo-Saracenic)', 'Gothic Revival', 'Brutalist', 'Art Deco'],
+        correctIndex: 0,
+        explanation: 'Its onion domes and horseshoe arches reflect the Moorish (Indo-Saracenic) style popular in British colonial buildings.',
+        xpReward: 26,
+      ),
     ],
     'masjid_zahir': const [
       QuizQuestion(
@@ -392,6 +449,20 @@ class QuizRepository {
         'The mosque stands where Kedah warriors killed defending the state against Siamese invasion in 1821 were laid to rest.',
         xpReward: 30,
       ),
+      QuizQuestion(
+        question: 'Zahir Mosque is located in which Kedah city, the state capital?',
+        options: ['Alor Setar', 'Sungai Petani', 'Kulim', 'Langkawi Town'],
+        correctIndex: 0,
+        explanation: 'Zahir Mosque stands in the heart of Alor Setar, Kedah\'s state capital, facing the Alor Setar padang.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'What architectural style is Zahir Mosque generally described as?',
+        options: ['Moorish-influenced Islamic', 'Chinese pagoda-style', 'Brutalist concrete', 'Gothic Revival'],
+        correctIndex: 0,
+        explanation: 'Zahir Mosque\'s onion domes and arched facade reflect a Moorish-influenced Islamic architectural style common to early 20th-century Malay state mosques.',
+        xpReward: 30,
+      ),
     ],
     'lenggong_valley': const [
       QuizQuestion(
@@ -423,6 +494,20 @@ class QuizRepository {
         correctIndex: 0,
         explanation:
         'Perak Man was unearthed in Gua Gunung Runtuh, a limestone cave within the Lenggong Valley.',
+        xpReward: 40,
+      ),
+      QuizQuestion(
+        question: 'Lenggong Valley\'s prehistoric record is notable for spanning roughly how long a period of continuous human activity?',
+        options: ['About 1.83 million years', 'About 18,000 years', 'About 1,800 years', 'About 180 years'],
+        correctIndex: 0,
+        explanation: 'Lenggong Valley shows evidence of continuous human occupation stretching back around 1.83 million years, among the longest such records outside Africa.',
+        xpReward: 40,
+      ),
+      QuizQuestion(
+        question: 'A notable skeletal find at Lenggong Valley showed signs consistent with what unusual physical condition?',
+        options: ['Dwarfism', 'A healed broken leg', 'Severe arthritis', 'Blindness'],
+        correctIndex: 0,
+        explanation: 'One skeleton excavated at Lenggong, "Perak Woman," is notable for skeletal features consistent with dwarfism, adding to the site\'s archaeological significance.',
         xpReward: 40,
       ),
     ],
@@ -459,6 +544,20 @@ class QuizRepository {
         correctIndex: 0,
         explanation:
         'The mosque is built on Wan Man Island in the Terengganu River.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'The Crystal Mosque is part of a larger themed park showcasing replicas of famous world landmarks — what is that park called?',
+        options: ['Islamic Heritage Park', 'Terengganu Heritage Village', 'Taman Tamadun Islam', 'Kuala Terengganu Waterfront'],
+        correctIndex: 0,
+        explanation: 'The Crystal Mosque anchors the Islamic Heritage Park (Taman Tamadun Islam), which also features scaled replicas of famous Islamic monuments worldwide.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'What lighting effect is the Crystal Mosque particularly known for at night?',
+        options: ['Colour-changing LED illumination', 'Torch-lit walkways only', 'Neon signage', 'Laser projection shows'],
+        correctIndex: 0,
+        explanation: 'The mosque\'s steel-and-glass structure is fitted with LED lights that cycle through colours after dark, making it a popular night-time landmark.',
         xpReward: 30,
       ),
     ],
@@ -505,6 +604,20 @@ class QuizRepository {
         'Kuala Tahan, where the Tahan and Tembeling rivers meet, is the usual starting point for the park.',
         xpReward: 36,
       ),
+      QuizQuestion(
+        question: 'Taman Negara spans across which three Malaysian states?',
+        options: ['Pahang, Kelantan, and Terengganu', 'Selangor, Perak, and Kedah', 'Johor, Melaka, and Negeri Sembilan', 'Sabah, Sarawak, and Labuan'],
+        correctIndex: 0,
+        explanation: 'Taman Negara stretches across the borders of Pahang, Kelantan, and Terengganu, making it one of the largest protected areas in Peninsular Malaysia.',
+        xpReward: 36,
+      ),
+      QuizQuestion(
+        question: 'Which of Peninsular Malaysia\'s highest peaks lies within Taman Negara and is a popular multi-day trek?',
+        options: ['Gunung Tahan', 'Gunung Kinabalu', 'Gunung Ledang', 'Gunung Jerai'],
+        correctIndex: 0,
+        explanation: 'Gunung Tahan, the highest peak in Peninsular Malaysia at 2,187 metres, lies within Taman Negara and draws experienced trekkers on multi-day climbs.',
+        xpReward: 36,
+      ),
     ],
     'sultan_abu_bakar_mosque': const [
       QuizQuestion(
@@ -549,6 +662,20 @@ class QuizRepository {
         'Built between 1892 and 1900, it combines Moorish Islamic elements with Victorian British architectural style.',
         xpReward: 30,
       ),
+      QuizQuestion(
+        question: 'Roughly how many worshippers can Sultan Abu Bakar State Mosque accommodate?',
+        options: ['Around 2,000', 'Around 200', 'Around 20,000', 'Around 500'],
+        correctIndex: 0,
+        explanation: 'The mosque can hold approximately 2,000 worshippers, making it one of the largest state mosques in Malaysia at the time it was built.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'How many years did it take to construct Sultan Abu Bakar State Mosque?',
+        options: ['About 8 years', 'About 1 year', 'About 20 years', 'About 3 months'],
+        correctIndex: 0,
+        explanation: 'Construction ran from 1892 to 1900, taking roughly 8 years to complete.',
+        xpReward: 30,
+      ),
     ],
   };
 
@@ -564,6 +691,27 @@ class QuizRepository {
   /// Total possible XP for a site's quiz — used on the intro card.
   static int totalXp(String siteId) =>
       getQuestions(siteId).fold(0, (sum, q) => sum + q.xpReward);
+
+  static final Random _random = Random();
+
+  /// Picks a random subset of [count] questions from the site's full
+  /// question pool (or all of them if the pool has fewer than
+  /// [count]), in random order, with each question's own answer
+  /// options also shuffled. Call this once per quiz attempt (from
+  /// QuizIntroScreen) rather than per rebuild, so the same set of
+  /// questions is used consistently through that attempt.
+  ///
+  /// This is what makes the quiz "different every time" without
+  /// depending on any external API — it works entirely offline. A
+  /// site with only 3 questions in its pool will always show all 3
+  /// (just reordered); a site with a bigger pool (see the 5-question
+  /// pools below) will genuinely vary which 3 you get.
+  static List<QuizQuestion> getRandomQuestions(String siteId, {int count = 3}) {
+    final pool = List<QuizQuestion>.from(getQuestions(siteId));
+    pool.shuffle(_random);
+    final selected = pool.take(count).toList();
+    return selected.map((q) => q.withShuffledOptions(_random)).toList();
+  }
 }
 
 // ============================ INTRO SCREEN ============================
@@ -584,10 +732,9 @@ class QuizIntroScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final site = QuizRepository.getSite(siteId);
-    final questions = QuizRepository.getQuestions(siteId);
-    final totalXp = QuizRepository.totalXp(siteId);
+    final fullPool = QuizRepository.getQuestions(siteId);
 
-    if (site == null || questions.isEmpty) {
+    if (site == null || fullPool.isEmpty) {
       return Scaffold(
         backgroundColor: const Color(0xFF0B1130),
         body: Center(
@@ -598,6 +745,12 @@ class QuizIntroScreen extends StatelessWidget {
         ),
       );
     }
+
+    // Picked once here (not re-picked on every rebuild) so the count
+    // and XP shown on this card exactly match what QuizScreen below
+    // will actually ask.
+    final questions = QuizRepository.getRandomQuestions(siteId);
+    final totalXp = questions.fold<int>(0, (sum, q) => sum + q.xpReward);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1130),
@@ -794,6 +947,7 @@ class QuizIntroScreen extends StatelessWidget {
                           fullscreenDialog: true,
                           builder: (_) => QuizScreen(
                             siteId: siteId,
+                            questions: questions,
                             onQuizComplete: onQuizComplete,
                           ),
                         ),
@@ -873,15 +1027,20 @@ class _StatBox extends StatelessWidget {
 
 // =========================== QUESTION SCREEN ===========================
 
-/// The question-by-question quiz flow for a heritage site. Questions
-/// are pulled via [QuizRepository.getQuestions] — this screen is
-/// purely presentation + answer-state logic.
+/// The question-by-question quiz flow for a heritage site. `questions`
+/// is the already-randomized set chosen by QuizIntroScreen (via
+/// [QuizRepository.getRandomQuestions]) — this screen is purely
+/// presentation + answer-state logic, it doesn't re-pick questions
+/// itself so what's shown here always matches what the intro card
+/// promised.
 class QuizScreen extends StatefulWidget {
   final String siteId;
+  final List<QuizQuestion> questions;
   final QuizCompleteCallback onQuizComplete;
   const QuizScreen({
     super.key,
     required this.siteId,
+    required this.questions,
     required this.onQuizComplete,
   });
 
@@ -891,9 +1050,7 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen> {
   late final QuizSite? _site = QuizRepository.getSite(widget.siteId);
-  late final List<QuizQuestion> _questions = QuizRepository.getQuestions(
-    widget.siteId,
-  );
+  late final List<QuizQuestion> _questions = widget.questions;
 
   int _currentIndex = 0;
   int? _selectedIndex;
