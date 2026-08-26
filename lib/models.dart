@@ -4,6 +4,7 @@ enum BottomTab {
   home,
   map,
   scan,
+  community,
   badges,
   passport,
 }
@@ -17,6 +18,8 @@ extension BottomTabX on BottomTab {
         return 'Map';
       case BottomTab.scan:
         return 'Scan';
+      case BottomTab.community:
+        return 'Community';
       case BottomTab.badges:
         return 'Badges';
       case BottomTab.passport:
@@ -32,6 +35,8 @@ extension BottomTabX on BottomTab {
         return '🗺️';
       case BottomTab.scan:
         return '📷';
+      case BottomTab.community:
+        return '💬';
       case BottomTab.badges:
         return '🏅';
       case BottomTab.passport:
@@ -454,4 +459,67 @@ class LevelConfig {
     return nextLevel.xpRequired -
         currentXp;
   }
+}
+// ============================================================
+// COMMUNITY MODELS
+// ============================================================
+
+class CommunityPost {
+  final String id;
+  final String userId;
+  final String userName;
+  final String userPhotoUrl;
+
+  final String siteId;
+  final String siteName;
+
+  final String content;
+  final String imageUrl;
+
+  final DateTime createdAt;
+
+  final List<String> likedBy;
+  final int commentCount;
+
+  const CommunityPost({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.userPhotoUrl,
+    required this.siteId,
+    required this.siteName,
+    required this.content,
+    required this.imageUrl,
+    required this.createdAt,
+    required this.likedBy,
+    required this.commentCount,
+  });
+
+  int get likeCount => likedBy.length;
+
+  bool isLikedBy(String uid) {
+    return likedBy.contains(uid);
+  }
+}
+
+class CommunityComment {
+  final String id;
+  final String postId;
+
+  final String userId;
+  final String userName;
+  final String userPhotoUrl;
+
+  final String content;
+  final DateTime createdAt;
+
+  const CommunityComment({
+    required this.id,
+    required this.postId,
+    required this.userId,
+    required this.userName,
+    required this.userPhotoUrl,
+    required this.content,
+    required this.createdAt,
+  });
 }
