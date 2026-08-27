@@ -1,165 +1,153 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+// lib/services/heritage_api_service.dart
+
 import '../models.dart';
-import 'image_service.dart';
 
+/// Service that fetches heritage site data from an API.
+/// Currently returns dummy data for testing.
 class HeritageApiService {
-  static const String _url = "https://overpass-api.de/api/interpreter";
-
-  // Initial loading (default heritage list)
+  /// Fetches a list of heritage sites from the API.
+  /// Returns a list of [HeritageSite] objects.
   static Future<List<HeritageSite>> fetchMalaysiaHeritage() async {
-    const query = """
-[out:json][timeout:60];
+    // Simulate network delay
+    await Future.delayed(const Duration(milliseconds: 500));
 
-area["ISO3166-1"="MY"]->.searchArea;
-
-(
-  node["historic"](area.searchArea);
-  way["historic"](area.searchArea);
-);
-
-out center;
-""";
-
-    return _fetchData(query);
+    // Return dummy data
+    return [
+      HeritageSite(
+        id: 'batu_caves',
+        name: 'Batu Caves',
+        location: 'Selangor',
+        description: 'Sacred limestone cathedral above Kuala Lumpur',
+        category: 'Religious',
+        latitude: 3.2379,
+        longitude: 101.6840,
+        imageUrl: '',
+        tags: ['Religious', 'Easy'],
+        duration: '2–3 hours',
+        xp: 80,
+        visited: false,
+        isEditorPick: true,
+      ),
+      HeritageSite(
+        id: 'george_town',
+        name: 'George Town',
+        location: 'Penang',
+        description: 'UNESCO-listed colonial old town with street art & food',
+        category: 'UNESCO',
+        latitude: 5.4141,
+        longitude: 100.3288,
+        imageUrl: '',
+        tags: ['UNESCO', 'Moderate'],
+        duration: '3–4 hours',
+        xp: 120,
+        visited: false,
+        isEditorPick: false,
+      ),
+      HeritageSite(
+        id: 'malacca_city',
+        name: 'Malacca City',
+        location: 'Melaka',
+        description: 'Historic trading port shaped by Portuguese, Dutch, and British rule',
+        category: 'UNESCO',
+        latitude: 2.1896,
+        longitude: 102.2501,
+        imageUrl: '',
+        tags: ['UNESCO', 'Moderate'],
+        duration: '3–4 hours',
+        xp: 120,
+        visited: false,
+        isEditorPick: false,
+      ),
+      HeritageSite(
+        id: 'merdeka_square',
+        name: 'Dataran Merdeka',
+        location: 'Kuala Lumpur',
+        description: 'Historic square where Malaysia\'s independence was declared in 1957',
+        category: 'National',
+        latitude: 3.1478,
+        longitude: 101.6953,
+        imageUrl: '',
+        tags: ['National', 'Easy'],
+        duration: '1–2 hours',
+        xp: 80,
+        visited: true,
+        isEditorPick: false,
+      ),
+      HeritageSite(
+        id: 'kek_lok_si',
+        name: 'Kek Lok Si Temple',
+        location: 'Penang',
+        description: 'Malaysia\'s largest Buddhist temple complex, built up a hillside in Air Itam',
+        category: 'Religious',
+        latitude: 5.3994,
+        longitude: 100.2739,
+        imageUrl: '',
+        tags: ['Religious', 'Moderate'],
+        duration: '2–3 hours',
+        xp: 90,
+        visited: false,
+        isEditorPick: false,
+      ),
+      HeritageSite(
+        id: 'cameron_highlands',
+        name: 'Cameron Highlands',
+        location: 'Pahang',
+        description: 'A cool hill-station region of rolling tea plantations, strawberry farms, and mossy forest trails',
+        category: 'Nature',
+        latitude: 4.4696,
+        longitude: 101.3808,
+        imageUrl: '',
+        tags: ['Nature', 'Moderate'],
+        duration: '4–5 hours',
+        xp: 100,
+        visited: false,
+        isEditorPick: false,
+      ),
+      HeritageSite(
+        id: 'lenggong_valley',
+        name: 'Lenggong Valley',
+        location: 'Perak',
+        description: 'UNESCO-listed archaeological valley where "Perak Man" was discovered',
+        category: 'UNESCO',
+        latitude: 5.1075,
+        longitude: 100.9717,
+        imageUrl: '',
+        tags: ['UNESCO', 'Moderate'],
+        duration: '3–4 hours',
+        xp: 120,
+        visited: false,
+        isEditorPick: false,
+      ),
+      HeritageSite(
+        id: 'crystal_mosque',
+        name: 'Crystal Mosque',
+        location: 'Terengganu',
+        description: 'A steel-and-glass mosque on an island in the Terengganu River',
+        category: 'Religious',
+        latitude: 5.3390,
+        longitude: 103.1360,
+        imageUrl: '',
+        tags: ['Religious', 'Easy'],
+        duration: '1–2 hours',
+        xp: 90,
+        visited: false,
+        isEditorPick: false,
+      ),
+      HeritageSite(
+        id: 'taman_negara',
+        name: 'Taman Negara',
+        location: 'Pahang',
+        description: 'Widely cited as one of the world\'s oldest rainforests',
+        category: 'Nature',
+        latitude: 4.3806,
+        longitude: 102.4048,
+        imageUrl: '',
+        tags: ['Nature', 'Moderate'],
+        duration: '3–4 hours',
+        xp: 110,
+        visited: false,
+        isEditorPick: false,
+      ),
+    ];
   }
-
-  // Dynamic search
-  static Future<List<HeritageSite>> searchHeritage(String keyword) async {
-    final safeKeyword = RegExp.escape(keyword);
-
-    final query =
-    """
-        """
-[out:json][timeout:25];
-
-area["ISO3166-1"="MY"]->.searchArea;
-
-(
-  node["name"~"$safeKeyword",i](area.searchArea);
-  way["name"~"$safeKeyword",i](area.searchArea);
-);
-
-out center;
-""";
-
-    return _fetchData(query);
-  }
-
-  // Common API fetch function
-  static Future<List<HeritageSite>> _fetchData(String query) async {
-    final response = await http.post(
-      Uri.parse(_url),
-
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-
-        "Accept": "application/json",
-
-        "User-Agent": "MalaysiaGo Flutter App",
-      },
-
-      body: {"data": query},
-    );
-
-    print("STATUS CODE: ${response.statusCode}");
-
-    if (response.statusCode != 200) {
-      print(response.body);
-
-      throw Exception("Failed to load heritage data");
-    }
-
-    final jsonData = json.decode(response.body);
-
-    final elements = jsonData["elements"] as List;
-
-    print("HERITAGE COUNT: ${elements.length}");
-
-    return await Future.wait(
-        elements
-            .where((item) {
-
-          final tags = item["tags"] ?? {};
-
-          return tags["name"] != null;
-
-        })
-            .map((item) async {
-          final tags = item["tags"] ?? {};
-
-          double latitude = 0;
-
-          double longitude = 0;
-
-          if (item["lat"] != null && item["lon"] != null) {
-            latitude = (item["lat"] as num).toDouble();
-
-            longitude = (item["lon"] as num).toDouble();
-          } else if (item["center"] != null) {
-            latitude = (item["center"]["lat"] as num).toDouble();
-
-            longitude = (item["center"]["lon"] as num).toDouble();
-          }
-
-          final category = _convertCategory(tags);
-
-          return HeritageSite(
-            id: item["id"].toString(),
-
-            name: tags["name"] ?? "Unknown Heritage",
-
-            location: tags["addr:state"] ?? "Malaysia",
-
-            description: tags["description"] ?? "Heritage site in Malaysia",
-
-            category: category,
-
-            latitude: latitude,
-
-            longitude: longitude,
-
-            imageUrl:
-            await ImageService.getHeritageImage(
-                tags["name"] ?? ""
-              await ImageService.getHeritageImage(
-          tags["name"] ?? ""
-            ),
-
-            tags: [category],
-
-            duration: "1-2 hours",
-
-            xp: 50,
-
-            visited: false,
-
-            isEditorPick: false,
-          );
-        })
-            .toList()
-        .toList()
-    );
-  }
-
-  static String _convertCategory(Map<String, dynamic> tags) {
-    if (tags["amenity"] == "place_of_worship") {
-      return "Religious";
-    }
-
-    if (tags["tourism"] == "museum") {
-      return "National";
-    }
-
-    if (tags["natural"] != null || tags["leisure"] == "park") {
-      return "Nature";
-    }
-
-    if (tags["heritage"] != null) {
-      return "UNESCO";
-    }
-
-    return "National";
-  }
-}
 }

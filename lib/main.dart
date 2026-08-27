@@ -11,17 +11,18 @@ import 'modules/placeholder.dart';
 import 'modules/badges.dart';
 import 'modules/quiz.dart';
 import 'modules/auth/login_screen.dart';
+import 'modules/auth/register_screen.dart';    // ✅ IMPORT ADDED
 import 'services/achievement_provider.dart';
 import 'widgets/app_bottom_bar.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Hive initialization
+  // Initialize Hive for local persistence
   await Hive.initFlutter();
   await Hive.openBox('userProgress');
 
-  // Firebase initialization
+  // Initialize Firebase
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -63,7 +64,10 @@ class MalaysiaGoApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const LoginScreen(),
-      routes: {'/home': (context) => const MainScreen()},
+      routes: {
+        '/home': (context) => const MainScreen(),
+        '/register': (context) => const RegisterScreen(),   // ✅ ROUTE ADDED
+      },
     );
   }
 }
@@ -99,8 +103,8 @@ class _MainScreenState extends State<MainScreen> {
         case BottomTab.map:
           return MapScreen(
             totalXp: provider.totalXp,
-            completedQuizIds: {},   // Will connect later
-            quizHistory: [],        // Will connect later
+            completedQuizIds: {},
+            quizHistory: [],
             onQuizComplete: _handleQuizComplete,
           );
         case BottomTab.passport:

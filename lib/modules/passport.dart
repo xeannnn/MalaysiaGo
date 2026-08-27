@@ -5,26 +5,8 @@ import '../widgets/app_header.dart';
 /// color. Add/replace entries here to change what shows up in the
 /// grid — these stand in for real site artwork until that's ready.
 const List<String> _pieceIcons = [
-  '🏛️',
-  '🎭',
-  '⛩️',
-  '🌺',
-  '🗼',
-  '🏯',
-  '🖼️',
-  '⛺',
-  '🦚',
-  '🏺',
-  '💎',
-  '⛰️',
-  '🌋',
-  '⚓',
-  '🛡️',
-  '🏆',
-  '🕌',
-  '🏰',
-  '🎨',
-  '🏵️',
+  '🏛️', '🎭', '⛩️', '🌺', '🗼', '🏯', '🖼️', '⛺', '🦚', '🏺',
+  '💎', '⛰️', '🌋', '⚓', '🛡️', '🏆', '🕌', '🏰', '🎨', '🏵️'
 ];
 
 const List<Color> _pieceColors = [
@@ -62,10 +44,7 @@ class PassportScreen extends StatelessWidget {
                 sliver: SliverToBoxAdapter(
                   child: Column(
                     children: [
-                      const PassportHeroCard(
-                        collected: collected,
-                        total: totalPieces,
-                      ),
+                      const PassportHeroCard(collected: collected, total: totalPieces),
                       const SizedBox(height: 16),
                       Align(
                         alignment: Alignment.centerLeft,
@@ -74,10 +53,6 @@ class PassportScreen extends StatelessWidget {
                           child: Text(
                             'Tap any piece to view site details',
                             style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
                           ),
                         ),
                       ),
@@ -123,32 +98,6 @@ class PassportScreen extends StatelessWidget {
                     },
                     childCount: totalPieces,
                   ),
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final unlocked = index < collected;
-                    final color = unlocked
-                        ? _pieceColors[index % _pieceColors.length]
-                        : const Color(0xFFF0F0F0);
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      alignment: Alignment.center,
-                      child: unlocked
-                          ? Text(
-                              _pieceIcons[index % _pieceIcons.length],
-                              style: const TextStyle(fontSize: 20),
-                            )
-                          : const Text(
-                              '?',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFB0B0B0),
-                              ),
-                            ),
-                    );
-                  }, childCount: totalPieces),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -163,11 +112,7 @@ class PassportScreen extends StatelessWidget {
 class PassportHeroCard extends StatelessWidget {
   final int collected;
   final int total;
-  const PassportHeroCard({
-    super.key,
-    required this.collected,
-    required this.total,
-  });
+  const PassportHeroCard({super.key, required this.collected, required this.total});
 
   @override
   Widget build(BuildContext context) {
