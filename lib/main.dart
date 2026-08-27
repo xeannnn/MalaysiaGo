@@ -1,18 +1,25 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
 import 'firebase_options.dart';
 import 'models.dart';
+
 import 'modules/homepage.dart';
 import 'modules/mappage.dart';
 import 'modules/passport.dart';
 import 'modules/placeholder.dart';
 import 'modules/badges.dart';
 import 'modules/quiz.dart';
+import 'modules/qr_scanner.dart';
+import 'modules/community_screen.dart';
 import 'modules/auth/login_screen.dart';
 import 'modules/auth/register_screen.dart';    // ✅ IMPORT ADDED
+
 import 'services/achievement_provider.dart';
+
 import 'widgets/app_bottom_bar.dart';
 
 Future<void> main() async {
@@ -27,24 +34,27 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
     debugPrint('✅ Firebase initialized');
   } catch (error, stackTrace) {
-    debugPrint('⚠️ Firebase initialization failed: $error');
-    debugPrintStack(stackTrace: stackTrace);
+    debugPrint(
+      '⚠️ Firebase initialization failed: $error',
+    );
+
+    debugPrintStack(
+      stackTrace: stackTrace,
+    );
   }
 
-  // Run app with Provider
   runApp(
     ChangeNotifierProvider(
       create: (context) {
-        try {
-          final provider = AchievementProvider();
-          provider.loadUserData();
-          return provider;
-        } catch (e) {
-          debugPrint('⚠️ Provider init error: $e');
-          return AchievementProvider();
-        }
+        final provider =
+        AchievementProvider();
+
+        provider.loadUserData();
+
+        return provider;
       },
       child: const MalaysiaGoApp(),
     ),
@@ -52,7 +62,9 @@ Future<void> main() async {
 }
 
 class MalaysiaGoApp extends StatelessWidget {
-  const MalaysiaGoApp({super.key});
+  const MalaysiaGoApp({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -60,69 +72,129 @@ class MalaysiaGoApp extends StatelessWidget {
       title: 'MalaysiaGO',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFF5F5F7),
+        scaffoldBackgroundColor:
+        const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
       home: const LoginScreen(),
       routes: {
         '/home': (context) => const MainScreen(),
         '/register': (context) => const RegisterScreen(),   // ✅ ROUTE ADDED
+
+      home:
+      FirebaseAuth.instance.currentUser ==
+          null
+          ? const LoginScreen()
+          : const MainScreen(),
+
+      routes: {
+        '/home': (context) =>
+        const MainScreen(),
       },
     );
   }
 }
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  const MainScreen({
+    super.key,
+  });
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<MainScreen> createState() =>
+      _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
-  BottomTab _selectedTab = BottomTab.home;
+class _MainScreenState
+    extends State<MainScreen> {
+  BottomTab _selectedTab =
+      BottomTab.home;
 
-  void _handleQuizComplete(QuizAttempt attempt) {
-    final provider = Provider.of<AchievementProvider>(context, listen: false);
-    provider.addXp(attempt.xpEarned);
+  void _handleQuizComplete(
+      QuizAttempt attempt,
+      ) {
+    final provider =
+    Provider.of<AchievementProvider>(
+      context,
+      listen: false,
+    );
+
+    provider.addQuizAttempt(
+      attempt,
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    final provider = Provider.of<AchievementProvider>(context);
+  Widget build(
+      BuildContext context,
+      ) {
+    final provider =
+    Provider.of<AchievementProvider>(
+      context,
+    );
 
     Widget buildBody() {
       switch (_selectedTab) {
         case BottomTab.home:
           return HomeScreen(
-            totalXp: provider.totalXp,
+            totalXp:
+            provider.totalXp,
             onTabSelected: (tab) {
-              setState(() => _selectedTab = tab);
+              setState(() {
+                _selectedTab = tab;
+              });
             },
           );
+
         case BottomTab.map:
           return MapScreen(
             totalXp: provider.totalXp,
             completedQuizIds: {},
             quizHistory: [],
             onQuizComplete: _handleQuizComplete,
+            totalXp:
+            provider.totalXp,
+            completedQuizIds:
+            provider.completedQuizIds,
+            quizHistory:
+            provider.quizHistory,
+            onQuizComplete:
+            _handleQuizComplete,
           );
-        case BottomTab.passport:
-          return const PassportScreen();
+
+        case BottomTab.scan:
+          return const ScanPage();
+
+        case BottomTab.community:
+          return const CommunityScreen();
+
         case BottomTab.badges:
           return BadgesScreen(
-            onXpEarned: (xp) => provider.addXp(xp),
+            onXpEarned: (xp) {
+              provider.addXp(xp);
+            },
           );
-        default:
-          return PlaceholderScreen(tab: _selectedTab);
+
+        case BottomTab.passport:
+          return const PassportScreen();
+
       }
     }
 
     return Scaffold(
-      body: SafeArea(child: buildBody()),
-      bottomNavigationBar: AppBottomBar(
-        selected: _selectedTab,
-        onSelect: (tab) => setState(() => _selectedTab = tab),
+      body: SafeArea(
+        child: buildBody(),
+      ),
+      bottomNavigationBar:
+      AppBottomBar(
+        selected:
+        _selectedTab,
+        onSelect: (tab) {
+          setState(() {
+            _selectedTab =
+                tab;
+          });
+        },
       ),
     );
   }

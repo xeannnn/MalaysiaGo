@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 /// ---------------------------------------------------------------
@@ -28,6 +30,24 @@ class QuizQuestion {
     required this.explanation,
     required this.xpReward,
   });
+
+  /// Returns a copy of this question with its options shuffled into a
+  /// new random order — the correct answer's *text* stays correct,
+  /// its index just moves to wherever it landed. Used so the same
+  /// question doesn't always show its answer in the same position
+  /// (previously ~63% of questions had the correct answer as option
+  /// A, which is guessable).
+  QuizQuestion withShuffledOptions(Random random) {
+    final indices = List<int>.generate(options.length, (i) => i)..shuffle(random);
+    final newOptions = [for (final i in indices) options[i]];
+    return QuizQuestion(
+      question: question,
+      options: newOptions,
+      correctIndex: indices.indexOf(correctIndex),
+      explanation: explanation,
+      xpReward: xpReward,
+    );
+  }
 }
 
 /// Metadata for the heritage site a quiz belongs to — shown on the
@@ -72,6 +92,34 @@ class QuizAttempt {
     required this.xpEarned,
     required this.completedAt,
   });
+
+  // Convert object to Hive-compatible Map
+  Map<String, dynamic> toMap() {
+    return {
+      'siteId': siteId,
+      'siteName': siteName,
+      'siteIcon': siteIcon,
+      'correctCount': correctCount,
+      'totalQuestions': totalQuestions,
+      'xpEarned': xpEarned,
+      'completedAt': completedAt.toIso8601String(),
+    };
+  }
+
+  // Restore object from Hive Map
+  factory QuizAttempt.fromMap(Map<String, dynamic> map) {
+    return QuizAttempt(
+      siteId: map['siteId'] ?? '',
+      siteName: map['siteName'] ?? '',
+      siteIcon: map['siteIcon'] ?? '📍',
+      correctCount: map['correctCount'] ?? 0,
+      totalQuestions: map['totalQuestions'] ?? 0,
+      xpEarned: map['xpEarned'] ?? 0,
+      completedAt: DateTime.parse(
+        map['completedAt'] ?? DateTime.now().toIso8601String(),
+      ),
+    );
+  }
 }
 
 /// Called when a quiz is finished. MainScreen (main.dart) uses this to
@@ -109,7 +157,7 @@ class QuizRepository {
       location: 'Penang · UNESCO',
       category: 'UNESCO',
       description:
-          'Historic colonial port city famous for street art and heritage shophouses',
+      'Historic colonial port city famous for street art and heritage shophouses',
       difficulty: 'Medium',
     ),
     'malacca_city': const QuizSite(
@@ -119,7 +167,7 @@ class QuizRepository {
       location: 'Melaka · UNESCO',
       category: 'UNESCO',
       description:
-          'Historic trading port shaped by Portuguese, Dutch, and British rule',
+      'Historic trading port shaped by Portuguese, Dutch, and British rule',
       difficulty: 'Medium',
     ),
     'merdeka_square': const QuizSite(
@@ -129,7 +177,7 @@ class QuizRepository {
       location: 'Kuala Lumpur · National',
       category: 'National',
       description:
-          'Historic square where Malaysia\'s independence was declared in 1957',
+      'Historic square where Malaysia\'s independence was declared in 1957',
       difficulty: 'Easy',
     ),
     'masjid_zahir': const QuizSite(
@@ -139,7 +187,7 @@ class QuizRepository {
       location: 'Kedah · Religious',
       category: 'Religious',
       description:
-          'One of Malaysia\'s oldest and grandest mosques, completed in 1912',
+      'One of Malaysia\'s oldest and grandest mosques, completed in 1912',
       difficulty: 'Easy',
     ),
     'lenggong_valley': const QuizSite(
@@ -149,7 +197,7 @@ class QuizRepository {
       location: 'Perak · UNESCO',
       category: 'UNESCO',
       description:
-          'UNESCO-listed archaeological valley where "Perak Man" was discovered',
+      'UNESCO-listed archaeological valley where "Perak Man" was discovered',
       difficulty: 'Medium',
     ),
     'crystal_mosque': const QuizSite(
@@ -159,7 +207,7 @@ class QuizRepository {
       location: 'Terengganu · Religious',
       category: 'Religious',
       description:
-          'A steel-and-glass mosque on an island in the Terengganu River',
+      'A steel-and-glass mosque on an island in the Terengganu River',
       difficulty: 'Easy',
     ),
     'taman_negara': const QuizSite(
@@ -189,41 +237,59 @@ class QuizRepository {
         options: ['182 steps', '272 steps', '320 steps', '214 steps'],
         correctIndex: 1,
         explanation:
-            'The iconic 272 colourful steps were repainted in 2018 in a rainbow gradient that took 15 days to complete.',
+        'The iconic 272 colourful steps were repainted in 2018 in a rainbow gradient that took 15 days to complete.',
         xpReward: 27,
       ),
       QuizQuestion(
         question:
-            'What is the height of the golden Lord Murugan statue at Batu Caves?',
+        'What is the height of the golden Lord Murugan statue at Batu Caves?',
         options: ['28 metres', '35 metres', '43 metres', '55 metres'],
         correctIndex: 2,
         explanation:
-            'The 43-metre gold-plated statue of Lord Murugan is the tallest in the world, built with 1,550 cubic metres of concrete.',
+        'The 43-metre gold-plated statue of Lord Murugan is the tallest in the world, built with 1,550 cubic metres of concrete.',
         xpReward: 27,
       ),
       QuizQuestion(
         question:
-            'Which Hindu festival draws over a million devotees to Batu Caves every year?',
+        'Which Hindu festival draws over a million devotees to Batu Caves every year?',
         options: ['Thaipusam', 'Deepavali', 'Vesak Day', 'Ponggal'],
         correctIndex: 0,
         explanation:
-            'Thaipusam is the largest annual gathering at Batu Caves, with devotees carrying kavadi up the 272 steps as an act of devotion.',
+        'Thaipusam is the largest annual gathering at Batu Caves, with devotees carrying kavadi up the 272 steps as an act of devotion.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question:
+        'Roughly how old is the limestone hill that Batu Caves is formed within?',
+        options: ['About 400 million years', 'About 4 million years', 'About 40,000 years', 'About 4,000 years'],
+        correctIndex: 0,
+        explanation:
+        'The limestone forming Batu Caves is estimated to be around 400 million years old, among the oldest rock formations in Malaysia.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question:
+        'Which smaller cave near the entrance features statues and dioramas depicting a Hindu epic?',
+        options: ['Ramayana Cave', 'Ganesh Cave', 'Skanda Cave', 'Vishnu Cave'],
+        correctIndex: 0,
+        explanation:
+        'The Ramayana Cave, located near the main entrance, depicts scenes from the Hindu epic Ramayana through statues and murals.',
         xpReward: 26,
       ),
     ],
     'george_town': const [
       QuizQuestion(
         question:
-            'In what year were George Town and Malacca jointly inscribed as a UNESCO World Heritage Site?',
+        'In what year were George Town and Malacca jointly inscribed as a UNESCO World Heritage Site?',
         options: ['2000', '2008', '2012', '2015'],
         correctIndex: 1,
         explanation:
-            'George Town and Malacca were jointly listed in 2008 as "Melaka and George Town, Historic Cities of the Straits of Malacca."',
+        'George Town and Malacca were jointly listed in 2008 as "Melaka and George Town, Historic Cities of the Straits of Malacca."',
         xpReward: 27,
       ),
       QuizQuestion(
         question:
-            'George Town is world-famous for which public art form found throughout its streets?',
+        'George Town is world-famous for which public art form found throughout its streets?',
         options: [
           'Street murals',
           'Neon signage',
@@ -232,12 +298,12 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'Artists like Ernest Zacharevic popularised the interactive street murals that now draw visitors across George Town.',
+        'Artists like Ernest Zacharevic popularised the interactive street murals that now draw visitors across George Town.',
         xpReward: 27,
       ),
       QuizQuestion(
         question:
-            'Which George Town street is historically nicknamed "Harmony Street" for its cluster of temples, mosques, and churches?',
+        'Which George Town street is historically nicknamed "Harmony Street" for its cluster of temples, mosques, and churches?',
         options: [
           'Lebuh Chulia',
           'Jalan Masjid Kapitan Keling',
@@ -246,7 +312,21 @@ class QuizRepository {
         ],
         correctIndex: 1,
         explanation:
-            'Jalan Masjid Kapitan Keling (formerly Pitt Street) earned the nickname for the diverse houses of worship along it.',
+        'Jalan Masjid Kapitan Keling (formerly Pitt Street) earned the nickname for the diverse houses of worship along it.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question: 'In what year did Captain Francis Light found George Town, the first British settlement in the region?',
+        options: ['1786', '1824', '1867', '1900'],
+        correctIndex: 0,
+        explanation: 'Francis Light established George Town for the British East India Company in 1786.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question: 'What is the name of the covered pedestrian walkway in front of George Town\'s shophouses, shielding walkers from sun and rain?',
+        options: ['Five-foot way', 'Skywalk', 'Colonnade', 'Veranda deck'],
+        correctIndex: 0,
+        explanation: 'The "five-foot way" is a covered passage mandated in Straits Settlements shophouse design, a hallmark of the area\'s architecture.',
         xpReward: 26,
       ),
     ],
@@ -256,12 +336,12 @@ class QuizRepository {
         options: ['Portuguese', 'Dutch', 'British', 'Spanish'],
         correctIndex: 0,
         explanation:
-            'Malacca fell to Portuguese forces under Afonso de Albuquerque in 1511.',
+        'Malacca fell to Portuguese forces under Afonso de Albuquerque in 1511.',
         xpReward: 27,
       ),
       QuizQuestion(
         question:
-            'What is the name of the Portuguese fortress ruins still standing in Malacca today?',
+        'What is the name of the Portuguese fortress ruins still standing in Malacca today?',
         options: [
           'A Famosa',
           'Fort Cornwallis',
@@ -270,12 +350,12 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'A Famosa was built by the Portuguese in 1511; only the Porta de Santiago gate survives today.',
+        'A Famosa was built by the Portuguese in 1511; only the Porta de Santiago gate survives today.',
         xpReward: 27,
       ),
       QuizQuestion(
         question:
-            'Which street in Malacca is best known for its antique shops and Peranakan heritage?',
+        'Which street in Malacca is best known for its antique shops and Peranakan heritage?',
         options: [
           'Jonker Street',
           'Jalan Hang Tuah',
@@ -284,14 +364,28 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'Jonker Street (Jalan Hang Jebat) is the heart of Malacca\'s Peranakan and antique trading heritage.',
+        'Jonker Street (Jalan Hang Jebat) is the heart of Malacca\'s Peranakan and antique trading heritage.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question: 'Which strategic strait, historically vital to global trade, does Malacca sit alongside?',
+        options: ['Strait of Malacca', 'Strait of Hormuz', 'Strait of Gibraltar', 'Bosphorus Strait'],
+        correctIndex: 0,
+        explanation: 'Malacca\'s position on the Strait of Malacca made it a key trading port for centuries.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question: 'Which European power took control of Malacca from the Portuguese in 1641?',
+        options: ['Dutch', 'British', 'Spanish', 'French'],
+        correctIndex: 0,
+        explanation: 'The Dutch East India Company captured Malacca from the Portuguese in 1641, ruling it for over 150 years.',
         xpReward: 26,
       ),
     ],
     'merdeka_square': const [
       QuizQuestion(
         question:
-            'What historic event took place at Dataran Merdeka at midnight on 31 August 1957?',
+        'What historic event took place at Dataran Merdeka at midnight on 31 August 1957?',
         options: [
           'Declaration of Malaysia\'s independence',
           'Coronation of the first King',
@@ -300,12 +394,12 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'The Union Jack was lowered and the Malayan flag raised for the first time as independence was declared.',
+        'The Union Jack was lowered and the Malayan flag raised for the first time as independence was declared.',
         xpReward: 27,
       ),
       QuizQuestion(
         question:
-            'What was Dataran Merdeka historically used for during the colonial era?',
+        'What was Dataran Merdeka historically used for during the colonial era?',
         options: [
           'A cricket field ("the Padang")',
           'A horse racing track',
@@ -314,12 +408,12 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'It was known as the Selangor Club Padang, used for cricket and other colonial-era sports.',
+        'It was known as the Selangor Club Padang, used for cricket and other colonial-era sports.',
         xpReward: 27,
       ),
       QuizQuestion(
         question:
-            'Dataran Merdeka is home to one of the tallest flagpoles in the world, standing at roughly what height?',
+        'Dataran Merdeka is home to one of the tallest flagpoles in the world, standing at roughly what height?',
         options: [
           '95 metres',
           '20 metres',
@@ -328,7 +422,21 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'The flagpole at Dataran Merdeka stands around 95 metres tall, among the tallest in the world.',
+        'The flagpole at Dataran Merdeka stands around 95 metres tall, among the tallest in the world.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question: 'Which black-and-white timber colonial clubhouse borders the padang at Dataran Merdeka?',
+        options: ['Royal Selangor Club', 'KL Railway Station', 'Central Market', 'National Museum'],
+        correctIndex: 0,
+        explanation: 'The Royal Selangor Club, a Tudor-style timber building, has overlooked the padang since the colonial era.',
+        xpReward: 26,
+      ),
+      QuizQuestion(
+        question: 'What architectural style is the Sultan Abdul Samad Building, beside Dataran Merdeka, known for?',
+        options: ['Moorish (Indo-Saracenic)', 'Gothic Revival', 'Brutalist', 'Art Deco'],
+        correctIndex: 0,
+        explanation: 'Its onion domes and horseshoe arches reflect the Moorish (Indo-Saracenic) style popular in British colonial buildings.',
         xpReward: 26,
       ),
     ],
@@ -338,12 +446,12 @@ class QuizRepository {
         options: ['1887', '1912', '1935', '1957'],
         correctIndex: 1,
         explanation:
-            'Zahir Mosque was completed in 1912, commissioned by the Sultan of Kedah.',
+        'Zahir Mosque was completed in 1912, commissioned by the Sultan of Kedah.',
         xpReward: 30,
       ),
       QuizQuestion(
         question:
-            'Zahir Mosque\'s five black domes are said to represent what in Islam?',
+        'Zahir Mosque\'s five black domes are said to represent what in Islam?',
         options: [
           'The Five Pillars of Islam',
           'The five daily prayers only',
@@ -352,12 +460,12 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'The mosque\'s five domes are widely said to symbolise the Five Pillars of Islam.',
+        'The mosque\'s five domes are widely said to symbolise the Five Pillars of Islam.',
         xpReward: 30,
       ),
       QuizQuestion(
         question:
-            'Zahir Mosque was built on ground with what earlier significance?',
+        'Zahir Mosque was built on ground with what earlier significance?',
         options: [
           'The burial site of Kedah warriors who died fighting Siamese forces in 1821',
           'The site of the first Kedah royal palace',
@@ -366,27 +474,41 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'The mosque stands where Kedah warriors killed defending the state against Siamese invasion in 1821 were laid to rest.',
+        'The mosque stands where Kedah warriors killed defending the state against Siamese invasion in 1821 were laid to rest.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'Zahir Mosque is located in which Kedah city, the state capital?',
+        options: ['Alor Setar', 'Sungai Petani', 'Kulim', 'Langkawi Town'],
+        correctIndex: 0,
+        explanation: 'Zahir Mosque stands in the heart of Alor Setar, Kedah\'s state capital, facing the Alor Setar padang.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'What architectural style is Zahir Mosque generally described as?',
+        options: ['Moorish-influenced Islamic', 'Chinese pagoda-style', 'Brutalist concrete', 'Gothic Revival'],
+        correctIndex: 0,
+        explanation: 'Zahir Mosque\'s onion domes and arched facade reflect a Moorish-influenced Islamic architectural style common to early 20th-century Malay state mosques.',
         xpReward: 30,
       ),
     ],
     'lenggong_valley': const [
       QuizQuestion(
         question:
-            'In what year was Lenggong Valley inscribed as a UNESCO World Heritage Site?',
+        'In what year was Lenggong Valley inscribed as a UNESCO World Heritage Site?',
         options: ['2000', '2008', '2012', '2019'],
         correctIndex: 2,
         explanation:
-            'Lenggong Valley was inscribed by UNESCO in 2012 for its exceptional prehistoric record.',
+        'Lenggong Valley was inscribed by UNESCO in 2012 for its exceptional prehistoric record.',
         xpReward: 40,
       ),
       QuizQuestion(
         question:
-            'The skeleton known as "Perak Man," found in Lenggong Valley, is estimated to be roughly how old?',
+        'The skeleton known as "Perak Man," found in Lenggong Valley, is estimated to be roughly how old?',
         options: ['5,000 years', '8,000 years', '11,000 years', '20,000 years'],
         correctIndex: 2,
         explanation:
-            'Perak Man is estimated at around 11,000 years old, one of the most complete prehistoric skeletons found in Southeast Asia.',
+        'Perak Man is estimated at around 11,000 years old, one of the most complete prehistoric skeletons found in Southeast Asia.',
         xpReward: 40,
       ),
       QuizQuestion(
@@ -399,7 +521,21 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'Perak Man was unearthed in Gua Gunung Runtuh, a limestone cave within the Lenggong Valley.',
+        'Perak Man was unearthed in Gua Gunung Runtuh, a limestone cave within the Lenggong Valley.',
+        xpReward: 40,
+      ),
+      QuizQuestion(
+        question: 'Lenggong Valley\'s prehistoric record is notable for spanning roughly how long a period of continuous human activity?',
+        options: ['About 1.83 million years', 'About 18,000 years', 'About 1,800 years', 'About 180 years'],
+        correctIndex: 0,
+        explanation: 'Lenggong Valley shows evidence of continuous human occupation stretching back around 1.83 million years, among the longest such records outside Africa.',
+        xpReward: 40,
+      ),
+      QuizQuestion(
+        question: 'A notable skeletal find at Lenggong Valley showed signs consistent with what unusual physical condition?',
+        options: ['Dwarfism', 'A healed broken leg', 'Severe arthritis', 'Blindness'],
+        correctIndex: 0,
+        explanation: 'One skeleton excavated at Lenggong, "Perak Woman," is notable for skeletal features consistent with dwarfism, adding to the site\'s archaeological significance.',
         xpReward: 40,
       ),
     ],
@@ -409,7 +545,7 @@ class QuizRepository {
         options: ['1998', '2003', '2008', '2015'],
         correctIndex: 2,
         explanation:
-            'The Crystal Mosque opened in 2008 as part of the Islamic Heritage Park in Kuala Terengganu.',
+        'The Crystal Mosque opened in 2008 as part of the Islamic Heritage Park in Kuala Terengganu.',
         xpReward: 30,
       ),
       QuizQuestion(
@@ -422,7 +558,7 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'Its steel-and-glass structure, which catches and reflects light, gives the mosque its "crystal" name.',
+        'Its steel-and-glass structure, which catches and reflects light, gives the mosque its "crystal" name.',
         xpReward: 30,
       ),
       QuizQuestion(
@@ -435,14 +571,28 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'The mosque is built on Wan Man Island in the Terengganu River.',
+        'The mosque is built on Wan Man Island in the Terengganu River.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'The Crystal Mosque is part of a larger themed park showcasing replicas of famous world landmarks — what is that park called?',
+        options: ['Islamic Heritage Park', 'Terengganu Heritage Village', 'Taman Tamadun Islam', 'Kuala Terengganu Waterfront'],
+        correctIndex: 0,
+        explanation: 'The Crystal Mosque anchors the Islamic Heritage Park (Taman Tamadun Islam), which also features scaled replicas of famous Islamic monuments worldwide.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'What lighting effect is the Crystal Mosque particularly known for at night?',
+        options: ['Colour-changing LED illumination', 'Torch-lit walkways only', 'Neon signage', 'Laser projection shows'],
+        correctIndex: 0,
+        explanation: 'The mosque\'s steel-and-glass structure is fitted with LED lights that cycle through colours after dark, making it a popular night-time landmark.',
         xpReward: 30,
       ),
     ],
     'taman_negara': const [
       QuizQuestion(
         question:
-            'Taman Negara is often cited as one of the world\'s oldest rainforests — roughly how old is it estimated to be?',
+        'Taman Negara is often cited as one of the world\'s oldest rainforests — roughly how old is it estimated to be?',
         options: [
           '10 million years',
           '50 million years',
@@ -451,12 +601,12 @@ class QuizRepository {
         ],
         correctIndex: 2,
         explanation:
-            'Taman Negara\'s rainforest is estimated at around 130 million years old, older than the Amazon.',
+        'Taman Negara\'s rainforest is estimated at around 130 million years old, older than the Amazon.',
         xpReward: 37,
       ),
       QuizQuestion(
         question:
-            'Taman Negara is home to a canopy walkway considered among the longest in the world — roughly how long is it?',
+        'Taman Negara is home to a canopy walkway considered among the longest in the world — roughly how long is it?',
         options: [
           'Around 100 metres',
           'Around 250 metres',
@@ -465,12 +615,12 @@ class QuizRepository {
         ],
         correctIndex: 2,
         explanation:
-            'The canopy walkway near Kuala Tahan stretches over 500 metres, strung high above the forest floor.',
+        'The canopy walkway near Kuala Tahan stretches over 500 metres, strung high above the forest floor.',
         xpReward: 37,
       ),
       QuizQuestion(
         question:
-            'Which village serves as the main gateway for treks into Taman Negara?',
+        'Which village serves as the main gateway for treks into Taman Negara?',
         options: [
           'Kuala Tahan',
           'Kuala Besut',
@@ -479,14 +629,28 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'Kuala Tahan, where the Tahan and Tembeling rivers meet, is the usual starting point for the park.',
+        'Kuala Tahan, where the Tahan and Tembeling rivers meet, is the usual starting point for the park.',
+        xpReward: 36,
+      ),
+      QuizQuestion(
+        question: 'Taman Negara spans across which three Malaysian states?',
+        options: ['Pahang, Kelantan, and Terengganu', 'Selangor, Perak, and Kedah', 'Johor, Melaka, and Negeri Sembilan', 'Sabah, Sarawak, and Labuan'],
+        correctIndex: 0,
+        explanation: 'Taman Negara stretches across the borders of Pahang, Kelantan, and Terengganu, making it one of the largest protected areas in Peninsular Malaysia.',
+        xpReward: 36,
+      ),
+      QuizQuestion(
+        question: 'Which of Peninsular Malaysia\'s highest peaks lies within Taman Negara and is a popular multi-day trek?',
+        options: ['Gunung Tahan', 'Gunung Kinabalu', 'Gunung Ledang', 'Gunung Jerai'],
+        correctIndex: 0,
+        explanation: 'Gunung Tahan, the highest peak in Peninsular Malaysia at 2,187 metres, lies within Taman Negara and draws experienced trekkers on multi-day climbs.',
         xpReward: 36,
       ),
     ],
     'sultan_abu_bakar_mosque': const [
       QuizQuestion(
         question:
-            'Sultan Abu Bakar State Mosque is named after the Johor ruler often called the "Father of Modern Johor" — who was he?',
+        'Sultan Abu Bakar State Mosque is named after the Johor ruler often called the "Father of Modern Johor" — who was he?',
         options: [
           'Sultan Abu Bakar',
           'Sultan Ibrahim',
@@ -495,12 +659,12 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'The mosque honours Sultan Abu Bakar, credited with modernising Johor in the late 19th century.',
+        'The mosque honours Sultan Abu Bakar, credited with modernising Johor in the late 19th century.',
         xpReward: 30,
       ),
       QuizQuestion(
         question:
-            'The mosque overlooks which strait, with views toward Singapore?',
+        'The mosque overlooks which strait, with views toward Singapore?',
         options: [
           'Johor Strait',
           'Malacca Strait',
@@ -509,12 +673,12 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'Perched on a hill in Johor Bahru, the mosque looks out over the Johor Strait.',
+        'Perched on a hill in Johor Bahru, the mosque looks out over the Johor Strait.',
         xpReward: 30,
       ),
       QuizQuestion(
         question:
-            'The mosque\'s architecture is an unusual blend of Islamic style with which other influence?',
+        'The mosque\'s architecture is an unusual blend of Islamic style with which other influence?',
         options: [
           'Victorian British',
           'Japanese',
@@ -523,7 +687,21 @@ class QuizRepository {
         ],
         correctIndex: 0,
         explanation:
-            'Built between 1892 and 1900, it combines Moorish Islamic elements with Victorian British architectural style.',
+        'Built between 1892 and 1900, it combines Moorish Islamic elements with Victorian British architectural style.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'Roughly how many worshippers can Sultan Abu Bakar State Mosque accommodate?',
+        options: ['Around 2,000', 'Around 200', 'Around 20,000', 'Around 500'],
+        correctIndex: 0,
+        explanation: 'The mosque can hold approximately 2,000 worshippers, making it one of the largest state mosques in Malaysia at the time it was built.',
+        xpReward: 30,
+      ),
+      QuizQuestion(
+        question: 'How many years did it take to construct Sultan Abu Bakar State Mosque?',
+        options: ['About 8 years', 'About 1 year', 'About 20 years', 'About 3 months'],
+        correctIndex: 0,
+        explanation: 'Construction ran from 1892 to 1900, taking roughly 8 years to complete.',
         xpReward: 30,
       ),
     ],
@@ -541,6 +719,27 @@ class QuizRepository {
   /// Total possible XP for a site's quiz — used on the intro card.
   static int totalXp(String siteId) =>
       getQuestions(siteId).fold(0, (sum, q) => sum + q.xpReward);
+
+  static final Random _random = Random();
+
+  /// Picks a random subset of [count] questions from the site's full
+  /// question pool (or all of them if the pool has fewer than
+  /// [count]), in random order, with each question's own answer
+  /// options also shuffled. Call this once per quiz attempt (from
+  /// QuizIntroScreen) rather than per rebuild, so the same set of
+  /// questions is used consistently through that attempt.
+  ///
+  /// This is what makes the quiz "different every time" without
+  /// depending on any external API — it works entirely offline. A
+  /// site with only 3 questions in its pool will always show all 3
+  /// (just reordered); a site with a bigger pool (see the 5-question
+  /// pools below) will genuinely vary which 3 you get.
+  static List<QuizQuestion> getRandomQuestions(String siteId, {int count = 3}) {
+    final pool = List<QuizQuestion>.from(getQuestions(siteId));
+    pool.shuffle(_random);
+    final selected = pool.take(count).toList();
+    return selected.map((q) => q.withShuffledOptions(_random)).toList();
+  }
 }
 
 // ============================ INTRO SCREEN ============================
@@ -561,10 +760,9 @@ class QuizIntroScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final site = QuizRepository.getSite(siteId);
-    final questions = QuizRepository.getQuestions(siteId);
-    final totalXp = QuizRepository.totalXp(siteId);
+    final fullPool = QuizRepository.getQuestions(siteId);
 
-    if (site == null || questions.isEmpty) {
+    if (site == null || fullPool.isEmpty) {
       return Scaffold(
         backgroundColor: const Color(0xFF0B1130),
         body: Center(
@@ -575,6 +773,12 @@ class QuizIntroScreen extends StatelessWidget {
         ),
       );
     }
+
+    // Picked once here (not re-picked on every rebuild) so the count
+    // and XP shown on this card exactly match what QuizScreen below
+    // will actually ask.
+    final questions = QuizRepository.getRandomQuestions(siteId);
+    final totalXp = questions.fold<int>(0, (sum, q) => sum + q.xpReward);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1130),
@@ -771,6 +975,7 @@ class QuizIntroScreen extends StatelessWidget {
                           fullscreenDialog: true,
                           builder: (_) => QuizScreen(
                             siteId: siteId,
+                            questions: questions,
                             onQuizComplete: onQuizComplete,
                           ),
                         ),
@@ -850,15 +1055,20 @@ class _StatBox extends StatelessWidget {
 
 // =========================== QUESTION SCREEN ===========================
 
-/// The question-by-question quiz flow for a heritage site. Questions
-/// are pulled via [QuizRepository.getQuestions] — this screen is
-/// purely presentation + answer-state logic.
+/// The question-by-question quiz flow for a heritage site. `questions`
+/// is the already-randomized set chosen by QuizIntroScreen (via
+/// [QuizRepository.getRandomQuestions]) — this screen is purely
+/// presentation + answer-state logic, it doesn't re-pick questions
+/// itself so what's shown here always matches what the intro card
+/// promised.
 class QuizScreen extends StatefulWidget {
   final String siteId;
+  final List<QuizQuestion> questions;
   final QuizCompleteCallback onQuizComplete;
   const QuizScreen({
     super.key,
     required this.siteId,
+    required this.questions,
     required this.onQuizComplete,
   });
 
@@ -868,9 +1078,7 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen> {
   late final QuizSite? _site = QuizRepository.getSite(widget.siteId);
-  late final List<QuizQuestion> _questions = QuizRepository.getQuestions(
-    widget.siteId,
-  );
+  late final List<QuizQuestion> _questions = widget.questions;
 
   int _currentIndex = 0;
   int? _selectedIndex;
@@ -1172,7 +1380,7 @@ class _AnswerOption extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child:
-                  trailingIcon ??
+              trailingIcon ??
                   Text(
                     letter,
                     style: TextStyle(
@@ -1402,87 +1610,87 @@ class QuizHistoryScreen extends StatelessWidget {
       ),
       body: sorted.isEmpty
           ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('📋', style: TextStyle(fontSize: 40)),
+              const SizedBox(height: 8),
+              Text(
+                'No quizzes completed yet',
+                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      )
+          : ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F8A5F),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('📋', style: TextStyle(fontSize: 40)),
-                    const SizedBox(height: 8),
+                    const Text(
+                      'Quizzes Completed',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                    ),
                     Text(
-                      'No quizzes completed yet',
-                      style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-                      textAlign: TextAlign.center,
+                      '${sorted.length}',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),
-              ),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F8A5F),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Quizzes Completed',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white70,
-                            ),
-                          ),
-                          Text(
-                            '${sorted.length}',
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text(
+                      'Total XP Earned',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text(
-                            'Total XP Earned',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white70,
-                            ),
-                          ),
-                          Text(
-                            '+$totalXp',
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFFBBF24),
-                            ),
-                          ),
-                        ],
+                    ),
+                    Text(
+                      '+$totalXp',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFFBBF24),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...sorted.map(
-                  (attempt) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _AttemptCard(attempt: attempt),
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 16),
+          ...sorted.map(
+                (attempt) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _AttemptCard(attempt: attempt),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

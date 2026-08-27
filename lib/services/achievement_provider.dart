@@ -8,6 +8,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models.dart';
 import '../data/badge_data.dart';
 import '../services/badge_service.dart';
+import '../modules/quiz.dart';
 
 class AchievementProvider extends ChangeNotifier {
   // ============================================================
@@ -17,6 +18,8 @@ class AchievementProvider extends ChangeNotifier {
   int _totalXp = 0;
   Map<String, List<String>> _visitedSites = {};
   Map<String, bool> _claimedBonuses = {};
+  Set<String> _completedQuizIds = {};
+  List<QuizAttempt> _quizHistory = [];
   bool _isLoading = true;
 
   // Hive box reference
@@ -29,6 +32,8 @@ class AchievementProvider extends ChangeNotifier {
   int get totalXp => _totalXp;
   Map<String, List<String>> get visitedSites => _visitedSites;
   Map<String, bool> get claimedBonuses => _claimedBonuses;
+  Set<String> get completedQuizIds => _completedQuizIds;
+  List<QuizAttempt> get quizHistory => _quizHistory;
   bool get isLoading => _isLoading;
 
   UserAchievement get achievement {
@@ -84,6 +89,8 @@ class AchievementProvider extends ChangeNotifier {
       await _box.put('totalXp', _totalXp);
       await _box.put('visitedSites', _visitedSites);
       await _box.put('claimedBonuses', _claimedBonuses);
+      await _box.put('completedQuizIds', _completedQuizIds.toList());
+      await _box.put('quizHistory', _quizHistory.map((a) => a.toMap()).toList());
       debugPrint('✅ Progress saved to Hive');
     } catch (e) {
       debugPrint('❌ Error saving to Hive: $e');
@@ -97,11 +104,26 @@ class AchievementProvider extends ChangeNotifier {
       final savedXp = _box.get('totalXp');
       final savedVisited = _box.get('visitedSites');
       final savedBonuses = _box.get('claimedBonuses');
+      final savedCompletedQuizIds = _box.get('completedQuizIds');
+      final savedQuizHistory = _box.get('quizHistory');
 
       if (savedXp != null && savedVisited != null && savedBonuses != null) {
         _totalXp = savedXp;
         _visitedSites = Map<String, List<String>>.from(savedVisited);
         _claimedBonuses = Map<String, bool>.from(savedBonuses);
+
+        // These two fields were added after the above three, so older
+        // saved data may not have them yet — default to empty rather
+        // than fail the whole load.
+        if (savedCompletedQuizIds != null) {
+          _completedQuizIds = Set<String>.from(savedCompletedQuizIds);
+        }
+        if (savedQuizHistory != null) {
+          _quizHistory = (savedQuizHistory as List)
+              .map((m) => QuizAttempt.fromMap(Map<String, dynamic>.from(m as Map)))
+              .toList();
+        }
+
         debugPrint('✅ Data loaded from Hive: XP = $_totalXp');
         return true;
       }
@@ -222,6 +244,25 @@ class AchievementProvider extends ChangeNotifier {
   int addQuizXp(int score, int totalQuestions, {bool perfect = false}) {
     int xp = BadgeService.calculateQuizXp(score, totalQuestions, perfect: perfect);
     return addXp(xp);
+  }
+
+  /// Records a completed quiz attempt: marks the site as done (so it
+  /// can't be retaken), adds it to history, and awards its XP. Calling
+  /// this again for a site that's already completed is a no-op — the
+  /// guard lives here (not just in the UI) so the state can't be
+  /// double-counted even if a screen somehow calls this twice.
+  void addQuizAttempt(QuizAttempt attempt) {
+    if (_completedQuizIds.contains(attempt.siteId)) return;
+
+    _completedQuizIds.add(attempt.siteId);
+    _quizHistory.add(attempt);
+
+    if (attempt.xpEarned > 0) {
+      addXp(attempt.xpEarned); // addXp already notifies + saves
+    } else {
+      notifyListeners();
+      _saveToHive();
+    }
   }
 
   int addJournalXp(int wordCount, {bool hasPhoto = false}) {

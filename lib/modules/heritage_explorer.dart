@@ -4,6 +4,13 @@ import '../widgets/app_bottom_bar.dart';
 import '../models.dart';
 import 'travel_info.dart';
 import '../services/heritage_api_service.dart';
+import 'site_description.dart';
+import '../services/descriptions_api.dart';
+import '../models.dart';
+import '../services/image_service.dart';
+import '../widgets/app_bottom_bar.dart';
+import '../widgets/app_header.dart';
+import 'travel_info.dart';
 
 /// Heritage Explorer / Browse Heritage Sites screen.
 /// Reached by tapping the "Traveller's Guide" card on HomeScreen.
@@ -25,9 +32,13 @@ class HeritageExplorerScreen extends StatefulWidget {
 class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
   int _selectedTabIndex = 0; // 0 = Heritage Sites, 1 = Travel Info
   String _selectedCategory = 'All';
+  int _selectedTabIndex = 0;
+  String _selectedCategory = 'All';
+
   final TextEditingController _searchController = TextEditingController();
 
   List<HeritageSite> _sites = [];
+
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -42,16 +53,21 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_onSearchChanged);
     _loadHeritage();
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
-  /// Initial load from API
+  void _onSearchChanged() {
+    setState(() {});
+  }
+
   Future<void> _loadHeritage() async {
     setState(() {
       _isLoading = true;
@@ -59,27 +75,30 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
     });
 
     try {
-      final result = await HeritageApiService.fetchMalaysiaHeritage();
-      if (mounted) {
-        setState(() {
-          _sites = result;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint("Heritage API Error: $e");
-      if (mounted) {
-        setState(() {
-          _errorMessage = "Failed to load heritage sites.";
-          _isLoading = false;
-        });
-      }
+      final List<HeritageSite> result =
+      await HeritageApiService.fetchMalaysiaHeritage();
+
+      if (!mounted) return;
+
+      setState(() {
+        _sites = result;
+        _isLoading = false;
+      });
+    } catch (error) {
+      debugPrint('Heritage API Error: $error');
+
+      if (!mounted) return;
+
+      setState(() {
+        _errorMessage = 'Failed to load heritage sites.';
+        _isLoading = false;
+      });
     }
   }
 
-  /// In-memory filter matching category + local search text
+  // Filtered sites list based on search and selected category
   List<HeritageSite> get _filteredSites {
-    final query = _searchController.text.trim().toLowerCase();
+    final String query = _searchController.text.trim().toLowerCase();
 
     return _sites.where((site) {
       final matchesCategory =
@@ -88,7 +107,28 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
           site.name.toLowerCase().contains(query) ||
           site.location.toLowerCase().contains(query);
       return matchesCategory && matchesQuery;
+      final bool categoryMatch = _selectedCategory == 'All' ||
+          site.category.toLowerCase() == _selectedCategory.toLowerCase();
+
+      final bool searchMatch = query.isEmpty ||
+          site.name.toLowerCase().contains(query) ||
+          site.location.toLowerCase().contains(query) ||
+          site.category.toLowerCase().contains(query);
+
+      return categoryMatch && searchMatch;
     }).toList();
+  }
+
+  HeritageSite? get _editorPick {
+    if (_sites.isEmpty) return null;
+
+    for (final HeritageSite site in _sites) {
+      if (site.isEditorPick) return site;
+    }
+    for (final HeritageSite site in _sites) {
+      if (site.category.toLowerCase() == 'unesco') return site;
+    }
+    return _sites.first;
   }
 
   @override
@@ -101,6 +141,7 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
             AppHeader(
               title: "Traveller's Guide",
               subtitle: 'Heritage Sites · Travel Info',
+              subtitle: 'Malaysia Heritage Sites · Travel Info',
               xp: '${widget.totalXp}',
             ),
             Padding(
@@ -109,6 +150,15 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
                 selectedIndex: _selectedTabIndex,
                 labels: const ['🏛 Heritage Sites', '🎫 Travel Info'],
                 onChanged: (i) => setState(() => _selectedTabIndex = i),
+                labels: const [
+                  '🏛 Heritage Sites',
+                  '🎫 Travel Info',
+                ],
+                onChanged: (int index) {
+                  setState(() {
+                    _selectedTabIndex = index;
+                  });
+                },
               ),
             ),
             const SizedBox(height: 14),
@@ -124,13 +174,8 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
       ),
       bottomNavigationBar: AppBottomBar(
         selected: BottomTab.home,
-        onSelect: (tab) {
-          if (tab == BottomTab.home) {
-            Navigator.pop(context);
-            return;
-          }
+        onSelect: (BottomTab tab) {
           widget.onTabSelected(tab);
-          Navigator.pop(context);
         },
       ),
     );
@@ -150,7 +195,7 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
             const SizedBox(height: 8),
             ElevatedButton(
               onPressed: _loadHeritage,
-              child: const Text("Retry"),
+              child: const Text('Retry'),
             ),
           ],
         ),
@@ -164,6 +209,10 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
         ? _sites.where((site) => site.category == "UNESCO").firstOrNull ??
         _sites[0]
         : null;
+    final List<HeritageSite> displaySites = _filteredSites;
+    final HeritageSite? editorPick = _editorPick;
+    final bool isFiltered =
+        _searchController.text.trim().isNotEmpty || _selectedCategory != 'All';
 
     return Column(
       children: [
@@ -183,11 +232,16 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
             itemCount: _categories.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
-              final category = _categories[index];
+              final String category = _categories[index];
               return CategoryChip(
                 label: category,
                 selected: _selectedCategory == category,
                 onTap: () => setState(() => _selectedCategory = category),
+                onTap: () {
+                  setState(() {
+                    _selectedCategory = category;
+                  });
+                },
               );
             },
           ),
@@ -199,38 +253,66 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
             child: Text(
               "No heritage sites found matching '${_searchController.text}'",
               style: const TextStyle(color: Colors.grey),
+              textAlign: TextAlign.center,
             ),
           )
-              : ListView(
+              : ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            children: [
-              if (editorPick != null &&
-                  _searchController.text.isEmpty &&
-                  _selectedCategory == "All") ...[
-                const Text(
-                  "Editor's Pick",
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                EditorPickCard(site: editorPick),
-                const SizedBox(height: 20),
-              ],
-              Text(
-                "${displaySites.length} sites found",
-                style: const TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              ...displaySites.map(
-                    (site) => Padding(
+            itemCount: displaySites.length +
+                (editorPick != null && !isFiltered ? 2 : 1),
+            itemBuilder: (context, index) {
+              final bool showEditorPick =
+                  editorPick != null && !isFiltered;
+
+              // 1. Editor's Pick Section
+              if (showEditorPick && index == 0) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Editor's Pick",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    EditorPickCard(site: editorPick),
+                    const SizedBox(height: 20),
+                  ],
+                );
+              }
+
+              // 2. Section Header Title
+              final int headerIndex = showEditorPick ? 1 : 0;
+              if (index == headerIndex) {
+                return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: SiteCard(site: site),
+                  child: Text(
+                    isFiltered
+                        ? '${displaySites.length} sites found'
+                        : 'All ${displaySites.length} Heritage Sites',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                );
+              }
+
+              // 3. Site List Cards
+              final int siteListIndex = index - (showEditorPick ? 2 : 1);
+              final site = displaySites[siteListIndex];
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: SiteCard(
+                  site: site,
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ],
@@ -239,6 +321,40 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
 }
 
 // ---------- Segmented tab ----------
+// ============================================================
+// Search Bar Field
+// ============================================================
+
+class SearchBarField extends StatelessWidget {
+  final TextEditingController controller;
+
+  const SearchBarField({
+    super.key,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        hintText: 'Search sites, states, categories...',
+        prefixIcon: const Icon(Icons.search),
+        filled: true,
+        fillColor: Colors.grey.shade200,
+        border: OutlineInputBorder(
+          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(15),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Segmented Tab Bar
+// ============================================================
+
 class SegmentedTabBar extends StatelessWidget {
   final int selectedIndex;
   final List<String> labels;
@@ -324,6 +440,43 @@ class SearchBarField extends StatelessWidget {
 }
 
 // ---------- Category filter chip ----------
+        children: List.generate(
+          labels.length,
+              (int index) {
+            final bool selected = selectedIndex == index;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(index),
+                child: Container(
+                  margin: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: selected ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: Text(
+                      labels[index],
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight:
+                        selected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Category Chip
+// ============================================================
+
 class CategoryChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -336,16 +489,26 @@ class CategoryChip extends StatelessWidget {
     required this.onTap,
   });
 
-  static const Map<String, Color> _categoryColors = {
-    'UNESCO': Color(0xFF2563EB),
-    'Religious': Color(0xFFB8720A),
-    'Nature': Color(0xFF16A34A),
-    'National': Color(0xFFDC2626),
-  };
+  Color _getColor() {
+    switch (label) {
+      case 'UNESCO':
+        return const Color(0xFF2563EB);
+      case 'Religious':
+        return const Color(0xFFB8720A);
+      case 'Nature':
+        return const Color(0xFF16A34A);
+      case 'National':
+        return const Color(0xFFDC2626);
+      default:
+        return const Color(0xFF0F8A5F);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final color = _categoryColors[label] ?? const Color(0xFF16A34A);
+    final Color categoryColor = _getColor();
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -355,6 +518,11 @@ class CategoryChip extends StatelessWidget {
           color: selected ? color : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: selected ? color : const Color(0xFFE5E5E5)),
+          color: selected ? categoryColor : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? categoryColor : Colors.grey.shade300,
+          ),
         ),
         child: Text(
           label,
@@ -370,6 +538,10 @@ class CategoryChip extends StatelessWidget {
 }
 
 // ---------- Small status/tag pill ----------
+// ============================================================
+// Tag Pill
+// ============================================================
+
 class TagPill extends StatelessWidget {
   final String label;
   final Color background;
@@ -386,20 +558,71 @@ class TagPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textColor),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
       ),
     );
   }
 }
 
-// ---------- Editor's Pick large card ----------
-class EditorPickCard extends StatelessWidget {
-  final HeritageSite site;
+// ============================================================
+// Dynamic Image Loader Widget
+// ============================================================
 
-  const EditorPickCard({super.key, required this.site});
+class DynamicSiteImage extends StatefulWidget {
+  final String siteName;
+  final String fallbackUrl;
+
+  const DynamicSiteImage({
+    super.key,
+    required this.siteName,
+    required this.fallbackUrl,
+  });
+
+  @override
+  State<DynamicSiteImage> createState() => _DynamicSiteImageState();
+}
+
+class _DynamicSiteImageState extends State<DynamicSiteImage> {
+  String? _imageUrl;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImage();
+  }
+
+  Future<void> _loadImage() async {
+    if (widget.fallbackUrl.isNotEmpty &&
+        widget.fallbackUrl.startsWith('http')) {
+      if (mounted) {
+        setState(() {
+          _imageUrl = widget.fallbackUrl;
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    final fetchedUrl = await ImageService.getHeritageImage(widget.siteName);
+
+    if (mounted) {
+      setState(() {
+        _imageUrl = fetchedUrl;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -461,9 +684,45 @@ class EditorPickCard extends StatelessWidget {
 
 // ---------- Site list card ----------
 class SiteCard extends StatelessWidget {
+    if (_isLoading) {
+      return Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    if (_imageUrl != null && _imageUrl!.isNotEmpty) {
+      return Image.network(
+        _imageUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+      );
+    }
+
+    return _buildPlaceholder();
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      color: const Color(0xFFFFEFC8),
+      child: const Icon(Icons.account_balance, size: 40, color: Colors.grey),
+    );
+  }
+}
+
+// ============================================================
+// Editor Pick Card (With Background Image & Gradient Overlay)
+// ============================================================
+
+class EditorPickCard extends StatelessWidget {
   final HeritageSite site;
 
-  const SiteCard({super.key, required this.site});
+  const EditorPickCard({
+    super.key,
+    required this.site,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -510,44 +769,114 @@ class SiteCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SiteDescriptionScreen(site: site),
+          ),
+        );
+      },
+      child: Container(
+        height: 200,
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Stack(
+          children: [
+            // 1. Dynamic Background Image
+            Positioned.fill(
+              child: DynamicSiteImage(
+                siteName: site.name,
+                fallbackUrl: site.imageUrl,
+              ),
+            ),
+
+            // 2. Dark Gradient Overlay for Readability
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.3),
+                      Colors.black.withValues(alpha: 0.8),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // 3. Card Content (Badges & Text Overlays)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Top Row: Category Tag & XP Badge
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TagPill(
+                        label: site.category,
+                        background: Colors.white.withValues(alpha: 0.25),
+                        textColor: Colors.white,
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEAB308),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '+${site.xp} XP',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Bottom Info Section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
                         site.name,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
                       ),
-                    ),
-                    Text(
-                      '+${site.xp} XP',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
-                    ),
-                  ],
-                ),
-                Text(site.location, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                const SizedBox(height: 6),
-                Text(
-                  site.description,
-                  style: const TextStyle(fontSize: 12, color: Colors.black87),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    TagPill(
-                      label: site.category,
-                      background: const Color(0xFFFDECC8),
-                      textColor: const Color(0xFFB8720A),
-                    ),
-                    ...site.tags.where((t) => t != site.category).map(
-                          (t) => TagPill(
-                        label: t,
-                        background: const Color(0xFFF0F0F0),
-                        textColor: Colors.grey.shade700,
+                      const SizedBox(height: 2),
+                      Text(
+                        site.location,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                    if (site.visited)
-                      const TagPill(
-                        label: '✓ Visited',
-                        background: Color(0xFFE9F9EF),
-                        textColor: Color(0xFF16A34A),
+                      const SizedBox(height: 6),
+                      Text(
+                        site.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
                       ),
                   ],
                 ),
@@ -563,6 +892,142 @@ class SiteCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Heritage Site Card (Standard List Card)
+// ============================================================
+
+class SiteCard extends StatelessWidget {
+  final HeritageSite site;
+
+  const SiteCard({
+    super.key,
+    required this.site,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SiteDescriptionScreen(site: site),
+          ),
+        );
+      },
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.green.shade100),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Full-Width Cover Image
+            SizedBox(
+              height: 140,
+              width: double.infinity,
+              child: DynamicSiteImage(
+                siteName: site.name,
+                fallbackUrl: site.imageUrl,
+              ),
+            ),
+
+            // Card Text Content
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          site.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '+${site.xp} XP',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF16A34A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    site.location,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    site.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      TagPill(
+                        label: site.category,
+                        background: const Color(0xFFFDECC8),
+                        textColor: const Color(0xFFB8720A),
+                      ),
+                      ...site.tags
+                          .where((tag) => tag != site.category)
+                          .map(
+                            (tag) => TagPill(
+                          label: tag,
+                          background: const Color(0xFFF0F0F0),
+                          textColor: Colors.grey.shade700,
+                        ),
+                      ),
+                      if (site.visited)
+                        const TagPill(
+                          label: '✓ Visited',
+                          background: Color(0xFFE9F9EF),
+                          textColor: Color(0xFF16A34A),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

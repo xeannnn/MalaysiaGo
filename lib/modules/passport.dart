@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../widgets/app_header.dart';
 
 /// Each collectible piece: an icon cycled with a pastel background
@@ -40,7 +41,9 @@ class PassportScreen extends StatelessWidget {
           child: CustomScrollView(
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                ),
                 sliver: SliverToBoxAdapter(
                   child: Column(
                     children: [
@@ -49,10 +52,16 @@ class PassportScreen extends StatelessWidget {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.only(
+                            bottom: 12,
+                          ),
                           child: Text(
                             'Tap any piece to view site details',
                             style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ),
                       ),
@@ -60,38 +69,55 @@ class PassportScreen extends StatelessWidget {
                   ),
                 ),
               ),
+
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                ),
                 sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 5,
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
                     childAspectRatio: 1,
                   ),
                   delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                      final unlocked = index < collected;
-                      final color = unlocked
-                          ? _pieceColors[index % _pieceColors.length]
+                        (BuildContext context, int index) {
+                      final bool unlocked =
+                          index < collected;
+
+                      final Color color = unlocked
+                          ? _pieceColors[
+                      index % _pieceColors.length]
                           : const Color(0xFFF0F0F0);
+
                       return Container(
                         decoration: BoxDecoration(
                           color: color,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius:
+                          BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,
                         child: unlocked
                             ? Text(
-                          _pieceIcons[index % _pieceIcons.length],
-                          style: const TextStyle(fontSize: 20),
+                          _pieceIcons[
+                          index %
+                              _pieceIcons.length],
+                          style:
+                          const TextStyle(
+                            fontSize: 20,
+                          ),
                         )
                             : const Text(
                           '?',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFB0B0B0),
+                            fontWeight:
+                            FontWeight.bold,
+                            color: Color(
+                              0xFFB0B0B0,
+                            ),
                           ),
                         ),
                       );
@@ -100,7 +126,10 @@ class PassportScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 24),
+              ),
             ],
           ),
         ),
@@ -114,16 +143,27 @@ class PassportHeroCard extends StatelessWidget {
   final int total;
   const PassportHeroCard({super.key, required this.collected, required this.total});
 
+  const PassportHeroCard({
+    super.key,
+    required this.collected,
+    required this.total,
+  });
+
   @override
   Widget build(BuildContext context) {
-    final percent = (collected * 100 / total).round();
+    final int percent =
+    (collected * 100 / total).round();
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
-          colors: [Color(0xFF6D5BD0), Color(0xFF8B7FE8)],
+          colors: [
+            Color(0xFF6D5BD0),
+            Color(0xFF8B7FE8),
+          ],
         ),
       ),
       child: Column(
@@ -137,7 +177,9 @@ class PassportHeroCard extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
+
           const SizedBox(height: 4),
+
           const Text(
             'Malaysia Heritage Mosaic',
             style: TextStyle(
@@ -146,7 +188,9 @@ class PassportHeroCard extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
+
           const SizedBox(height: 4),
+
           Text(
             'Collect all $total pieces to reveal the masterpiece',
             style: TextStyle(
@@ -154,10 +198,14 @@ class PassportHeroCard extends StatelessWidget {
               fontSize: 12,
             ),
           ),
+
           const SizedBox(height: 16),
+
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment:
+            MainAxisAlignment.spaceBetween,
+            crossAxisAlignment:
+            CrossAxisAlignment.end,
             children: [
               Text(
                 '$collected / $total',
@@ -177,15 +225,24 @@ class PassportHeroCard extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 10),
+
           ClipRRect(
             borderRadius: BorderRadius.circular(3),
             child: Stack(
               children: [
-                Container(height: 6, color: Colors.white.withOpacity(0.25)),
+                Container(
+                  height: 6,
+                  color:
+                  Colors.white.withOpacity(0.25),
+                ),
                 FractionallySizedBox(
                   widthFactor: percent / 100,
-                  child: Container(height: 6, color: Colors.white),
+                  child: Container(
+                    height: 6,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
