@@ -14,7 +14,7 @@ import 'modules/placeholder.dart';
 import 'modules/badges.dart';
 import 'modules/quiz.dart';
 import 'modules/auth/login_screen.dart';
-import 'modules/qr_scanner.dart';
+import 'modules/gps_checkin.dart';
 import 'modules/community_screen.dart';
 
 import 'services/achievement_provider.dart';
@@ -115,8 +115,13 @@ class _MainScreenState extends State<MainScreen> {
             quizHistory: provider.quizHistory,
             onQuizComplete: _handleQuizComplete,
           );
+
         case BottomTab.scan:
-          return const ScanPage();
+          return GPSCheckInScreen(
+            onTabSelected: (tab) {
+              setState(() => _selectedTab = tab);
+            },
+          );
 
         case BottomTab.community:
           return const CommunityScreen();
