@@ -113,6 +113,11 @@ class HeritageSite {
 
   final bool visited;
   final bool isEditorPick;
+  final List<String> tips;
+
+  // New Visit Info fields
+  final String openingHours;
+  final String entryFee;
 
   HeritageSite({
     required this.id,
@@ -128,6 +133,9 @@ class HeritageSite {
     required this.xp,
     required this.visited,
     required this.isEditorPick,
+    this.tips = const [],
+    this.openingHours = 'Daily 6:00 AM – 9:00 PM',
+    this.entryFee = 'Free (Public Access)',
   });
 
   factory HeritageSite.fromJson(
@@ -135,40 +143,25 @@ class HeritageSite {
       ) {
     return HeritageSite(
       id: json['id']?.toString() ?? '',
-      name:
-      json['name']?.toString() ??
-          'Unknown Heritage',
-      location:
-      json['state']?.toString() ??
+      name: json['name']?.toString() ?? 'Unknown Heritage',
+      location: json['state']?.toString() ??
           json['location']?.toString() ??
           'Malaysia',
-      description:
-      json['description']?.toString() ?? '',
-      category:
-      json['category']?.toString() ??
-          'National',
-      latitude:
-      (json['latitude'] as num?)
-          ?.toDouble() ??
-          0.0,
-      longitude:
-      (json['longitude'] as num?)
-          ?.toDouble() ??
-          0.0,
-      imageUrl:
-      json['imageUrl']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      category: json['category']?.toString() ?? 'National',
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
+      imageUrl: json['imageUrl']?.toString() ?? '',
       tags: List<String>.from(
         json['tags'] ?? const [],
       ),
-      duration:
-      json['duration']?.toString() ??
-          '1–2 hours',
+      duration: json['duration']?.toString() ?? '1–2 hours',
       xp: (json['xp'] as num?)?.toInt() ?? 50,
-      visited:
-      json['visited'] as bool? ?? false,
-      isEditorPick:
-      json['isEditorPick'] as bool? ??
-          false,
+      visited: json['visited'] as bool? ?? false,
+      isEditorPick: json['isEditorPick'] as bool? ?? false,
+      tips: List<String>.from(
+        json['tips'] ?? const [], // 3. Add JSON parsing support
+      ),
     );
   }
 }
