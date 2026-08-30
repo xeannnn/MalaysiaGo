@@ -1,0 +1,33 @@
+name: Flutter Analyze
+
+# Runs automatically on every Pull Request targeting main.
+# Fails (blocks merge, once set as a required check) only on real
+# `error`-level issues — info/warning-level lint notices (like the
+# withOpacity deprecation notices already throughout this codebase)
+# are allowed through, matching the same "error -" criterion used to
+# manually verify main was clean before redoing PRs #24-32.
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run flutter analyze (errors only are fatal)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
