@@ -4,7 +4,7 @@ This document describes how the MalaysiaGO team uses Git and GitHub to
 collaborate on the project: branching, commits, reviews, merging, issue
 tracking, and how conflicts and releases are handled.
 
-## 1. Repository Structure
+## 1.  Repository Structure
 
 ```
 MalaysiaGO/
