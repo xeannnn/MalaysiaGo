@@ -92,6 +92,27 @@ class QuizAttempt {
     required this.xpEarned,
     required this.completedAt,
   });
+
+  Map<String, dynamic> toMap() => {
+    'siteId': siteId,
+    'siteName': siteName,
+    'siteIcon': siteIcon,
+    'correctCount': correctCount,
+    'totalQuestions': totalQuestions,
+    'xpEarned': xpEarned,
+    'completedAt': completedAt.toIso8601String(),
+  };
+
+  factory QuizAttempt.fromMap(Map<dynamic, dynamic> map) => QuizAttempt(
+    siteId: map['siteId'] as String,
+    siteName: map['siteName'] as String,
+    siteIcon: map['siteIcon'] as String,
+    correctCount: map['correctCount'] as int,
+    totalQuestions: map['totalQuestions'] as int,
+    xpEarned: map['xpEarned'] as int,
+    completedAt: DateTime.parse(map['completedAt'] as String),
+  );
+
 }
 
 /// Called when a quiz is finished. MainScreen (main.dart) uses this to
