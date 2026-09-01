@@ -5,6 +5,7 @@ import '../services/heritage_api_service.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_header.dart';
 import 'travel_info.dart';
+import 'heritage_detail.dart';
 
 class HeritageExplorerScreen extends StatefulWidget {
   final int totalXp;
@@ -124,6 +125,17 @@ class _HeritageExplorerScreenState
     }
 
     return _sites.first;
+
+  }
+  void _openHeritageDetail(HeritageSite site) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HeritageDetailScreen(
+          site: site,
+        ),
+      ),
+    );
   }
 
   @override
@@ -305,8 +317,13 @@ class _HeritageExplorerScreenState
                   height: 10,
                 ),
 
-                EditorPickCard(
-                  site: editorPick,
+                GestureDetector(
+                  onTap: () {
+                    _openHeritageDetail(editorPick);
+                  },
+                  child: EditorPickCard(
+                    site: editorPick,
+                  ),
                 ),
 
                 const SizedBox(
@@ -331,8 +348,13 @@ class _HeritageExplorerScreenState
                       const EdgeInsets.only(
                         bottom: 12,
                       ),
-                      child: SiteCard(
-                        site: site,
+                      child: GestureDetector(
+                        onTap: () {
+                          _openHeritageDetail(site);
+                        },
+                        child: SiteCard(
+                          site: site,
+                        ),
                       ),
                     ),
               ),
