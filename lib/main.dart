@@ -12,7 +12,7 @@ import 'modules/mappage.dart';
 import 'modules/passport.dart';
 import 'modules/badges.dart';
 import 'modules/quiz.dart';
-import 'modules/qr_scanner.dart';
+import 'modules/gps_checkin.dart';
 import 'modules/community_screen.dart';
 import 'modules/auth/login_screen.dart';
 
@@ -23,11 +23,9 @@ import 'widgets/app_bottom_bar.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Hive initialization
   await Hive.initFlutter();
   await Hive.openBox('userProgress');
 
-  // Firebase initialization
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -103,8 +101,6 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _selectedTab = tab;
 
-      // Clear the Community focus when the user manually opens Map
-      // or moves to another tab.
       if (tab != BottomTab.map) {
         _mapFocusSiteId = null;
       }
@@ -134,7 +130,9 @@ class _MainScreenState extends State<MainScreen> {
           );
 
         case BottomTab.scan:
-          return const ScanPage();
+          return GpsCheckInScreen(
+            onXpEarned: (xp) => provider.addXp(xp),
+          );
 
         case BottomTab.community:
           return CommunityScreen(

@@ -36,97 +36,101 @@ class _BadgesScreenState extends State<BadgesScreen> {
       progressMap[p.badgeId] = p;
     }
 
-    return Column(
-      children: [
-        AppHeader(
-          title: 'Achievements',
-          subtitle: 'Complete state badges to unlock rewards',
-          xp: '${provider.totalXp}',
-        ),
-        Expanded(
-          child: CustomScrollView(
-            slivers: [
-              // XP Progress Card
-              SliverToBoxAdapter(
-                child: _XpProgressCard(
-                  xp: provider.totalXp,
-                  level: achievement.level,
-                  xpToNext: achievement.xpToNextLevel,
-                  completedBadges: completedBadges,
-                  totalBadges: totalBadges,
-                ),
-              ),
-              // Badge Collection Header
-              SliverPadding(
-                padding: const EdgeInsets.all(20),
-                sliver: SliverToBoxAdapter(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'State Badges',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F8A5F),
-                        ),
-                      ),
-                      Text(
-                        '$completedBadges / $totalBadges completed',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Badge Grid
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.85,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                      final badge = allStateBadges[index];
-                      final progress = progressMap[badge.id];
-                      final unlocked = progress?.unlockedPieces ?? 0;
-                      final complete = progress?.isComplete ?? false;
-
-                      return _BadgeCard(
-                        badge: badge,
-                        unlockedPieces: unlocked,
-                        isComplete: complete,
-                        onTap: () {
-                          final visited = provider.visitedSites[badge.id] ?? [];
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => BadgeDetailScreen(
-                                badge: badge,
-                                visitedSites: visited,
-                                totalXp: provider.totalXp,
-                                onXpEarned: widget.onXpEarned,
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    childCount: allStateBadges.length,
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            ],
+    return SafeArea(
+      child: Column(
+        children: [
+          AppHeader(
+            title: 'Achievements',
+            subtitle: 'Complete state badges to unlock rewards',
+            xp: '${provider.totalXp}',
           ),
-        ),
-      ],
+          Expanded(
+            child: CustomScrollView(
+              slivers: [
+                // XP Progress Card
+                SliverToBoxAdapter(
+                  child: _XpProgressCard(
+                    xp: provider.totalXp,
+                    level: achievement.level,
+                    xpToNext: achievement.xpToNextLevel,
+                    completedBadges: completedBadges,
+                    totalBadges: totalBadges,
+                  ),
+                ),
+                // Badge Collection Header
+                SliverPadding(
+                  padding: const EdgeInsets.all(20),
+                  sliver: SliverToBoxAdapter(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'State Badges',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F8A5F),
+                          ),
+                        ),
+                        Text(
+                          '$completedBadges / $totalBadges completed',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Badge Grid
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.85,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                        final badge = allStateBadges[index];
+                        final progress = progressMap[badge.id];
+                        final unlocked = progress?.unlockedPieces ?? 0;
+                        final complete = progress?.isComplete ?? false;
+
+                        // Fetch real-time visited sites list for this badge
+                        final visited = provider.visitedSites[badge.id] ?? <String>[];
+
+                        return _BadgeCard(
+                          badge: badge,
+                          unlockedPieces: unlocked,
+                          isComplete: complete,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BadgeDetailScreen(
+                                  badge: badge,
+                                  visitedSites: visited,
+                                  totalXp: provider.totalXp,
+                                  onXpEarned: widget.onXpEarned,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      childCount: allStateBadges.length,
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -432,7 +436,7 @@ class _BadgeCard extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              isComplete ? '✅ Completed!' : '${unlockedPieces}/${badge.totalPieces}',
+              isComplete ? '✅ Completed!' : '$unlockedPieces/${badge.totalPieces}',
               style: TextStyle(
                 fontSize: 11,
                 color: isComplete ? const Color(0xFF16A34A) : Colors.grey[600],
@@ -486,20 +490,22 @@ class BadgeDetailScreen extends StatefulWidget {
 
 class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
   bool _bonusClaimed = false;
-  late AchievementProvider _provider;
 
   @override
   void initState() {
     super.initState();
-    _provider = Provider.of<AchievementProvider>(context, listen: false);
-    if (_provider.isBonusClaimed(widget.badge.id)) {
+    final provider = Provider.of<AchievementProvider>(context, listen: false);
+    if (provider.isBonusClaimed(widget.badge.id)) {
       _bonusClaimed = true;
     }
   }
 
   void _claimBonus() {
-    if (widget.badge.isComplete(widget.visitedSites) && !_bonusClaimed) {
-      int bonusXp = _provider.claimBadgeBonus(widget.badge.id);
+    final provider = Provider.of<AchievementProvider>(context, listen: false);
+    final visitedSites = provider.visitedSites[widget.badge.id] ?? widget.visitedSites;
+
+    if (widget.badge.isComplete(visitedSites) && !_bonusClaimed) {
+      int bonusXp = provider.claimBadgeBonus(widget.badge.id);
       if (bonusXp > 0) {
         setState(() {
           _bonusClaimed = true;
@@ -517,9 +523,11 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final unlocked = widget.badge.getUnlockedPieces(widget.visitedSites);
-    final complete = widget.badge.isComplete(widget.visitedSites);
-    final progress = widget.badge.getProgress(widget.visitedSites);
+    final provider = Provider.of<AchievementProvider>(context);
+    final visitedSites = provider.visitedSites[widget.badge.id] ?? widget.visitedSites;
+    final unlocked = widget.badge.getUnlockedPieces(visitedSites);
+    final complete = widget.badge.isComplete(visitedSites);
+    final progress = widget.badge.getProgress(visitedSites);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
@@ -734,7 +742,7 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
             const SizedBox(height: 12),
 
             ...widget.badge.requiredSiteIds.map((siteId) {
-              final visited = widget.visitedSites.contains(siteId);
+              final visited = visitedSites.contains(siteId);
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
