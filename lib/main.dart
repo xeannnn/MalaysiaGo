@@ -20,6 +20,8 @@ import 'services/achievement_provider.dart';
 
 import 'widgets/app_bottom_bar.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -35,6 +37,12 @@ Future<void> main() async {
     debugPrint('⚠️ Firebase initialization failed: $error');
     debugPrintStack(stackTrace: stackTrace);
   }
+
+  // Supabase
+  await Supabase.initialize(
+    url: 'https://jcyecsnsiznmeddygkle.supabase.co',
+    anonKey: 'sb_publishable_ArQqnsMHEqiQRHZAR5E9hA_9y5NpWp1',
+  );
 
   runApp(
     ChangeNotifierProvider(

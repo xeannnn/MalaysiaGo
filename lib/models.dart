@@ -114,6 +114,12 @@ class HeritageSite {
   final bool visited;
   final bool isEditorPick;
 
+  final String openingHours;
+  final String entryFee;
+  final String difficulty;
+  final String bestTime;
+  final List<String> tips;
+
   HeritageSite({
     required this.id,
     required this.name,
@@ -128,6 +134,12 @@ class HeritageSite {
     required this.xp,
     required this.visited,
     required this.isEditorPick,
+
+    this.openingHours = 'Unknown',
+    this.entryFee = 'Free',
+    this.difficulty = 'Easy',
+    this.bestTime = '',
+    this.tips = const [],
   });
 
   factory HeritageSite.fromJson(
