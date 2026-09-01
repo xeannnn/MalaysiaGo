@@ -20,6 +20,7 @@ dependencies:
   latlong2: ^0.9.1
   http: ^1.5.0
   image_picker: ^1.2.0
+  geolocator: ^10.1.0
 
   # Hive packages for local persistence
   hive: ^2.2.3

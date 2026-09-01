@@ -17,7 +17,7 @@ extension BottomTabX on BottomTab {
       case BottomTab.map:
         return 'Map';
       case BottomTab.scan:
-        return 'Scan';
+        return 'Check In';
       case BottomTab.community:
         return 'Community';
       case BottomTab.badges:
@@ -34,7 +34,7 @@ extension BottomTabX on BottomTab {
       case BottomTab.map:
         return '🗺️';
       case BottomTab.scan:
-        return '📷';
+        return '📍';
       case BottomTab.community:
         return '💬';
       case BottomTab.badges:
