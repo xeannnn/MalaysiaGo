@@ -239,6 +239,7 @@ class MapScreen extends StatefulWidget {
   final Set<String> completedQuizIds;
   final List<QuizAttempt> quizHistory;
   final QuizCompleteCallback onQuizComplete;
+  final String? initialSiteId;
 
   const MapScreen({
     super.key,
@@ -246,6 +247,7 @@ class MapScreen extends StatefulWidget {
     required this.completedQuizIds,
     required this.quizHistory,
     required this.onQuizComplete,
+    this.initialSiteId,
   });
 
   @override
@@ -373,6 +375,8 @@ class _MapScreenState extends State<MapScreen> {
                   sites: heritageMapSites,
                   visitedCount: _visitedCount,
                   onTapSite: _openSite,
+                  focusSiteId: widget.initialSiteId,
+                  onFocusedSiteReady: _openSite,
                 ),
               ),
               if (showNearbyBanner) ...[
@@ -517,11 +521,15 @@ class _MapCanvas extends StatefulWidget {
   final List<HeritageMapSite> sites;
   final int visitedCount;
   final ValueChanged<HeritageMapSite> onTapSite;
+  final String? focusSiteId;
+  final ValueChanged<HeritageMapSite>? onFocusedSiteReady;
 
   const _MapCanvas({
     required this.sites,
     required this.visitedCount,
     required this.onTapSite,
+    this.focusSiteId,
+    this.onFocusedSiteReady,
   });
 
   @override
@@ -569,10 +577,36 @@ class _MapCanvasState extends State<_MapCanvas> {
       .toList();
 
   void _onMapReady() {
-    // Fit the view to the real site bounds once the map has laid
-    // out, rather than relying on a guessed centre/zoom.
+    final String? focusSiteId = widget.focusSiteId;
+
+    if (focusSiteId != null && focusSiteId.isNotEmpty) {
+      HeritageMapSite? focusedSite;
+
+      for (final site in widget.sites) {
+        if (site.id == focusSiteId) {
+          focusedSite = site;
+          break;
+        }
+      }
+
+      if (focusedSite != null) {
+        _controller.move(focusedSite.latLng, 14);
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          widget.onFocusedSiteReady?.call(focusedSite!);
+        });
+
+        return;
+      }
+    }
+
+    // Normal map opening: fit all heritage sites into view.
     _controller.fitCamera(
-      CameraFit.bounds(bounds: _siteBounds, padding: const EdgeInsets.all(36)),
+      CameraFit.bounds(
+        bounds: _siteBounds,
+        padding: const EdgeInsets.all(36),
+      ),
     );
   }
 

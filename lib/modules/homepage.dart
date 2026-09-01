@@ -7,6 +7,7 @@ import '../models.dart';
 import '../services/achievement_provider.dart';
 import '../widgets/app_header.dart';
 import 'heritage_explorer.dart';
+import 'auth/profile_screen.dart';
 
 /// Home screen.
 class HomeScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _userName = 'MalaysiaGo User';
+  String? _photoUrl;
   bool _isLoadingName = true;
 
   @override
@@ -46,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     String name = user.displayName?.trim() ?? '';
+    String? photoUrl = user.photoURL;
 
     try {
       final DocumentSnapshot<Map<String, dynamic>> snapshot =
@@ -63,6 +66,13 @@ class _HomeScreenState extends State<HomeScreen> {
         if (firestoreName.isNotEmpty) {
           name = firestoreName;
         }
+
+        final String firestorePhoto =
+            (data?['photoUrl'] as String?)?.trim() ?? '';
+
+        if (firestorePhoto.isNotEmpty) {
+          photoUrl = firestorePhoto;
+        }
       }
     } catch (error) {
       debugPrint('Failed to load user name: $error');
@@ -71,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       setState(() {
         _userName = name.isEmpty ? 'MalaysiaGo User' : name;
+        _photoUrl = photoUrl;
         _isLoadingName = false;
       });
     }
@@ -179,7 +190,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 name: _isLoadingName
                     ? 'Loading...'
                     : _userName,
-                avatarEmoji: '🤓',
+                photoUrl: _photoUrl,
+                onProfileTap: () async {
+                  await Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ProfileScreen(),
+                    ),
+                  );
+                  if (mounted) {
+                    _loadUserName();
+                  }
+                },
                 level: level,
                 nextLevel: level + 1,
                 streakDays: 7,
@@ -301,7 +323,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class WelcomeCard extends StatelessWidget {
   final String name;
-  final String avatarEmoji;
+  final String? photoUrl;
+  final VoidCallback onProfileTap;
   final int level;
   final int nextLevel;
   final int streakDays;
@@ -315,7 +338,8 @@ class WelcomeCard extends StatelessWidget {
   const WelcomeCard({
     super.key,
     required this.name,
-    required this.avatarEmoji,
+    required this.photoUrl,
+    required this.onProfileTap,
     required this.level,
     required this.nextLevel,
     required this.streakDays,
@@ -366,8 +390,10 @@ class WelcomeCard extends StatelessWidget {
                   crossAxisAlignment:
                   CrossAxisAlignment.center,
                   children: [
-                    Stack(
-                      children: [
+                    GestureDetector(
+                      onTap: onProfileTap,
+                      child: Stack(
+                        children: [
                         Container(
                           width: 52,
                           height: 52,
@@ -380,13 +406,35 @@ class WelcomeCard extends StatelessWidget {
                           ),
                           alignment:
                           Alignment.center,
-                          child: Text(
-                            avatarEmoji,
-                            style:
-                            const TextStyle(
-                              fontSize: 26,
-                            ),
-                          ),
+                          child: photoUrl != null && photoUrl!.isNotEmpty
+                              ? ClipOval(
+                                  child: Image.network(
+                                    photoUrl!,
+                                    width: 52,
+                                    height: 52,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Text(
+                                      name.isNotEmpty
+                                          ? name.substring(0, 1).toUpperCase()
+                                          : 'U',
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  name.isNotEmpty
+                                      ? name.substring(0, 1).toUpperCase()
+                                      : 'U',
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                         Positioned(
                           bottom: 0,
@@ -417,7 +465,8 @@ class WelcomeCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                      ],
+                        ],
+                      ),
                     ),
 
                     const SizedBox(width: 12),

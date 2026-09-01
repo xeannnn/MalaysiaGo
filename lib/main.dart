@@ -10,10 +10,10 @@ import 'models.dart';
 import 'modules/homepage.dart';
 import 'modules/mappage.dart';
 import 'modules/passport.dart';
-import 'modules/placeholder.dart';
 import 'modules/badges.dart';
 import 'modules/quiz.dart';
 import 'modules/qr_scanner.dart';
+import 'modules/community_screen.dart';
 import 'modules/auth/login_screen.dart';
 
 import 'services/achievement_provider.dart';
@@ -62,11 +62,9 @@ class MalaysiaGoApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
-
       home: FirebaseAuth.instance.currentUser == null
           ? const LoginScreen()
           : const MainScreen(),
-
       routes: {
         '/home': (context) => const MainScreen(),
       },
@@ -83,6 +81,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   BottomTab _selectedTab = BottomTab.home;
+  String? _mapFocusSiteId;
 
   void _handleQuizComplete(QuizAttempt attempt) {
     final provider = Provider.of<AchievementProvider>(
@@ -91,6 +90,25 @@ class _MainScreenState extends State<MainScreen> {
     );
 
     provider.addQuizAttempt(attempt);
+  }
+
+  void _openCommunitySiteOnMap(String siteId) {
+    setState(() {
+      _mapFocusSiteId = siteId;
+      _selectedTab = BottomTab.map;
+    });
+  }
+
+  void _selectTab(BottomTab tab) {
+    setState(() {
+      _selectedTab = tab;
+
+      // Clear the Community focus when the user manually opens Map
+      // or moves to another tab.
+      if (tab != BottomTab.map) {
+        _mapFocusSiteId = null;
+      }
+    });
   }
 
   @override
@@ -102,21 +120,26 @@ class _MainScreenState extends State<MainScreen> {
         case BottomTab.home:
           return HomeScreen(
             totalXp: provider.totalXp,
-            onTabSelected: (tab) {
-              setState(() => _selectedTab = tab);
-            },
+            onTabSelected: _selectTab,
           );
 
         case BottomTab.map:
           return MapScreen(
+            key: ValueKey<String?>('map-${_mapFocusSiteId ?? 'normal'}'),
             totalXp: provider.totalXp,
             completedQuizIds: provider.completedQuizIds,
             quizHistory: provider.quizHistory,
             onQuizComplete: _handleQuizComplete,
+            initialSiteId: _mapFocusSiteId,
           );
 
         case BottomTab.scan:
           return const ScanPage();
+
+        case BottomTab.community:
+          return CommunityScreen(
+            onViewOnMap: _openCommunitySiteOnMap,
+          );
 
         case BottomTab.badges:
           return BadgesScreen(
@@ -125,9 +148,6 @@ class _MainScreenState extends State<MainScreen> {
 
         case BottomTab.passport:
           return const PassportScreen();
-
-        default:
-          return PlaceholderScreen(tab: _selectedTab);
       }
     }
 
@@ -137,9 +157,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: AppBottomBar(
         selected: _selectedTab,
-        onSelect: (tab) {
-          setState(() => _selectedTab = tab);
-        },
+        onSelect: _selectTab,
       ),
     );
   }
