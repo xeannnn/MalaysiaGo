@@ -4,6 +4,7 @@ enum BottomTab {
   home,
   map,
   scan,
+  community,
   badges,
   passport,
 }
@@ -17,6 +18,8 @@ extension BottomTabX on BottomTab {
         return 'Map';
       case BottomTab.scan:
         return 'Scan';
+      case BottomTab.community:
+        return 'Community';
       case BottomTab.badges:
         return 'Badges';
       case BottomTab.passport:
@@ -32,6 +35,8 @@ extension BottomTabX on BottomTab {
         return '🗺️';
       case BottomTab.scan:
         return '📷';
+      case BottomTab.community:
+        return '💬';
       case BottomTab.badges:
         return '🏅';
       case BottomTab.passport:
