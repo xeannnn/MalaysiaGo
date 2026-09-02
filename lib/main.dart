@@ -23,6 +23,7 @@ import 'widgets/app_bottom_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
+  WidgetsBinding.instance;
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
@@ -38,7 +39,7 @@ Future<void> main() async {
     debugPrintStack(stackTrace: stackTrace);
   }
 
-  // Supabase
+  // Supabase initialization
   await Supabase.initialize(
     url: 'https://jcyecsnsiznmeddygkle.supabase.co',
     anonKey: 'sb_publishable_ArQqnsMHEqiQRHZAR5E9hA_9y5NpWp1',
@@ -138,9 +139,7 @@ class _MainScreenState extends State<MainScreen> {
           );
 
         case BottomTab.scan:
-          return GpsCheckInScreen(
-            onXpEarned: (xp) => provider.addXp(xp),
-          );
+          return const GpsCheckInScreen();
 
         case BottomTab.community:
           return CommunityScreen(
