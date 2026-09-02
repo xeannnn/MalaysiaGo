@@ -14,10 +14,12 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
 
   bool _isLoading = true;
-  bool _isLoggingOut = false;
   bool _isSaving = false;
+  bool _isLoggingOut = false;
   bool _isEditing = false;
 
   String _name = '';
@@ -25,16 +27,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _phone = '';
   String _state = '';
   String? _photoUrl;
+  List<String> _selectedInterests = <String>[];
 
-  List<String> _selectedInterests = [];
-
-  final TextEditingController _nameController =
-  TextEditingController();
-
-  final TextEditingController _phoneController =
-  TextEditingController();
-
-  final List<String> _states = [
+  static const List<String> _states = <String>[
     'Johor',
     'Kedah',
     'Kelantan',
@@ -53,7 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'Terengganu',
   ];
 
-  final List<String> _interestOptions = [
+  static const List<String> _interestOptions = <String>[
     'Heritage',
     'Food',
     'Nature',
@@ -77,610 +72,215 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  // ============================================================
-  // LOAD PROFILE
-  // ============================================================
-
   Future<void> _loadUserProfile() async {
     final User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
-    String name = user.displayName ?? '';
+    String name = user.displayName?.trim() ?? '';
     String phone = '';
     String state = '';
-    List<String> interests = [];
-
-    final String email = user.email ?? '';
-    final String? photoUrl = user.photoURL;
+    String? photoUrl = user.photoURL;
+    List<String> interests = <String>[];
 
     try {
-      final DocumentSnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance
+      final snapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
 
-      if (snapshot.exists) {
-        final Map<String, dynamic>? data = snapshot.data();
+      final data = snapshot.data();
+      if (data != null) {
+        final String firestoreName = (data['name'] as String?)?.trim() ?? '';
+        if (firestoreName.isNotEmpty) name = firestoreName;
 
-        final String firestoreName =
-            (data?['name'] as String?)?.trim() ?? '';
+        phone = (data['phone'] as String?)?.trim() ?? '';
+        state = (data['state'] as String?)?.trim() ?? '';
 
-        if (firestoreName.isNotEmpty) {
-          name = firestoreName;
-        }
+        final String firestorePhoto = (data['photoUrl'] as String?)?.trim() ?? '';
+        if (firestorePhoto.isNotEmpty) photoUrl = firestorePhoto;
 
-        phone =
-            (data?['phone'] as String?)?.trim() ?? '';
-
-        state =
-            (data?['state'] as String?)?.trim() ?? '';
-
-        final dynamic storedInterests =
-        data?['interests'];
-
+        final dynamic storedInterests = data['interests'];
         if (storedInterests is List) {
-          interests = storedInterests
-              .map((item) => item.toString())
-              .toList();
+          interests = storedInterests.map((item) => item.toString()).toList();
         }
       }
     } catch (error) {
-      debugPrint(
-        'Failed to load Firestore profile: $error',
-      );
+      debugPrint('Failed to load Firestore profile: $error');
     }
 
-    if (mounted) {
-      setState(() {
-        _name =
-        name.isEmpty ? 'MalaysiaGo User' : name;
-
-        _email = email;
-        _photoUrl = photoUrl;
-        _phone = phone;
-        _state = state;
-        _selectedInterests = interests;
-
-        _nameController.text = _name;
-        _phoneController.text = _phone;
-
-        _isLoading = false;
-      });
-    }
-  }
-
-  // ============================================================
-  // SAVE PROFILE
-  // ============================================================
-
-  Future<void> _saveProfile() async {
-    final User? user =
-        FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return;
-    }
-
-    final String newName =
-    _nameController.text.trim();
-
-    final String newPhone =
-    _phoneController.text.trim();
-
-    if (newName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please enter your name.',
-          ),
-        ),
-      );
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {
-      _isSaving = true;
+      _name = name.isEmpty ? 'MalaysiaGo User' : name;
+      _email = user.email ?? (user.isAnonymous ? 'Guest account' : '');
+      _phone = phone;
+      _state = state;
+      _photoUrl = photoUrl;
+      _selectedInterests = interests;
+      _nameController.text = _name;
+      _phoneController.text = _phone;
+      _isLoading = false;
     });
+  }
+
+  Future<void> _saveProfile() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.isAnonymous) return;
+
+    final String newName = _nameController.text.trim();
+    final String newPhone = _phoneController.text.trim();
+
+    if (newName.length < 2) {
+      _showMessage('Please enter a valid name.');
+      return;
+    }
+
+    setState(() => _isSaving = true);
 
     try {
       await user.updateDisplayName(newName);
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set(
-        {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+        <String, dynamic>{
+          'uid': user.uid,
           'name': newName,
+          'email': user.email?.toLowerCase() ?? '',
+          'photoUrl': _photoUrl,
           'phone': newPhone,
           'state': _state,
           'interests': _selectedInterests,
-          'updatedAt':
-          FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         },
-        SetOptions(
-          merge: true,
-        ),
+        SetOptions(merge: true),
       );
 
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setState(() {
         _name = newName;
         _phone = newPhone;
         _isEditing = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Profile updated successfully.',
-          ),
-        ),
-      );
+      _showMessage('Profile updated successfully.');
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to update profile: $error',
-          ),
-        ),
-      );
+      if (mounted) _showMessage('Unable to update profile: $error');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  // ============================================================
-  // CHANGE PASSWORD
-  // ============================================================
+  Future<void> _logout() async {
+    setState(() => _isLoggingOut = true);
+    try {
+      await _authService.logout();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      if (mounted) _showMessage('Unable to log out: $error');
+    } finally {
+      if (mounted) setState(() => _isLoggingOut = false);
+    }
+  }
 
-  Future<void> _showChangePasswordDialog() async {
+  Future<void> _openChangePassword() async {
     final bool? changed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => ChangePasswordDialog(
+      builder: (_) => ChangePasswordDialog(authService: _authService),
+    );
+    if (changed == true && mounted) {
+      _showMessage('Password changed successfully.');
+    }
+  }
+
+  Future<void> _openDeleteAccount() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final bool? deleted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => DeleteAccountDialog(
         authService: _authService,
+        needsPassword: _authService.userUsesPasswordProvider(),
       ),
     );
 
-    if (!mounted) {
-      return;
-    }
-
-    if (changed == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Password changed successfully.',
-          ),
-        ),
-      );
-    }
-  }
-
-  // ============================================================
-  // DELETE ACCOUNT
-  // ============================================================
-
-  Future<void> _showDeleteAccountDialog() async {
-    final bool isPasswordUser =
-    _authService.isPasswordUser();
-
-    final bool isGoogleUser =
-    _authService.isGoogleUser();
-
-    final TextEditingController passwordController =
-    TextEditingController();
-
-    bool isDeleting = false;
-    bool hidePassword = true;
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (
-              BuildContext context,
-              StateSetter setDialogState,
-              ) {
-            Future<void> confirmDelete() async {
-              if (isPasswordUser &&
-                  passwordController.text
-                      .trim()
-                      .isEmpty) {
-                ScaffoldMessenger.of(this.context)
-                    .showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Please enter your current password.',
-                    ),
-                  ),
-                );
-                return;
-              }
-
-              setDialogState(() {
-                isDeleting = true;
-              });
-
-              try {
-                await _authService.deleteAccount(
-                  password: isPasswordUser
-                      ? passwordController.text.trim()
-                      : null,
-                );
-
-                if (!mounted) {
-                  return;
-                }
-
-                Navigator.pushAndRemoveUntil(
-                  this.context,
-                  MaterialPageRoute<void>(
-                    builder: (_) =>
-                    const LoginScreen(),
-                  ),
-                      (route) => false,
-                );
-              } on FirebaseAuthException catch (error) {
-                if (!mounted) {
-                  return;
-                }
-
-                String message;
-
-                switch (error.code) {
-                  case 'wrong-password':
-                  case 'invalid-credential':
-                    message =
-                    'Your current password is incorrect.';
-                    break;
-
-                  case 'requires-recent-login':
-                    message =
-                    'Please sign in again before deleting your account.';
-                    break;
-
-                  case 'network-request-failed':
-                    message =
-                    'Network error. Please check your connection.';
-                    break;
-
-                  default:
-                    message =
-                        error.message ??
-                            'Unable to delete account.';
-                }
-
-                ScaffoldMessenger.of(this.context)
-                    .showSnackBar(
-                  SnackBar(
-                    content: Text(message),
-                  ),
-                );
-
-                if (dialogContext.mounted) {
-                  setDialogState(() {
-                    isDeleting = false;
-                  });
-                }
-              } catch (error) {
-                if (!mounted) {
-                  return;
-                }
-
-                ScaffoldMessenger.of(this.context)
-                    .showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Unable to delete account: $error',
-                    ),
-                  ),
-                );
-
-                if (dialogContext.mounted) {
-                  setDialogState(() {
-                    isDeleting = false;
-                  });
-                }
-              }
-            }
-
-            return AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber,
-                    color: Colors.red,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Delete Account',
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'This action is permanent.',
-                      style: TextStyle(
-                        fontWeight:
-                        FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    const Text(
-                      'Your MalaysiaGo account and profile information will be permanently deleted.',
-                    ),
-
-                    if (isPasswordUser) ...[
-                      const SizedBox(height: 18),
-
-                      TextField(
-                        controller:
-                        passwordController,
-                        obscureText:
-                        hidePassword,
-                        decoration:
-                        InputDecoration(
-                          labelText:
-                          'Current Password',
-                          prefixIcon:
-                          const Icon(
-                            Icons
-                                .lock_outline,
-                          ),
-                          suffixIcon:
-                          IconButton(
-                            onPressed: () {
-                              setDialogState(
-                                    () {
-                                  hidePassword =
-                                  !hidePassword;
-                                },
-                              );
-                            },
-                            icon: Icon(
-                              hidePassword
-                                  ? Icons
-                                  .visibility_off
-                                  : Icons
-                                  .visibility,
-                            ),
-                          ),
-                          border:
-                          const OutlineInputBorder(),
-                        ),
-                      ),
-                    ],
-
-                    if (!isPasswordUser &&
-                        isGoogleUser) ...[
-                      const SizedBox(height: 16),
-                      const Text(
-                        'You will be asked to confirm your Google account before deletion.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isDeleting
-                      ? null
-                      : () {
-                    Navigator.of(
-                      dialogContext,
-                    ).pop();
-                  },
-                  child: const Text(
-                    'Cancel',
-                  ),
-                ),
-
-                FilledButton.icon(
-                  onPressed: isDeleting
-                      ? null
-                      : confirmDelete,
-                  style:
-                  FilledButton.styleFrom(
-                    backgroundColor:
-                    Colors.red,
-                  ),
-                  icon: isDeleting
-                      ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child:
-                    CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                      : const Icon(
-                    Icons.delete_forever,
-                  ),
-                  label: Text(
-                    isDeleting
-                        ? 'Deleting...'
-                        : 'Delete Account',
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    passwordController.dispose();
-  }
-
-  // ============================================================
-  // LOGOUT
-  // ============================================================
-
-  Future<void> _logout() async {
-    setState(() {
-      _isLoggingOut = true;
-    });
-
-    try {
-      await _authService.logout();
-
-      if (!mounted) {
-        return;
-      }
-
+    if (deleted == true && mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute<void>(
-          builder: (_) =>
-          const LoginScreen(),
-        ),
-            (route) => false,
+        MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+        (_) => false,
       );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to log out: $error',
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoggingOut = false;
-        });
-      }
     }
   }
 
-  // ============================================================
-  // AVATAR
-  // ============================================================
+  int get _profileCompletion {
+    int completed = 0;
+    const int total = 5;
+    if (_name.trim().isNotEmpty && _name != 'MalaysiaGo User') completed++;
+    if (_phone.trim().isNotEmpty) completed++;
+    if (_state.trim().isNotEmpty) completed++;
+    if (_selectedInterests.isNotEmpty) completed++;
+    if (_photoUrl != null && _photoUrl!.trim().isNotEmpty) completed++;
+    return ((completed / total) * 100).round();
+  }
 
-  Widget _buildProfileAvatar() {
-    if (_photoUrl != null &&
-        _photoUrl!.isNotEmpty) {
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Widget _avatar() {
+    if (_photoUrl != null && _photoUrl!.isNotEmpty) {
       return CircleAvatar(
         radius: 48,
-        backgroundImage:
-        NetworkImage(_photoUrl!),
+        backgroundImage: NetworkImage(_photoUrl!),
       );
     }
-
-    final String initial =
-    _name.isNotEmpty
-        ? _name
-        .substring(0, 1)
-        .toUpperCase()
-        : 'U';
 
     return CircleAvatar(
       radius: 48,
-      backgroundColor:
-      const Color(0xFF1F8A5C),
+      backgroundColor: const Color(0xFF1F8A5C),
       child: Text(
-        initial,
+        _name.isNotEmpty ? _name.substring(0, 1).toUpperCase() : 'U',
         style: const TextStyle(
-          fontSize: 42,
+          fontSize: 40,
+          fontWeight: FontWeight.bold,
           color: Colors.white,
-          fontWeight:
-          FontWeight.w500,
         ),
       ),
     );
   }
 
-  // ============================================================
-  // INFO CARD
-  // ============================================================
-
-  Widget _buildInfoCard({
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
+  Widget _infoTile(IconData icon, String title, String value) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-        BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        children: [
-          Icon(
-            icon,
-            color:
-            const Color(0xFF1F8A5C),
-          ),
-
+        children: <Widget>[
+          Icon(icon, color: const Color(0xFF1F8A5C)),
           const SizedBox(width: 14),
-
           Expanded(
             child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style:
-                  const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 4),
-
                 Text(
-                  value.isEmpty
-                      ? '-'
-                      : value,
-                  style:
-                  const TextStyle(
-                    fontSize: 15,
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
+                  value.isEmpty ? '-' : value,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -690,275 +290,95 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ============================================================
-  // SECURITY OPTION
-  // ============================================================
-
-  Widget _buildSecurityOption({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-    bool destructive = false,
-  }) {
-    final Color color = destructive
-        ? Colors.red
-        : const Color(0xFF1F8A5C);
-
-    return Material(
-      color: Colors.white,
-      borderRadius:
-      BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius:
-        BorderRadius.circular(16),
-        child: Padding(
-          padding:
-          const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration:
-                BoxDecoration(
-                  color:
-                  color.withOpacity(0.1),
-                  borderRadius:
-                  BorderRadius.circular(
-                    12,
-                  ),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                ),
-              ),
-
-              const SizedBox(width: 14),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight:
-                        FontWeight.w600,
-                        color: destructive
-                            ? Colors.red
-                            : Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(height: 3),
-
-                    Text(
-                      subtitle,
-                      style:
-                      const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              Icon(
-                Icons.chevron_right,
-                color: destructive
-                    ? Colors.red
-                    : Colors.grey,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // EDIT PROFILE
-  // ============================================================
-
-  Widget _buildEditSection() {
+  Widget _editForm() {
     return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
-      children: [
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
         TextField(
           controller: _nameController,
-          decoration:
-          const InputDecoration(
+          decoration: const InputDecoration(
             labelText: 'Name',
-            prefixIcon: Icon(
-              Icons.person_outline,
-            ),
-            border:
-            OutlineInputBorder(),
+            prefixIcon: Icon(Icons.person_outline),
+            border: OutlineInputBorder(),
           ),
         ),
-
         const SizedBox(height: 14),
-
         TextField(
           controller: _phoneController,
-          keyboardType:
-          TextInputType.phone,
-          decoration:
-          const InputDecoration(
-            labelText:
-            'Phone Number',
-            prefixIcon: Icon(
-              Icons.phone_outlined,
-            ),
-            border:
-            OutlineInputBorder(),
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'Phone Number',
+            prefixIcon: Icon(Icons.phone_outlined),
+            border: OutlineInputBorder(),
           ),
         ),
-
         const SizedBox(height: 14),
-
         DropdownButtonFormField<String>(
-          value:
-          _state.isEmpty ? null : _state,
-          decoration:
-          const InputDecoration(
-            labelText:
-            'Home State',
-            prefixIcon: Icon(
-              Icons
-                  .location_on_outlined,
-            ),
-            border:
-            OutlineInputBorder(),
+          initialValue: _state.isEmpty ? null : _state,
+          decoration: const InputDecoration(
+            labelText: 'Home State',
+            prefixIcon: Icon(Icons.location_on_outlined),
+            border: OutlineInputBorder(),
           ),
           items: _states
-              .map(
-                (String state) =>
-                DropdownMenuItem<
-                    String>(
-                  value: state,
-                  child: Text(state),
-                ),
-          )
+              .map((state) => DropdownMenuItem<String>(
+                    value: state,
+                    child: Text(state),
+                  ))
               .toList(),
-          onChanged: (String? value) {
-            setState(() {
-              _state = value ?? '';
-            });
-          },
+          onChanged: (value) => setState(() => _state = value ?? ''),
         ),
-
         const SizedBox(height: 20),
-
-        const Text(
-          'Travel Interests',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight:
-            FontWeight.bold,
-          ),
-        ),
-
+        const Text('Travel Interests', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
-
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children:
-          _interestOptions.map(
-                (String interest) {
-              final bool selected =
-              _selectedInterests
-                  .contains(interest);
-
-              return FilterChip(
-                label:
-                Text(interest),
-                selected: selected,
-                onSelected:
-                    (bool value) {
-                  setState(() {
-                    if (value) {
-                      if (!_selectedInterests
-                          .contains(
-                        interest,
-                      )) {
-                        _selectedInterests
-                            .add(
-                          interest,
-                        );
-                      }
-                    } else {
-                      _selectedInterests
-                          .remove(
-                        interest,
-                      );
-                    }
-                  });
-                },
-              );
-            },
-          ).toList(),
+          children: _interestOptions.map((interest) {
+            final bool selected = _selectedInterests.contains(interest);
+            return FilterChip(
+              label: Text(interest),
+              selected: selected,
+              onSelected: (value) {
+                setState(() {
+                  if (value) {
+                    _selectedInterests.add(interest);
+                  } else {
+                    _selectedInterests.remove(interest);
+                  }
+                });
+              },
+            );
+          }).toList(),
         ),
-
         const SizedBox(height: 20),
-
         Row(
-          children: [
+          children: <Widget>[
             Expanded(
-              child:
-              OutlinedButton(
-                onPressed:
-                _isSaving
+              child: OutlinedButton(
+                onPressed: _isSaving
                     ? null
                     : () {
-                  _nameController
-                      .text =
-                      _name;
-
-                  _phoneController
-                      .text =
-                      _phone;
-
-                  setState(() {
-                    _isEditing =
-                    false;
-                  });
-                },
-                child:
-                const Text(
-                  'Cancel',
-                ),
+                        setState(() {
+                          _nameController.text = _name;
+                          _phoneController.text = _phone;
+                          _isEditing = false;
+                        });
+                      },
+                child: const Text('Cancel'),
               ),
             ),
-
             const SizedBox(width: 12),
-
             Expanded(
               child: FilledButton(
-                onPressed:
-                _isSaving
-                    ? null
-                    : _saveProfile,
+                onPressed: _isSaving ? null : _saveProfile,
                 child: _isSaving
                     ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child:
-                  CircularProgressIndicator(
-                    strokeWidth: 2,
-                  ),
-                )
-                    : const Text(
-                  'Save Profile',
-                ),
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Save'),
               ),
             ),
           ],
@@ -967,605 +387,423 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
-
   @override
-  Widget build(
-      BuildContext context,
-      ) {
+  Widget build(BuildContext context) {
+    final User? user = FirebaseAuth.instance.currentUser;
+    final bool isGuest = user?.isAnonymous ?? false;
+
     return Scaffold(
-      backgroundColor:
-      const Color(0xFFF5F5F7),
+      backgroundColor: const Color(0xFFF5F5F7),
       appBar: AppBar(
-        title:
-        const Text('My Account'),
+        title: const Text('My Account'),
         centerTitle: true,
-        actions: [
-          if (!_isLoading &&
-              !_isEditing)
+        actions: <Widget>[
+          if (!isGuest && !_isEditing)
             IconButton(
-              onPressed: () {
-                setState(() {
-                  _isEditing = true;
-                });
-              },
-              icon:
-              const Icon(Icons.edit),
+              tooltip: 'Edit Profile',
+              onPressed: () => setState(() => _isEditing = true),
+              icon: const Icon(Icons.edit_outlined),
             ),
         ],
       ),
       body: _isLoading
-          ? const Center(
-        child:
-        CircularProgressIndicator(),
-      )
+          ? const Center(child: CircularProgressIndicator())
           : SafeArea(
-        child:
-        SingleChildScrollView(
-          padding:
-          const EdgeInsets.all(
-            20,
-          ),
-          child: Column(
-            children: [
-              _buildProfileAvatar(),
-
-              const SizedBox(
-                height: 16,
-              ),
-
-              Text(
-                _name,
-                style:
-                const TextStyle(
-                  fontSize: 22,
-                  fontWeight:
-                  FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(
-                height: 6,
-              ),
-
-              Text(
-                _email,
-                style:
-                const TextStyle(
-                  color: Colors.grey,
-                ),
-              ),
-
-              const SizedBox(
-                height: 24,
-              ),
-
-              if (_isEditing)
-                _buildEditSection()
-              else ...[
-                SizedBox(
-                  width:
-                  double.infinity,
-                  child:
-                  FilledButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _isEditing =
-                        true;
-                      });
-                    },
-                    icon:
-                    const Icon(
-                      Icons.edit,
-                    ),
-                    label:
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: <Widget>[
+                  Center(child: _avatar()),
+                  if (!isGuest && _photoUrl != null && _photoUrl!.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 8),
                     const Text(
-                      'Edit Profile',
+                      'Profile photo synced from your sign-in account',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
+                  ],
+                  const SizedBox(height: 16),
+                  Text(
+                    _name,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
-                ),
-
-                const SizedBox(
-                  height: 20,
-                ),
-
-                _buildInfoCard(
-                  icon: Icons
-                      .person_outline,
-                  title: 'Name',
-                  value: _name,
-                ),
-
-                const SizedBox(
-                  height: 12,
-                ),
-
-                _buildInfoCard(
-                  icon: Icons
-                      .email_outlined,
-                  title: 'Email',
-                  value: _email,
-                ),
-
-                const SizedBox(
-                  height: 12,
-                ),
-
-                _buildInfoCard(
-                  icon: Icons
-                      .phone_outlined,
-                  title:
-                  'Phone Number',
-                  value: _phone,
-                ),
-
-                const SizedBox(
-                  height: 12,
-                ),
-
-                _buildInfoCard(
-                  icon: Icons
-                      .location_on_outlined,
-                  title:
-                  'Home State',
-                  value: _state,
-                ),
-
-                const SizedBox(
-                  height: 12,
-                ),
-
-                _buildInfoCard(
-                  icon: Icons
-                      .favorite_outline,
-                  title:
-                  'Travel Interests',
-                  value:
-                  _selectedInterests
-                      .isEmpty
-                      ? '-'
-                      : _selectedInterests
-                      .join(', '),
-                ),
-
-                const SizedBox(
-                  height: 28,
-                ),
-
-                const Align(
-                  alignment:
-                  Alignment.centerLeft,
-                  child: Text(
-                    'Account Security',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _email,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey),
                   ),
-                ),
-
-                const SizedBox(
-                  height: 12,
-                ),
-
-                if (_authService
-                    .isPasswordUser())
-                  _buildSecurityOption(
-                    icon: Icons
-                        .lock_outline,
-                    title:
-                    'Change Password',
-                    subtitle:
-                    'Update your account password',
-                    onTap:
-                    _showChangePasswordDialog,
-                  ),
-
-                if (_authService
-                    .isPasswordUser())
-                  const SizedBox(
-                    height: 12,
-                  ),
-
-                _buildSecurityOption(
-                  icon: Icons
-                      .delete_outline,
-                  title:
-                  'Delete Account',
-                  subtitle:
-                  'Permanently delete your MalaysiaGo account',
-                  destructive: true,
-                  onTap:
-                  _showDeleteAccountDialog,
-                ),
-
-                const SizedBox(
-                  height: 28,
-                ),
-
-                SizedBox(
-                  width:
-                  double.infinity,
-                  child:
-                  FilledButton.icon(
-                    onPressed:
-                    _isLoggingOut
-                        ? null
-                        : _logout,
-                    icon: _isLoggingOut
-                        ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child:
-                      CircularProgressIndicator(
-                        strokeWidth:
-                        2,
+                  if (!isGuest) ...<Widget>[
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    )
-                        : const Icon(
-                      Icons.logout,
-                    ),
-                    label: Text(
-                      _isLoggingOut
-                          ? 'Logging out...'
-                          : 'Logout',
-                    ),
-                    style:
-                    FilledButton
-                        .styleFrom(
-                      padding:
-                      const EdgeInsets
-                          .symmetric(
-                        vertical: 14,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              const Expanded(
+                                child: Text(
+                                  'Profile Completion',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              Text(
+                                '$_profileCompletion%',
+                                style: const TextStyle(
+                                  color: Color(0xFF1F8A5C),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          LinearProgressIndicator(
+                            value: _profileCompletion / 100,
+                            minHeight: 7,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          if (_profileCompletion < 100) ...<Widget>[
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Add your phone, state, interests and profile photo to complete your profile.',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 20,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+                  ],
+                  const SizedBox(height: 24),
+                  if (_isEditing)
+                    _editForm()
+                  else ...<Widget>[
+                    _infoTile(Icons.person_outline, 'Name', _name),
+                    const SizedBox(height: 12),
+                    _infoTile(Icons.email_outlined, 'Email', _email),
+                    const SizedBox(height: 12),
+                    _infoTile(Icons.phone_outlined, 'Phone Number', _phone),
+                    const SizedBox(height: 12),
+                    _infoTile(Icons.location_on_outlined, 'Home State', _state),
+                    const SizedBox(height: 12),
+                    _infoTile(
+                      Icons.interests_outlined,
+                      'Travel Interests',
+                      _selectedInterests.isEmpty ? '-' : _selectedInterests.join(', '),
+                    ),
+                    if (!isGuest && _authService.userUsesPasswordProvider()) ...<Widget>[
+                      const SizedBox(height: 22),
+                      OutlinedButton.icon(
+                        onPressed: _openChangePassword,
+                        icon: const Icon(Icons.lock_reset),
+                        label: const Text('Change Password'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ],
+                    if (!isGuest) ...<Widget>[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _openDeleteAccount,
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Delete Account'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: _isLoggingOut ? null : _logout,
+                      icon: _isLoggingOut
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.logout),
+                      label: Text(_isLoggingOut ? 'Logging out...' : 'Logout'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
     );
   }
 }
+
 class ChangePasswordDialog extends StatefulWidget {
+  const ChangePasswordDialog({super.key, required this.authService});
   final AuthService authService;
 
-  const ChangePasswordDialog({
-    super.key,
-    required this.authService,
-  });
-
   @override
-  State<ChangePasswordDialog> createState() =>
-      _ChangePasswordDialogState();
+  State<ChangePasswordDialog> createState() => _ChangePasswordDialogState();
 }
 
-class _ChangePasswordDialogState
-    extends State<ChangePasswordDialog> {
-  final TextEditingController _currentPasswordController =
-  TextEditingController();
-
-  final TextEditingController _newPasswordController =
-  TextEditingController();
-
-  final TextEditingController _confirmPasswordController =
-  TextEditingController();
-
+class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
+  final _current = TextEditingController();
+  final _newPassword = TextEditingController();
+  final _confirm = TextEditingController();
+  bool _loading = false;
   bool _hideCurrent = true;
   bool _hideNew = true;
   bool _hideConfirm = true;
-
-  bool _isChanging = false;
-
-  String? _errorMessage;
+  String? _error;
 
   @override
   void dispose() {
-    _currentPasswordController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
-
+    _current.dispose();
+    _newPassword.dispose();
+    _confirm.dispose();
     super.dispose();
   }
 
-  Future<void> _changePassword() async {
-    final String currentPassword =
-        _currentPasswordController.text;
+  Future<void> _submit() async {
+    final current = _current.text;
+    final next = _newPassword.text;
+    final confirm = _confirm.text;
 
-    final String newPassword =
-        _newPasswordController.text;
-
-    final String confirmPassword =
-        _confirmPasswordController.text;
-
-    setState(() {
-      _errorMessage = null;
-    });
-
-    if (currentPassword.isEmpty ||
-        newPassword.isEmpty ||
-        confirmPassword.isEmpty) {
-      setState(() {
-        _errorMessage =
-        'Please complete all password fields.';
-      });
+    if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
+      setState(() => _error = 'Please complete all password fields.');
       return;
     }
-
-    if (newPassword.length < 8) {
-      setState(() {
-        _errorMessage =
-        'New password must contain at least 8 characters.';
-      });
+    if (next.length < 8) {
+      setState(() => _error = 'New password must contain at least 8 characters.');
       return;
     }
-
-    if (newPassword != confirmPassword) {
-      setState(() {
-        _errorMessage =
-        'New passwords do not match.';
-      });
+    if (next != confirm) {
+      setState(() => _error = 'New passwords do not match.');
       return;
     }
-
-    if (currentPassword == newPassword) {
-      setState(() {
-        _errorMessage =
-        'New password must be different from your current password.';
-      });
+    if (current == next) {
+      setState(() => _error = 'New password must be different.');
       return;
     }
 
     setState(() {
-      _isChanging = true;
+      _loading = true;
+      _error = null;
     });
 
     try {
       await widget.authService.changePassword(
-        currentPassword: currentPassword,
-        newPassword: newPassword,
+        currentPassword: current,
+        newPassword: next,
       );
-
-      if (!mounted) {
-        return;
-      }
-
-      Navigator.of(context).pop(true);
+      if (mounted) Navigator.pop(context, true);
     } on FirebaseAuthException catch (error) {
-      if (!mounted) {
-        return;
-      }
-
       String message;
-
       switch (error.code) {
         case 'wrong-password':
         case 'invalid-credential':
-          message =
-          'Your current password is incorrect.';
+          message = 'Your current password is incorrect.';
           break;
-
         case 'weak-password':
-          message =
-          'Your new password is too weak.';
+          message = 'Your new password is too weak.';
           break;
-
-        case 'requires-recent-login':
-          message =
-          'Please log in again before changing your password.';
-          break;
-
         case 'network-request-failed':
-          message =
-          'Network error. Please check your internet connection.';
+          message = 'Network error. Please check your connection.';
           break;
-
         default:
-          message =
-              error.message ??
-                  'Unable to change password.';
+          message = error.message ?? 'Unable to change password.';
       }
-
-      setState(() {
-        _errorMessage = message;
-        _isChanging = false;
-      });
+      if (mounted) setState(() => _error = message);
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _errorMessage =
-        'Unable to change password: $error';
-
-        _isChanging = false;
-      });
+      if (mounted) setState(() => _error = 'Unable to change password: $error');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text(
-        'Change Password',
-      ),
-
+      title: const Text('Change Password'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller:
-              _currentPasswordController,
-              obscureText: _hideCurrent,
-              enabled: !_isChanging,
-              decoration: InputDecoration(
-                labelText:
-                'Current Password',
-                prefixIcon: const Icon(
-                  Icons.lock_outline,
-                ),
-                suffixIcon: IconButton(
-                  onPressed: _isChanging
-                      ? null
-                      : () {
-                    setState(() {
-                      _hideCurrent =
-                      !_hideCurrent;
-                    });
-                  },
-                  icon: Icon(
-                    _hideCurrent
-                        ? Icons.visibility_off
-                        : Icons.visibility,
-                  ),
-                ),
-                border:
-                const OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            TextField(
-              controller:
-              _newPasswordController,
-              obscureText: _hideNew,
-              enabled: !_isChanging,
-              decoration: InputDecoration(
-                labelText:
-                'New Password',
-                prefixIcon: const Icon(
-                  Icons.password_outlined,
-                ),
-                suffixIcon: IconButton(
-                  onPressed: _isChanging
-                      ? null
-                      : () {
-                    setState(() {
-                      _hideNew =
-                      !_hideNew;
-                    });
-                  },
-                  icon: Icon(
-                    _hideNew
-                        ? Icons.visibility_off
-                        : Icons.visibility,
-                  ),
-                ),
-                border:
-                const OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            TextField(
-              controller:
-              _confirmPasswordController,
-              obscureText: _hideConfirm,
-              enabled: !_isChanging,
-              onSubmitted: (_) {
-                if (!_isChanging) {
-                  _changePassword();
-                }
-              },
-              decoration: InputDecoration(
-                labelText:
-                'Confirm New Password',
-                prefixIcon: const Icon(
-                  Icons
-                      .verified_user_outlined,
-                ),
-                suffixIcon: IconButton(
-                  onPressed: _isChanging
-                      ? null
-                      : () {
-                    setState(() {
-                      _hideConfirm =
-                      !_hideConfirm;
-                    });
-                  },
-                  icon: Icon(
-                    _hideConfirm
-                        ? Icons.visibility_off
-                        : Icons.visibility,
-                  ),
-                ),
-                border:
-                const OutlineInputBorder(),
-              ),
-            ),
-
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 14),
-
-              Container(
-                width: double.infinity,
-                padding:
-                const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color:
-                  Colors.red.shade50,
-                  borderRadius:
-                  BorderRadius.circular(
-                    10,
-                  ),
-                ),
-                child: Text(
-                  _errorMessage!,
-                  style: TextStyle(
-                    color:
-                    Colors.red.shade700,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
+          children: <Widget>[
+            _passwordField(_current, 'Current Password', _hideCurrent,
+                () => setState(() => _hideCurrent = !_hideCurrent)),
+            const SizedBox(height: 12),
+            _passwordField(_newPassword, 'New Password', _hideNew,
+                () => setState(() => _hideNew = !_hideNew)),
+            const SizedBox(height: 12),
+            _passwordField(_confirm, 'Confirm New Password', _hideConfirm,
+                () => setState(() => _hideConfirm = !_hideConfirm)),
+            if (_error != null) ...<Widget>[
+              const SizedBox(height: 12),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
             ],
           ],
         ),
       ),
-
-      actions: [
+      actions: <Widget>[
         TextButton(
-          onPressed: _isChanging
-              ? null
-              : () {
-            Navigator.of(context)
-                .pop(false);
-          },
-          child: const Text(
-            'Cancel',
-          ),
+          onPressed: _loading ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
         ),
-
         FilledButton(
-          onPressed:
-          _isChanging
-              ? null
-              : _changePassword,
-          child: _isChanging
+          onPressed: _loading ? null : _submit,
+          child: _loading
               ? const SizedBox(
-            width: 18,
-            height: 18,
-            child:
-            CircularProgressIndicator(
-              strokeWidth: 2,
-            ),
-          )
-              : const Text(
-            'Change Password',
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Change'),
+        ),
+      ],
+    );
+  }
+
+  Widget _passwordField(
+    TextEditingController controller,
+    String label,
+    bool hidden,
+    VoidCallback toggle,
+  ) {
+    return TextField(
+      controller: controller,
+      obscureText: hidden,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        prefixIcon: const Icon(Icons.lock_outline),
+        suffixIcon: IconButton(
+          onPressed: toggle,
+          icon: Icon(hidden ? Icons.visibility_off : Icons.visibility),
+        ),
+      ),
+    );
+  }
+}
+
+class DeleteAccountDialog extends StatefulWidget {
+  const DeleteAccountDialog({
+    super.key,
+    required this.authService,
+    required this.needsPassword,
+  });
+
+  final AuthService authService;
+  final bool needsPassword;
+
+  @override
+  State<DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
+  final TextEditingController _password = TextEditingController();
+  bool _loading = false;
+  bool _hidePassword = true;
+  String? _error;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _delete() async {
+    if (widget.needsPassword && _password.text.isEmpty) {
+      setState(() => _error = 'Enter your current password to confirm.');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await widget.authService.deleteAccount(
+        currentPassword: widget.needsPassword ? _password.text : null,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } on FirebaseAuthException catch (error) {
+      String message;
+      switch (error.code) {
+        case 'wrong-password':
+        case 'invalid-credential':
+          message = 'Your current password is incorrect.';
+          break;
+        case 'requires-recent-login':
+          message = 'Please log in again, then try deleting your account.';
+          break;
+        case 'network-request-failed':
+          message = 'Network error. Please check your connection.';
+          break;
+        default:
+          message = error.message ?? 'Unable to delete account.';
+      }
+      if (mounted) setState(() => _error = message);
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Unable to delete account: $error');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Delete Account'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text(
+            'This permanently deletes your MalaysiaGo account and cannot be undone.',
           ),
+          if (widget.needsPassword) ...<Widget>[
+            const SizedBox(height: 16),
+            TextField(
+              controller: _password,
+              obscureText: _hidePassword,
+              decoration: InputDecoration(
+                labelText: 'Current Password',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _hidePassword = !_hidePassword),
+                  icon: Icon(_hidePassword ? Icons.visibility_off : Icons.visibility),
+                ),
+              ),
+            ),
+          ] else ...<Widget>[
+            const SizedBox(height: 12),
+            const Text('You may be asked to confirm your Google account.'),
+          ],
+          if (_error != null) ...<Widget>[
+            const SizedBox(height: 12),
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+          ],
+        ],
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _loading ? null : _delete,
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          child: _loading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Delete'),
         ),
       ],
     );

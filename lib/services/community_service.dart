@@ -1,191 +1,155 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../models.dart';
+class CommunityPost {
+  const CommunityPost({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.userPhotoUrl,
+    required this.siteId,
+    required this.siteName,
+    required this.content,
+    required this.imageUrl,
+    required this.createdAt,
+    required this.likedBy,
+    required this.commentCount,
+  });
+
+  final String id;
+  final String userId;
+  final String userName;
+  final String userPhotoUrl;
+  final String siteId;
+  final String siteName;
+  final String content;
+  final String imageUrl;
+  final DateTime createdAt;
+  final List<String> likedBy;
+  final int commentCount;
+
+  int get likeCount => likedBy.length;
+  bool isLikedBy(String uid) => likedBy.contains(uid);
+
+  factory CommunityPost.fromDoc(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? <String, dynamic>{};
+    return CommunityPost(
+      id: doc.id,
+      userId: data['userId']?.toString() ?? '',
+      userName: data['userName']?.toString() ?? 'MalaysiaGo User',
+      userPhotoUrl: data['userPhotoUrl']?.toString() ?? '',
+      siteId: data['siteId']?.toString() ?? '',
+      siteName: data['siteName']?.toString() ?? 'Malaysia',
+      content: data['content']?.toString() ?? '',
+      imageUrl: data['imageUrl']?.toString() ?? '',
+      createdAt: _toDate(data['createdAt']),
+      likedBy: List<String>.from(data['likedBy'] ?? const <String>[]),
+      commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class CommunityComment {
+  const CommunityComment({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.userPhotoUrl,
+    required this.content,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String userId;
+  final String userName;
+  final String userPhotoUrl;
+  final String content;
+  final DateTime createdAt;
+
+  factory CommunityComment.fromDoc(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? <String, dynamic>{};
+    return CommunityComment(
+      id: doc.id,
+      userId: data['userId']?.toString() ?? '',
+      userName: data['userName']?.toString() ?? 'MalaysiaGo User',
+      userPhotoUrl: data['userPhotoUrl']?.toString() ?? '',
+      content: data['content']?.toString() ?? '',
+      createdAt: _toDate(data['createdAt']),
+    );
+  }
+}
+
+DateTime _toDate(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is DateTime) return value;
+  return DateTime.now();
+}
 
 class CommunityService {
   CommunityService({
     FirebaseFirestore? firestore,
-    FirebaseAuth? firebaseAuth,
+    FirebaseAuth? auth,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
+        _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
-  final FirebaseAuth _firebaseAuth;
+  final FirebaseAuth _auth;
 
   CollectionReference<Map<String, dynamic>> get _posts =>
       _firestore.collection('communityPosts');
 
-  User? get currentUser => _firebaseAuth.currentUser;
-
-  // ============================================================
-  // LIVE COMMUNITY POSTS
-  // ============================================================
+  User? get currentUser => _auth.currentUser;
 
   Stream<List<CommunityPost>> getPosts() {
     return _posts
-        .orderBy(
-      'createdAt',
-      descending: true,
-    )
+        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (QuerySnapshot<Map<String, dynamic>> snapshot) {
-        return snapshot.docs.map(
-              (QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-            final Map<String, dynamic> data = doc.data();
-
-            return CommunityPost(
-              id: doc.id,
-              userId:
-              data['userId']?.toString() ?? '',
-              userName:
-              data['userName']?.toString() ??
-                  'MalaysiaGo User',
-              userPhotoUrl:
-              data['userPhotoUrl']?.toString() ?? '',
-              siteId:
-              data['siteId']?.toString() ?? '',
-              siteName:
-              data['siteName']?.toString() ?? '',
-              content:
-              data['content']?.toString() ?? '',
-              imageUrl:
-              data['imageUrl']?.toString() ?? '',
-              createdAt: _dateFromFirestore(
-                data['createdAt'],
-              ),
-              likedBy: List<String>.from(
-                data['likedBy'] ?? const [],
-              ),
-              commentCount:
-              (data['commentCount'] as num?)?.toInt() ?? 0,
-            );
-          },
-        ).toList();
-      },
-    );
+        .map((snapshot) => snapshot.docs.map(CommunityPost.fromDoc).toList());
   }
 
-  // ============================================================
-  // POSTS BY HERITAGE SITE
-  // ============================================================
-
-  Stream<List<CommunityPost>> getPostsBySite(
-      String siteId,
-      ) {
+  Stream<List<CommunityComment>> getComments(String postId) {
     return _posts
-        .where(
-      'siteId',
-      isEqualTo: siteId,
-    )
-        .orderBy(
-      'createdAt',
-      descending: true,
-    )
+        .doc(postId)
+        .collection('comments')
+        .orderBy('createdAt')
         .snapshots()
-        .map(
-          (QuerySnapshot<Map<String, dynamic>> snapshot) {
-        return snapshot.docs.map(
-              (QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-            final Map<String, dynamic> data = doc.data();
-
-            return CommunityPost(
-              id: doc.id,
-              userId:
-              data['userId']?.toString() ?? '',
-              userName:
-              data['userName']?.toString() ??
-                  'MalaysiaGo User',
-              userPhotoUrl:
-              data['userPhotoUrl']?.toString() ?? '',
-              siteId:
-              data['siteId']?.toString() ?? '',
-              siteName:
-              data['siteName']?.toString() ?? '',
-              content:
-              data['content']?.toString() ?? '',
-              imageUrl:
-              data['imageUrl']?.toString() ?? '',
-              createdAt: _dateFromFirestore(
-                data['createdAt'],
-              ),
-              likedBy: List<String>.from(
-                data['likedBy'] ?? const [],
-              ),
-              commentCount:
-              (data['commentCount'] as num?)?.toInt() ?? 0,
-            );
-          },
-        ).toList();
-      },
-    );
+        .map((snapshot) =>
+            snapshot.docs.map(CommunityComment.fromDoc).toList());
   }
 
-  // ============================================================
-  // CURRENT USER POSTS
-  // ============================================================
-
-  Stream<List<CommunityPost>> getMyPosts() {
+  Future<Map<String, String>> _userIdentity() async {
     final User? user = currentUser;
-
     if (user == null) {
-      return Stream<List<CommunityPost>>.value(
-        const [],
+      throw FirebaseAuthException(
+        code: 'not-signed-in',
+        message: 'Please sign in first.',
       );
     }
 
-    return _posts
-        .where(
-      'userId',
-      isEqualTo: user.uid,
-    )
-        .orderBy(
-      'createdAt',
-      descending: true,
-    )
-        .snapshots()
-        .map(
-          (QuerySnapshot<Map<String, dynamic>> snapshot) {
-        return snapshot.docs.map(
-              (QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-            final Map<String, dynamic> data = doc.data();
+    String name = user.displayName?.trim() ?? '';
+    String photo = user.photoURL?.trim() ?? '';
 
-            return CommunityPost(
-              id: doc.id,
-              userId:
-              data['userId']?.toString() ?? '',
-              userName:
-              data['userName']?.toString() ??
-                  'MalaysiaGo User',
-              userPhotoUrl:
-              data['userPhotoUrl']?.toString() ?? '',
-              siteId:
-              data['siteId']?.toString() ?? '',
-              siteName:
-              data['siteName']?.toString() ?? '',
-              content:
-              data['content']?.toString() ?? '',
-              imageUrl:
-              data['imageUrl']?.toString() ?? '',
-              createdAt: _dateFromFirestore(
-                data['createdAt'],
-              ),
-              likedBy: List<String>.from(
-                data['likedBy'] ?? const [],
-              ),
-              commentCount:
-              (data['commentCount'] as num?)?.toInt() ?? 0,
-            );
-          },
-        ).toList();
-      },
-    );
+    if (!user.isAnonymous) {
+      final snapshot = await _firestore.collection('users').doc(user.uid).get();
+      final data = snapshot.data();
+      if (data != null) {
+        final firestoreName = data['name']?.toString().trim() ?? '';
+        final firestorePhoto = data['photoUrl']?.toString().trim() ?? '';
+        if (firestoreName.isNotEmpty) name = firestoreName;
+        if (firestorePhoto.isNotEmpty) photo = firestorePhoto;
+      }
+    }
+
+    if (name.isEmpty) {
+      name = user.isAnonymous ? 'Guest Explorer' : 'MalaysiaGo User';
+    }
+
+    return <String, String>{'name': name, 'photo': photo};
   }
-
-  // ============================================================
-  // CREATE POST
-  // ============================================================
 
   Future<void> createPost({
     required String siteId,
@@ -194,70 +158,17 @@ class CommunityService {
     String imageUrl = '',
   }) async {
     final User? user = currentUser;
+    if (user == null) return;
 
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'not-signed-in',
-        message: 'You must be logged in to create a post.',
-      );
-    }
-
-    final String trimmedContent =
-    content.trim();
-
-    if (trimmedContent.isEmpty) {
-      throw ArgumentError(
-        'Post content cannot be empty.',
-      );
-    }
-
-    String userName =
-        user.displayName?.trim() ?? '';
-
-    String userPhotoUrl =
-        user.photoURL ?? '';
-
-    try {
-      final DocumentSnapshot<Map<String, dynamic>>
-      profile = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (profile.exists) {
-        final Map<String, dynamic>? data =
-        profile.data();
-
-        final String firestoreName =
-            data?['name']?.toString().trim() ?? '';
-
-        final String firestorePhoto =
-            data?['photoUrl']?.toString() ?? '';
-
-        if (firestoreName.isNotEmpty) {
-          userName = firestoreName;
-        }
-
-        if (firestorePhoto.isNotEmpty) {
-          userPhotoUrl = firestorePhoto;
-        }
-      }
-    } catch (_) {
-      // Firebase Auth information will be used as fallback.
-    }
-
-    if (userName.isEmpty) {
-      userName = 'MalaysiaGo User';
-    }
-
-    await _posts.add({
+    final identity = await _userIdentity();
+    await _posts.add(<String, dynamic>{
       'userId': user.uid,
-      'userName': userName,
-      'userPhotoUrl': userPhotoUrl,
+      'userName': identity['name'],
+      'userPhotoUrl': identity['photo'],
       'siteId': siteId,
-      'siteName': siteName,
-      'content': trimmedContent,
-      'imageUrl': imageUrl.trim(),
+      'siteName': siteName.trim().isEmpty ? 'Malaysia' : siteName.trim(),
+      'content': content.trim(),
+      'imageUrl': imageUrl,
       'likedBy': <String>[],
       'commentCount': 0,
       'createdAt': FieldValue.serverTimestamp(),
@@ -265,327 +176,120 @@ class CommunityService {
     });
   }
 
-  // ============================================================
-  // DELETE OWN POST
-  // ============================================================
-
-  Future<void> deletePost(
-      String postId,
-      ) async {
+  Future<void> toggleLike(String postId) async {
     final User? user = currentUser;
+    if (user == null) return;
 
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'not-signed-in',
-        message: 'You must be logged in.',
-      );
+    final ref = _posts.doc(postId);
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(ref);
+      final data = snapshot.data();
+      if (data == null) return;
+
+      final likedBy = List<String>.from(data['likedBy'] ?? const <String>[]);
+      if (likedBy.contains(user.uid)) {
+        likedBy.remove(user.uid);
+      } else {
+        likedBy.add(user.uid);
+      }
+
+      transaction.update(ref, <String, dynamic>{
+        'likedBy': likedBy,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> deletePost(String postId) async {
+    final User? user = currentUser;
+    if (user == null) return;
+
+    final ref = _posts.doc(postId);
+    final snapshot = await ref.get();
+    final data = snapshot.data();
+    if (data?['userId'] != user.uid) {
+      throw StateError('You can only delete your own post.');
     }
 
-    final DocumentReference<Map<String, dynamic>> postRef =
-    _posts.doc(postId);
-
-    final DocumentSnapshot<Map<String, dynamic>> snapshot =
-    await postRef.get();
-
-    if (!snapshot.exists) {
-      return;
-    }
-
-    final String ownerId =
-        snapshot.data()?['userId']?.toString() ?? '';
-
-    if (ownerId != user.uid) {
-      throw FirebaseAuthException(
-        code: 'permission-denied',
-        message: 'You can only delete your own posts.',
-      );
-    }
-
-    final QuerySnapshot<Map<String, dynamic>> comments =
-    await postRef
-        .collection('comments')
-        .get();
-
-    final WriteBatch batch =
-    _firestore.batch();
-
-    for (final QueryDocumentSnapshot<Map<String, dynamic>> comment
-    in comments.docs) {
+    final comments = await ref.collection('comments').get();
+    final batch = _firestore.batch();
+    for (final comment in comments.docs) {
       batch.delete(comment.reference);
     }
-
-    batch.delete(postRef);
-
+    batch.delete(ref);
     await batch.commit();
   }
-
-  // ============================================================
-  // LIKE / UNLIKE POST
-  // ============================================================
-
-  Future<void> toggleLike(
-      String postId,
-      ) async {
-    final User? user = currentUser;
-
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'not-signed-in',
-        message: 'You must be logged in to like a post.',
-      );
-    }
-
-    final DocumentReference<Map<String, dynamic>> postRef =
-    _posts.doc(postId);
-
-    await _firestore.runTransaction(
-          (Transaction transaction) async {
-        final DocumentSnapshot<Map<String, dynamic>>
-        snapshot = await transaction.get(
-          postRef,
-        );
-
-        if (!snapshot.exists) {
-          return;
-        }
-
-        final List<String> likedBy =
-        List<String>.from(
-          snapshot.data()?['likedBy'] ?? const [],
-        );
-
-        if (likedBy.contains(user.uid)) {
-          likedBy.remove(user.uid);
-        } else {
-          likedBy.add(user.uid);
-        }
-
-        transaction.update(
-          postRef,
-          {
-            'likedBy': likedBy,
-            'updatedAt':
-            FieldValue.serverTimestamp(),
-          },
-        );
-      },
-    );
-  }
-
-  // ============================================================
-  // COMMENTS STREAM
-  // ============================================================
-
-  Stream<List<CommunityComment>> getComments(
-      String postId,
-      ) {
-    return _posts
-        .doc(postId)
-        .collection('comments')
-        .orderBy(
-      'createdAt',
-    )
-        .snapshots()
-        .map(
-          (QuerySnapshot<Map<String, dynamic>> snapshot) {
-        return snapshot.docs.map(
-              (QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-            final Map<String, dynamic> data = doc.data();
-
-            return CommunityComment(
-              id: doc.id,
-              postId: postId,
-              userId:
-              data['userId']?.toString() ?? '',
-              userName:
-              data['userName']?.toString() ??
-                  'MalaysiaGo User',
-              userPhotoUrl:
-              data['userPhotoUrl']?.toString() ?? '',
-              content:
-              data['content']?.toString() ?? '',
-              createdAt: _dateFromFirestore(
-                data['createdAt'],
-              ),
-            );
-          },
-        ).toList();
-      },
-    );
-  }
-
-  // ============================================================
-  // ADD COMMENT
-  // ============================================================
 
   Future<void> addComment({
     required String postId,
     required String content,
   }) async {
     final User? user = currentUser;
+    if (user == null) return;
 
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'not-signed-in',
-        message: 'You must be logged in to comment.',
-      );
-    }
+    final identity = await _userIdentity();
+    final postRef = _posts.doc(postId);
+    final commentRef = postRef.collection('comments').doc();
 
-    final String trimmedContent =
-    content.trim();
-
-    if (trimmedContent.isEmpty) {
-      return;
-    }
-
-    String userName =
-        user.displayName?.trim() ?? '';
-
-    String userPhotoUrl =
-        user.photoURL ?? '';
-
-    try {
-      final DocumentSnapshot<Map<String, dynamic>>
-      profile = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (profile.exists) {
-        final Map<String, dynamic>? data =
-        profile.data();
-
-        final String firestoreName =
-            data?['name']?.toString().trim() ?? '';
-
-        final String firestorePhoto =
-            data?['photoUrl']?.toString() ?? '';
-
-        if (firestoreName.isNotEmpty) {
-          userName = firestoreName;
-        }
-
-        if (firestorePhoto.isNotEmpty) {
-          userPhotoUrl = firestorePhoto;
-        }
-      }
-    } catch (_) {
-      // Use Firebase Authentication profile as fallback.
-    }
-
-    if (userName.isEmpty) {
-      userName = 'MalaysiaGo User';
-    }
-
-    final DocumentReference<Map<String, dynamic>> postRef =
-    _posts.doc(postId);
-
-    final DocumentReference<Map<String, dynamic>> commentRef =
-    postRef
-        .collection('comments')
-        .doc();
-
-    final WriteBatch batch =
-    _firestore.batch();
-
-    batch.set(
-      commentRef,
-      {
-        'userId': user.uid,
-        'userName': userName,
-        'userPhotoUrl': userPhotoUrl,
-        'content': trimmedContent,
-        'createdAt':
-        FieldValue.serverTimestamp(),
-      },
-    );
-
-    batch.update(
-      postRef,
-      {
-        'commentCount':
-        FieldValue.increment(1),
-        'updatedAt':
-        FieldValue.serverTimestamp(),
-      },
-    );
-
+    final batch = _firestore.batch();
+    batch.set(commentRef, <String, dynamic>{
+      'userId': user.uid,
+      'userName': identity['name'],
+      'userPhotoUrl': identity['photo'],
+      'content': content.trim(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(postRef, <String, dynamic>{
+      'commentCount': FieldValue.increment(1),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
     await batch.commit();
   }
-
-  // ============================================================
-  // DELETE OWN COMMENT
-  // ============================================================
 
   Future<void> deleteComment({
     required String postId,
     required String commentId,
   }) async {
     final User? user = currentUser;
+    if (user == null) return;
 
-    if (user == null) {
-      return;
+    final postRef = _posts.doc(postId);
+    final commentRef = postRef.collection('comments').doc(commentId);
+    final snapshot = await commentRef.get();
+
+    if (snapshot.data()?['userId'] != user.uid) {
+      throw StateError('You can only delete your own comment.');
     }
 
-    final DocumentReference<Map<String, dynamic>> postRef =
-    _posts.doc(postId);
-
-    final DocumentReference<Map<String, dynamic>> commentRef =
-    postRef
-        .collection('comments')
-        .doc(commentId);
-
-    final DocumentSnapshot<Map<String, dynamic>> comment =
-    await commentRef.get();
-
-    if (!comment.exists) {
-      return;
-    }
-
-    final String ownerId =
-        comment.data()?['userId']?.toString() ?? '';
-
-    if (ownerId != user.uid) {
-      throw FirebaseAuthException(
-        code: 'permission-denied',
-        message:
-        'You can only delete your own comments.',
-      );
-    }
-
-    final WriteBatch batch =
-    _firestore.batch();
-
+    final batch = _firestore.batch();
     batch.delete(commentRef);
-
-    batch.update(
-      postRef,
-      {
-        'commentCount':
-        FieldValue.increment(-1),
-        'updatedAt':
-        FieldValue.serverTimestamp(),
-      },
-    );
-
+    batch.update(postRef, <String, dynamic>{
+      'commentCount': FieldValue.increment(-1),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
     await batch.commit();
   }
 
-  // ============================================================
-  // DATE CONVERSION
-  // ============================================================
-
-  static DateTime _dateFromFirestore(
-      dynamic value,
-      ) {
-    if (value is Timestamp) {
-      return value.toDate();
+  Future<void> reportPost({
+    required CommunityPost post,
+    required String reason,
+  }) async {
+    final User? user = currentUser;
+    if (user == null) return;
+    if (post.userId == user.uid) {
+      throw StateError('You cannot report your own post.');
     }
 
-    if (value is DateTime) {
-      return value;
-    }
-
-    return DateTime.now();
+    final reportId = '${post.id}_${user.uid}';
+    await _firestore.collection('communityReports').doc(reportId).set(
+      <String, dynamic>{
+        'postId': post.id,
+        'postOwnerId': post.userId,
+        'reporterId': user.uid,
+        'reason': reason,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    );
   }
 }

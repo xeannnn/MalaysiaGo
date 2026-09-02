@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// ---------------------------------------------------------------
 /// HERITAGE QUIZ MODULE
@@ -93,33 +94,26 @@ class QuizAttempt {
     required this.completedAt,
   });
 
-  // Convert object to Hive-compatible Map
-  Map<String, dynamic> toMap() {
-    return {
-      'siteId': siteId,
-      'siteName': siteName,
-      'siteIcon': siteIcon,
-      'correctCount': correctCount,
-      'totalQuestions': totalQuestions,
-      'xpEarned': xpEarned,
-      'completedAt': completedAt.toIso8601String(),
-    };
-  }
+  Map<String, dynamic> toMap() => {
+    'siteId': siteId,
+    'siteName': siteName,
+    'siteIcon': siteIcon,
+    'correctCount': correctCount,
+    'totalQuestions': totalQuestions,
+    'xpEarned': xpEarned,
+    'completedAt': completedAt.toIso8601String(),
+  };
 
-  // Restore object from Hive Map
-  factory QuizAttempt.fromMap(Map<String, dynamic> map) {
-    return QuizAttempt(
-      siteId: map['siteId'] ?? '',
-      siteName: map['siteName'] ?? '',
-      siteIcon: map['siteIcon'] ?? '📍',
-      correctCount: map['correctCount'] ?? 0,
-      totalQuestions: map['totalQuestions'] ?? 0,
-      xpEarned: map['xpEarned'] ?? 0,
-      completedAt: DateTime.parse(
-        map['completedAt'] ?? DateTime.now().toIso8601String(),
-      ),
-    );
-  }
+  factory QuizAttempt.fromMap(Map<dynamic, dynamic> map) => QuizAttempt(
+    siteId: map['siteId'] as String,
+    siteName: map['siteName'] as String,
+    siteIcon: map['siteIcon'] as String,
+    correctCount: map['correctCount'] as int,
+    totalQuestions: map['totalQuestions'] as int,
+    xpEarned: map['xpEarned'] as int,
+    completedAt: DateTime.parse(map['completedAt'] as String),
+  );
+
 }
 
 /// Called when a quiz is finished. MainScreen (main.dart) uses this to
@@ -127,16 +121,22 @@ class QuizAttempt {
 /// can't be retaken, and record a QuizAttempt for the history screen.
 typedef QuizCompleteCallback = void Function(QuizAttempt attempt);
 
+/// The quiz content selected from Supabase (or the bundled fallback).
+class QuizBundle {
+  final QuizSite site;
+  final List<QuizQuestion> questions;
+
+  const QuizBundle({required this.site, required this.questions});
+}
+
 // ========================= QUESTION RETRIEVAL =========================
 
 /// Retrieves quiz site info and quiz questions for a given heritage
 /// site ID.
 ///
-/// Currently backed by an in-memory map so the quiz UI can be built
-/// and demoed without a live backend. To switch to real data later
-/// (per the project proposal's Firestore backend), replace the body
-/// of [getSite] and [getQuestions] with a Firestore query keyed by
-/// the same `siteId` — the calling screens below don't need to change.
+/// Supabase is the primary source. The in-memory maps remain an offline
+/// fallback so users can still take a quiz if the device has no connection
+/// or the database migration has not yet been applied.
 class QuizRepository {
   QuizRepository._();
 
@@ -716,6 +716,50 @@ class QuizRepository {
   static List<QuizQuestion> getQuestions(String siteId) =>
       _questions[siteId] ?? const [];
 
+  /// Loads active questions from Supabase. A missing/empty table deliberately
+  /// falls back to the bundled pool rather than leaving the quiz unusable.
+  static Future<QuizBundle?> load(String siteId) async {
+    final fallbackSite = getSite(siteId);
+    final fallbackQuestions = getQuestions(siteId);
+    try {
+      final siteRow = await Supabase.instance.client
+          .from('quiz_sites')
+          .select()
+          .eq('site_id', siteId)
+          .maybeSingle();
+      final rows = await Supabase.instance.client
+          .from('quiz_questions')
+          .select()
+          .eq('site_id', siteId)
+          .eq('is_active', true)
+          .order('display_order');
+
+      if (siteRow != null && rows.isNotEmpty) {
+        final site = QuizSite(
+          id: siteRow['site_id'] as String,
+          icon: siteRow['icon'] as String? ?? fallbackSite?.icon ?? '📍',
+          name: siteRow['name'] as String? ?? fallbackSite?.name ?? siteId,
+          location: siteRow['location'] as String? ?? fallbackSite?.location ?? 'Malaysia',
+          category: siteRow['category'] as String? ?? fallbackSite?.category ?? 'Heritage',
+          description: siteRow['description'] as String? ?? fallbackSite?.description ?? '',
+          difficulty: siteRow['difficulty'] as String? ?? fallbackSite?.difficulty ?? 'Easy',
+        );
+        final questions = rows.map<QuizQuestion>((row) => QuizQuestion(
+          question: row['question'] as String,
+          options: List<String>.from(row['options'] as List),
+          correctIndex: (row['correct_index'] as num).toInt(),
+          explanation: row['explanation'] as String,
+          xpReward: (row['xp_reward'] as num).toInt(),
+        )).toList();
+        return QuizBundle(site: site, questions: questions);
+      }
+    } catch (_) {
+      // Offline and schema errors use the bundled questions below.
+    }
+    if (fallbackSite == null || fallbackQuestions.isEmpty) return null;
+    return QuizBundle(site: fallbackSite, questions: fallbackQuestions);
+  }
+
   /// Total possible XP for a site's quiz — used on the intro card.
   static int totalXp(String siteId) =>
       getQuestions(siteId).fold(0, (sum, q) => sum + q.xpReward);
@@ -759,253 +803,266 @@ class QuizIntroScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final site = QuizRepository.getSite(siteId);
-    final fullPool = QuizRepository.getQuestions(siteId);
+    return FutureBuilder<QuizBundle?>(
+      future: QuizRepository.load(siteId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF0B1130),
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final bundle = snapshot.data;
+        final site = bundle?.site;
+        final fullPool = bundle?.questions ?? const <QuizQuestion>[];
 
-    if (site == null || fullPool.isEmpty) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF0B1130),
-        body: Center(
-          child: Text(
-            'No quiz available for this site yet.',
-            style: TextStyle(color: Colors.white.withOpacity(0.7)),
-          ),
-        ),
-      );
-    }
+        if (site == null || fullPool.isEmpty) {
+          return Scaffold(
+            backgroundColor: const Color(0xFF0B1130),
+            body: Center(
+              child: Text(
+                'No quiz available for this site yet.',
+                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+              ),
+            ),
+          );
+        }
 
-    // Picked once here (not re-picked on every rebuild) so the count
-    // and XP shown on this card exactly match what QuizScreen below
-    // will actually ask.
-    final questions = QuizRepository.getRandomQuestions(siteId);
-    final totalXp = questions.fold<int>(0, (sum, q) => sum + q.xpReward);
+        // Picked once here (not re-picked on every rebuild) so the count
+        // and XP shown on this card exactly match what QuizScreen below
+        // will actually ask.
+        final questions = List<QuizQuestion>.from(fullPool)..shuffle(QuizRepository._random);
+        final selectedQuestions = questions.take(3).map((q) => q.withShuffledOptions(QuizRepository._random)).toList();
+        final totalXp = selectedQuestions.fold<int>(0, (sum, q) => sum + q.xpReward);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0B1130),
-      body: SafeArea(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF0B1130), Color(0xFF141B4D), Color(0xFF1B1440)],
+        return Scaffold(
+          backgroundColor: const Color(0xFF0B1130),
+          body: SafeArea(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF0B1130), Color(0xFF141B4D), Color(0xFF1B1440)],
+                ),
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, right: 12),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 24),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF16A34A).withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFF16A34A).withOpacity(0.5),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('📍', style: TextStyle(fontSize: 12)),
+                                SizedBox(width: 6),
+                                Text(
+                                  "You're nearby",
+                                  style: TextStyle(
+                                    color: Color(0xFF4ADE80),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Text(site.icon, style: const TextStyle(fontSize: 28)),
+                              const SizedBox(width: 10),
+                              Text(
+                                site.name,
+                                style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            site.location,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.55),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            '"${site.description}"',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.white.withOpacity(0.75),
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.08),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEC4899).withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: const Text(
+                                    '🧠',
+                                    style: TextStyle(fontSize: 20),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${selectedQuestions.length}-Question Heritage Quiz',
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Earn up to +$totalXp XP for correct answers',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.white.withOpacity(0.6),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _StatBox(
+                                  label: 'Questions',
+                                  value: '${selectedQuestions.length}',
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _StatBox(
+                                  label: 'XP Reward',
+                                  value: '+$totalXp',
+                                  valueColor: const Color(0xFFFBBF24),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _StatBox(
+                                  label: 'Difficulty',
+                                  value: site.difficulty,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              fullscreenDialog: true,
+                              builder: (_) => QuizScreen(
+                                siteId: siteId,
+                                questions: selectedQuestions,
+                                onQuizComplete: onQuizComplete,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF16A34A), Color(0xFF0D9488)],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'Start Quiz  →',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 8, right: 12),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, color: Colors.white70),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A).withOpacity(0.18),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: const Color(0xFF16A34A).withOpacity(0.5),
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('📍', style: TextStyle(fontSize: 12)),
-                            SizedBox(width: 6),
-                            Text(
-                              "You're nearby",
-                              style: TextStyle(
-                                color: Color(0xFF4ADE80),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Text(site.icon, style: const TextStyle(fontSize: 28)),
-                          const SizedBox(width: 10),
-                          Text(
-                            site.name,
-                            style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        site.location,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.55),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        '"${site.description}"',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.white.withOpacity(0.75),
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.08),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEC4899).withOpacity(0.2),
-                                shape: BoxShape.circle,
-                              ),
-                              alignment: Alignment.center,
-                              child: const Text(
-                                '🧠',
-                                style: TextStyle(fontSize: 20),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${questions.length}-Question Heritage Quiz',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Earn up to +$totalXp XP for correct answers',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white.withOpacity(0.6),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _StatBox(
-                              label: 'Questions',
-                              value: '${questions.length}',
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _StatBox(
-                              label: 'XP Reward',
-                              value: '+$totalXp',
-                              valueColor: const Color(0xFFFBBF24),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _StatBox(
-                              label: 'Difficulty',
-                              value: site.difficulty,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          fullscreenDialog: true,
-                          builder: (_) => QuizScreen(
-                            siteId: siteId,
-                            questions: questions,
-                            onQuizComplete: onQuizComplete,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF16A34A), Color(0xFF0D9488)],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'Start Quiz  →',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

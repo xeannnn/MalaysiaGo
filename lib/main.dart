@@ -10,50 +10,46 @@ import 'models.dart';
 import 'modules/homepage.dart';
 import 'modules/mappage.dart';
 import 'modules/passport.dart';
-import 'modules/placeholder.dart';
 import 'modules/badges.dart';
 import 'modules/quiz.dart';
-import 'modules/qr_scanner.dart';
+import 'modules/gps_checkin.dart';
 import 'modules/community_screen.dart';
 import 'modules/auth/login_screen.dart';
-import 'modules/auth/register_screen.dart';    // ✅ IMPORT ADDED
 
 import 'services/achievement_provider.dart';
 
 import 'widgets/app_bottom_bar.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 Future<void> main() async {
+  WidgetsBinding.instance;
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive for local persistence
   await Hive.initFlutter();
   await Hive.openBox('userProgress');
 
-  // Initialize Firebase
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-
     debugPrint('✅ Firebase initialized');
   } catch (error, stackTrace) {
-    debugPrint(
-      '⚠️ Firebase initialization failed: $error',
-    );
-
-    debugPrintStack(
-      stackTrace: stackTrace,
-    );
+    debugPrint('⚠️ Firebase initialization failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
   }
+
+  // Supabase initialization
+  await Supabase.initialize(
+    url: 'https://jcyecsnsiznmeddygkle.supabase.co',
+    anonKey: 'sb_publishable_ArQqnsMHEqiQRHZAR5E9hA_9y5NpWp1',
+  );
 
   runApp(
     ChangeNotifierProvider(
       create: (context) {
-        final provider =
-        AchievementProvider();
-
+        final provider = AchievementProvider();
         provider.loadUserData();
-
         return provider;
       },
       child: const MalaysiaGoApp(),
@@ -62,9 +58,7 @@ Future<void> main() async {
 }
 
 class MalaysiaGoApp extends StatelessWidget {
-  const MalaysiaGoApp({
-    super.key,
-  });
+  const MalaysiaGoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -72,112 +66,93 @@ class MalaysiaGoApp extends StatelessWidget {
       title: 'MalaysiaGO',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor:
-        const Color(0xFFF5F5F7),
+        scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
-      routes: {
-        '/home': (context) => const MainScreen(),
-        '/register': (context) => const RegisterScreen(),   // ✅ ROUTE ADDED
-
-      home:
-      FirebaseAuth.instance.currentUser ==
-          null
+      home: FirebaseAuth.instance.currentUser == null
           ? const LoginScreen()
           : const MainScreen(),
-
       routes: {
-        '/home': (context) =>
-        const MainScreen(),
+        '/home': (context) => const MainScreen(),
       },
     );
   }
 }
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({
-    super.key,
-  });
+  const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() =>
-      _MainScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState
-    extends State<MainScreen> {
-  BottomTab _selectedTab =
-      BottomTab.home;
+class _MainScreenState extends State<MainScreen> {
+  BottomTab _selectedTab = BottomTab.home;
+  String? _mapFocusSiteId;
 
-  void _handleQuizComplete(
-      QuizAttempt attempt,
-      ) {
-    final provider =
-    Provider.of<AchievementProvider>(
+  void _handleQuizComplete(QuizAttempt attempt) {
+    final provider = Provider.of<AchievementProvider>(
       context,
       listen: false,
     );
 
-    provider.addQuizAttempt(
-      attempt,
-    );
+    provider.addQuizAttempt(attempt);
+  }
+
+  void _openCommunitySiteOnMap(String siteId) {
+    setState(() {
+      _mapFocusSiteId = siteId;
+      _selectedTab = BottomTab.map;
+    });
+  }
+
+  void _selectTab(BottomTab tab) {
+    setState(() {
+      _selectedTab = tab;
+
+      if (tab != BottomTab.map) {
+        _mapFocusSiteId = null;
+      }
+    });
   }
 
   @override
-  Widget build(
-      BuildContext context,
-      ) {
-    final provider =
-    Provider.of<AchievementProvider>(
-      context,
-    );
+  Widget build(BuildContext context) {
+    final provider = Provider.of<AchievementProvider>(context);
 
     Widget buildBody() {
       switch (_selectedTab) {
         case BottomTab.home:
           return HomeScreen(
-            totalXp:
-            provider.totalXp,
-            onTabSelected: (tab) {
-              setState(() {
-                _selectedTab = tab;
-              });
-            },
+            totalXp: provider.totalXp,
+            onTabSelected: _selectTab,
           );
 
         case BottomTab.map:
           return MapScreen(
+            key: ValueKey<String?>('map-${_mapFocusSiteId ?? 'normal'}'),
             totalXp: provider.totalXp,
-            completedQuizIds: {},
-            quizHistory: [],
+            completedQuizIds: provider.completedQuizIds,
+            quizHistory: provider.quizHistory,
             onQuizComplete: _handleQuizComplete,
-            totalXp:
-            provider.totalXp,
-            completedQuizIds:
-            provider.completedQuizIds,
-            quizHistory:
-            provider.quizHistory,
-            onQuizComplete:
-            _handleQuizComplete,
+            initialSiteId: _mapFocusSiteId,
           );
 
         case BottomTab.scan:
-          return const ScanPage();
+          return const GpsCheckInScreen();
 
         case BottomTab.community:
-          return const CommunityScreen();
+          return CommunityScreen(
+            onViewOnMap: _openCommunitySiteOnMap,
+          );
 
         case BottomTab.badges:
           return BadgesScreen(
-            onXpEarned: (xp) {
-              provider.addXp(xp);
-            },
+            onXpEarned: (xp) => provider.addXp(xp),
           );
 
         case BottomTab.passport:
           return const PassportScreen();
-
       }
     }
 
@@ -185,16 +160,9 @@ class _MainScreenState
       body: SafeArea(
         child: buildBody(),
       ),
-      bottomNavigationBar:
-      AppBottomBar(
-        selected:
-        _selectedTab,
-        onSelect: (tab) {
-          setState(() {
-            _selectedTab =
-                tab;
-          });
-        },
+      bottomNavigationBar: AppBottomBar(
+        selected: _selectedTab,
+        onSelect: _selectTab,
       ),
     );
   }

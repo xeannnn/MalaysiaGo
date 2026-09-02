@@ -13,14 +13,7 @@ class AuthService {
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
 
-  static const String _serverClientId =
-      '280746057244-egjn1iq2f3e06us8r2nt9ti5kvo1vli7.apps.googleusercontent.com';
-
   User? get currentUser => _firebaseAuth.currentUser;
-
-  // ============================================================
-  // REGISTER
-  // ============================================================
 
   Future<UserCredential> register({
     required String name,
@@ -28,7 +21,7 @@ class AuthService {
     required String password,
   }) async {
     final UserCredential credential =
-    await _firebaseAuth.createUserWithEmailAndPassword(
+        await _firebaseAuth.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
@@ -51,7 +44,7 @@ class AuthService {
       'photoUrl': user.photoURL,
       'phone': '',
       'state': '',
-      'interests': [],
+      'interests': <String>[],
       'role': 'user',
       'accountStatus': 'active',
       'createdAt': FieldValue.serverTimestamp(),
@@ -60,10 +53,6 @@ class AuthService {
 
     return credential;
   }
-
-  // ============================================================
-  // LOGIN
-  // ============================================================
 
   Future<UserCredential> login({
     required String email,
@@ -75,35 +64,26 @@ class AuthService {
     );
   }
 
-  // ============================================================
-  // GOOGLE SIGN IN
-  // ============================================================
-
   Future<UserCredential> signInWithGoogle() async {
     final GoogleSignIn googleSignIn = GoogleSignIn.instance;
 
     await googleSignIn.initialize(
       serverClientId:
-      '280746057244-egjn1iq2f3e06us8r2nt9ti5kvo1vli7.apps.googleusercontent.com',
-      serverClientId: _serverClientId,
+          '280746057244-egjn1iq2f3e06us8r2nt9ti5kvo1vli7.apps.googleusercontent.com',
     );
 
     final GoogleSignInAccount googleUser =
-    await googleSignIn.authenticate();
+        await googleSignIn.authenticate();
 
     final GoogleSignInAuthentication googleAuth =
         googleUser.authentication;
 
-    final OAuthCredential credential =
-    GoogleAuthProvider.credential(
+    final OAuthCredential credential = GoogleAuthProvider.credential(
       idToken: googleAuth.idToken,
     );
 
     final UserCredential userCredential =
-    await _firebaseAuth.signInWithCredential(credential);
-    await _firebaseAuth.signInWithCredential(
-      credential,
-    );
+        await _firebaseAuth.signInWithCredential(credential);
 
     final User? user = userCredential.user;
 
@@ -114,16 +94,12 @@ class AuthService {
     return userCredential;
   }
 
-  // ============================================================
-  // FIRESTORE PROFILE
-  // ============================================================
-
   Future<void> _saveUserProfile(User user) async {
     final DocumentReference<Map<String, dynamic>> userDoc =
-    _firestore.collection('users').doc(user.uid);
+        _firestore.collection('users').doc(user.uid);
 
     final DocumentSnapshot<Map<String, dynamic>> existing =
-    await userDoc.get();
+        await userDoc.get();
 
     final Map<String, dynamic> data = {
       'uid': user.uid,
@@ -138,243 +114,132 @@ class AuthService {
     if (!existing.exists) {
       data['phone'] = '';
       data['state'] = '';
-      data['interests'] = [];
+      data['interests'] = <String>[];
       data['createdAt'] = FieldValue.serverTimestamp();
-
       await userDoc.set(data);
     } else {
-      await userDoc.set(
-        data,
-        SetOptions(merge: true),
-      );
+      await userDoc.set(data, SetOptions(merge: true));
     }
   }
 
   Future<void> sendPasswordResetEmail(String email) {
-  // ============================================================
-  // PASSWORD RESET
-  // ============================================================
-
-  Future<void> sendPasswordResetEmail(
-      String email,
-      ) {
     return _firebaseAuth.sendPasswordResetEmail(
       email: email.trim(),
     );
   }
 
-  // ============================================================
-  // GUEST
-  // ============================================================
-
   Future<UserCredential> continueAsGuest() {
     return _firebaseAuth.signInAnonymously();
   }
 
-  // ============================================================
-  // CHECK PASSWORD PROVIDER
-  // ============================================================
-
-  bool isPasswordUser() {
-    final User? user = _firebaseAuth.currentUser;
-
-    if (user == null) {
-      return false;
-    }
-
-    return user.providerData.any(
-          (UserInfo info) =>
-      info.providerId == 'password',
-    );
+  bool userUsesPasswordProvider() {
+    final User? user = currentUser;
+    return user?.providerData.any(
+          (provider) => provider.providerId == 'password',
+        ) ??
+        false;
   }
 
-  bool isGoogleUser() {
-    final User? user = _firebaseAuth.currentUser;
-
-    if (user == null) {
-      return false;
-    }
-
-    return user.providerData.any(
-          (UserInfo info) =>
-      info.providerId == 'google.com',
-    );
+  bool userUsesGoogleProvider() {
+    final User? user = currentUser;
+    return user?.providerData.any(
+          (provider) => provider.providerId == 'google.com',
+        ) ??
+        false;
   }
-
-  // ============================================================
-  // REAUTHENTICATE EMAIL USER
-  // ============================================================
-
-  Future<void> reauthenticateWithPassword(
-      String password,
-      ) async {
-    final User? user = _firebaseAuth.currentUser;
-
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'no-user',
-        message: 'No user is currently signed in.',
-      );
-    }
-
-    final String? email = user.email;
-
-    if (email == null || email.isEmpty) {
-      throw FirebaseAuthException(
-        code: 'no-email',
-        message: 'This account does not have an email address.',
-      );
-    }
-
-    final AuthCredential credential =
-    EmailAuthProvider.credential(
-      email: email,
-      password: password,
-    );
-
-    await user.reauthenticateWithCredential(
-      credential,
-    );
-  }
-
-  // ============================================================
-  // REAUTHENTICATE GOOGLE USER
-  // ============================================================
-
-  Future<void> reauthenticateWithGoogle() async {
-    final User? user = _firebaseAuth.currentUser;
-
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'no-user',
-        message: 'No user is currently signed in.',
-      );
-    }
-
-    final GoogleSignIn googleSignIn =
-        GoogleSignIn.instance;
-
-    await googleSignIn.initialize(
-      serverClientId: _serverClientId,
-    );
-
-    final GoogleSignInAccount googleUser =
-    await googleSignIn.authenticate();
-
-    final GoogleSignInAuthentication googleAuth =
-        googleUser.authentication;
-
-    final OAuthCredential credential =
-    GoogleAuthProvider.credential(
-      idToken: googleAuth.idToken,
-    );
-
-    await user.reauthenticateWithCredential(
-      credential,
-    );
-  }
-
-  // ============================================================
-  // CHANGE PASSWORD
-  // ============================================================
 
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
-    final User? user = _firebaseAuth.currentUser;
+    final User? user = currentUser;
 
-    if (user == null) {
+    if (user == null || user.email == null) {
       throw FirebaseAuthException(
-        code: 'no-user',
-        message: 'No user is currently signed in.',
+        code: 'user-not-found',
+        message: 'No signed-in email account was found.',
       );
     }
 
-    if (!isPasswordUser()) {
+    if (!userUsesPasswordProvider()) {
       throw FirebaseAuthException(
-        code: 'not-password-user',
-        message:
-        'Password changes are only available for email accounts.',
+        code: 'operation-not-allowed',
+        message: 'Password change is only available for email accounts.',
       );
     }
 
-    await reauthenticateWithPassword(
-      currentPassword,
+    final AuthCredential credential = EmailAuthProvider.credential(
+      email: user.email!,
+      password: currentPassword,
     );
 
-    await user.updatePassword(
-      newPassword,
-    );
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(newPassword);
   }
 
-  // ============================================================
-  // DELETE ACCOUNT
-  // ============================================================
-
-  Future<void> deleteAccount({
-    String? password,
-  }) async {
-    final User? user = _firebaseAuth.currentUser;
+  Future<void> deleteAccount({String? currentPassword}) async {
+    final User? user = currentUser;
 
     if (user == null) {
-      throw FirebaseAuthException(
-        code: 'no-user',
-        message: 'No user is currently signed in.',
-      );
+      return;
+    }
+
+    if (!user.isAnonymous) {
+      if (userUsesPasswordProvider()) {
+        if (user.email == null ||
+            currentPassword == null ||
+            currentPassword.isEmpty) {
+          throw FirebaseAuthException(
+            code: 'missing-password',
+            message: 'Please enter your current password.',
+          );
+        }
+
+        final AuthCredential credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: currentPassword,
+        );
+        await user.reauthenticateWithCredential(credential);
+      } else if (userUsesGoogleProvider()) {
+        final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+        await googleSignIn.initialize(
+          serverClientId:
+              '280746057244-egjn1iq2f3e06us8r2nt9ti5kvo1vli7.apps.googleusercontent.com',
+        );
+        final GoogleSignInAccount googleUser =
+            await googleSignIn.authenticate();
+        final GoogleSignInAuthentication googleAuth =
+            googleUser.authentication;
+        final OAuthCredential credential = GoogleAuthProvider.credential(
+          idToken: googleAuth.idToken,
+        );
+        await user.reauthenticateWithCredential(credential);
+      }
     }
 
     final String uid = user.uid;
 
-    // Reauthenticate before sensitive deletion.
-    if (user.isAnonymous) {
-      // Anonymous accounts do not require another provider login.
-    } else if (isGoogleUser()) {
-      await reauthenticateWithGoogle();
-    } else if (isPasswordUser()) {
-      if (password == null ||
-          password.trim().isEmpty) {
-        throw FirebaseAuthException(
-          code: 'password-required',
-          message:
-          'Please enter your current password.',
-        );
-      }
-
-      await reauthenticateWithPassword(
-        password.trim(),
-      );
-    }
-
-    // Remove Firestore profile.
+    // Remove the profile document first while the user is still authenticated.
     try {
-      await _firestore
-          .collection('users')
-          .doc(uid)
-          .delete();
-    } catch (error) {
-      // Continue with Firebase Auth deletion even if
-      // the Firestore document does not exist.
+      await _firestore.collection('users').doc(uid).delete();
+    } catch (_) {
+      // Authentication deletion is the important action. If profile cleanup
+      // fails because of rules/network, the app still attempts account deletion.
     }
 
     await user.delete();
 
     try {
       await GoogleSignIn.instance.signOut();
-    } catch (_) {
-      // Ignore if account wasn't signed in using Google.
-    }
+    } catch (_) {}
   }
-
-  // ============================================================
-  // LOGOUT
-  // ============================================================
 
   Future<void> logout() async {
     try {
       await GoogleSignIn.instance.signOut();
     } catch (_) {
-      // User may have logged in using email/password.
+      // User may have logged in using email/password,
+      // so Google Sign-In may not have an active session.
     }
 
     await _firebaseAuth.signOut();

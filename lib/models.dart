@@ -17,7 +17,7 @@ extension BottomTabX on BottomTab {
       case BottomTab.map:
         return 'Map';
       case BottomTab.scan:
-        return 'Scan';
+        return 'Check In';
       case BottomTab.community:
         return 'Community';
       case BottomTab.badges:
@@ -34,7 +34,7 @@ extension BottomTabX on BottomTab {
       case BottomTab.map:
         return '🗺️';
       case BottomTab.scan:
-        return '📷';
+        return '📍';
       case BottomTab.community:
         return '💬';
       case BottomTab.badges:
@@ -101,9 +101,6 @@ class HeritageSite {
   final String location;
   final String description;
   final String category;
-  final double latitude;
-  final double longitude;
-  final String imageUrl;
 
   final double latitude;
   final double longitude;
@@ -116,11 +113,12 @@ class HeritageSite {
 
   final bool visited;
   final bool isEditorPick;
-  final List<String> tips;
 
-  // New Visit Info fields
   final String openingHours;
   final String entryFee;
+  final String difficulty;
+  final String bestTime;
+  final List<String> tips;
 
   HeritageSite({
     required this.id,
@@ -136,9 +134,12 @@ class HeritageSite {
     required this.xp,
     required this.visited,
     required this.isEditorPick,
+
+    this.openingHours = 'Unknown',
+    this.entryFee = 'Free',
+    this.difficulty = 'Easy',
+    this.bestTime = '',
     this.tips = const [],
-    this.openingHours = 'Daily 6:00 AM – 9:00 PM',
-    this.entryFee = 'Free (Public Access)',
   });
 
   factory HeritageSite.fromJson(
@@ -146,37 +147,40 @@ class HeritageSite {
       ) {
     return HeritageSite(
       id: json['id']?.toString() ?? '',
-      name: json['name'] ?? 'Unknown Heritage',
-      location: json['state'] ?? json['location'] ?? 'Malaysia',
-      description: json['description'] ?? '',
-      category: json['category'] ?? 'National',
-      latitude: (json['latitude'] ?? 0.0).toDouble(),
-      longitude: (json['longitude'] ?? 0.0).toDouble(),
-      imageUrl: json['imageUrl'] ?? '',
-      tags: List<String>.from(json['tags'] ?? []),
-      duration: json['duration'] ?? '1–2 hours',
-      xp: json['xp'] ?? 50,
-      visited: json['visited'] ?? false,
-      isEditorPick: json['isEditorPick'] ?? false,
-      name: json['name']?.toString() ?? 'Unknown Heritage',
-      location: json['state']?.toString() ??
+      name:
+      json['name']?.toString() ??
+          'Unknown Heritage',
+      location:
+      json['state']?.toString() ??
           json['location']?.toString() ??
           'Malaysia',
-      description: json['description']?.toString() ?? '',
-      category: json['category']?.toString() ?? 'National',
-      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
-      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
-      imageUrl: json['imageUrl']?.toString() ?? '',
+      description:
+      json['description']?.toString() ?? '',
+      category:
+      json['category']?.toString() ??
+          'National',
+      latitude:
+      (json['latitude'] as num?)
+          ?.toDouble() ??
+          0.0,
+      longitude:
+      (json['longitude'] as num?)
+          ?.toDouble() ??
+          0.0,
+      imageUrl:
+      json['imageUrl']?.toString() ?? '',
       tags: List<String>.from(
         json['tags'] ?? const [],
       ),
-      duration: json['duration']?.toString() ?? '1–2 hours',
+      duration:
+      json['duration']?.toString() ??
+          '1–2 hours',
       xp: (json['xp'] as num?)?.toInt() ?? 50,
-      visited: json['visited'] as bool? ?? false,
-      isEditorPick: json['isEditorPick'] as bool? ?? false,
-      tips: List<String>.from(
-        json['tips'] ?? const [], // 3. Add JSON parsing support
-      ),
+      visited:
+      json['visited'] as bool? ?? false,
+      isEditorPick:
+      json['isEditorPick'] as bool? ??
+          false,
     );
   }
 }
@@ -467,67 +471,4 @@ class LevelConfig {
     return nextLevel.xpRequired -
         currentXp;
   }
-}
-// ============================================================
-// COMMUNITY MODELS
-// ============================================================
-
-class CommunityPost {
-  final String id;
-  final String userId;
-  final String userName;
-  final String userPhotoUrl;
-
-  final String siteId;
-  final String siteName;
-
-  final String content;
-  final String imageUrl;
-
-  final DateTime createdAt;
-
-  final List<String> likedBy;
-  final int commentCount;
-
-  const CommunityPost({
-    required this.id,
-    required this.userId,
-    required this.userName,
-    required this.userPhotoUrl,
-    required this.siteId,
-    required this.siteName,
-    required this.content,
-    required this.imageUrl,
-    required this.createdAt,
-    required this.likedBy,
-    required this.commentCount,
-  });
-
-  int get likeCount => likedBy.length;
-
-  bool isLikedBy(String uid) {
-    return likedBy.contains(uid);
-  }
-}
-
-class CommunityComment {
-  final String id;
-  final String postId;
-
-  final String userId;
-  final String userName;
-  final String userPhotoUrl;
-
-  final String content;
-  final DateTime createdAt;
-
-  const CommunityComment({
-    required this.id,
-    required this.postId,
-    required this.userId,
-    required this.userName,
-    required this.userPhotoUrl,
-    required this.content,
-    required this.createdAt,
-  });
 }
