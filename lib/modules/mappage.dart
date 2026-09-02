@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'quiz.dart';
-import 'travel_info.dart';
+import 'heritage_detail.dart';
+import '../models.dart';
 import '../widgets/app_header.dart';
 
 /// ---------------------------------------------------------------
@@ -56,6 +57,29 @@ class HeritageMapSite {
   });
 
   ll.LatLng get latLng => ll.LatLng(latitude, longitude);
+
+  /// Adapts the map's lightweight site record to the full Traveller's Guide
+  /// detail-page model.
+  HeritageSite toHeritageSite() => HeritageSite(
+    id: id,
+    name: name,
+    location: location,
+    description: briefInfo,
+    category: category,
+    latitude: latitude,
+    longitude: longitude,
+    imageUrl: '',
+    tags: [category],
+    duration: '1–2 hours',
+    xp: xpReward,
+    visited: visited,
+    isEditorPick: false,
+    openingHours: 'Check with the site before visiting',
+    entryFee: 'Check with the site before visiting',
+    difficulty: 'Easy',
+    bestTime: '',
+    tips: const [],
+  );
 }
 
 const List<HeritageMapSite> heritageMapSites = [
@@ -64,8 +88,8 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '⛩️',
     name: 'Batu Caves',
     location: 'Selangor',
-    latitude: 3.2379,
-    longitude: 101.6840,
+    latitude: 3.237934,
+    longitude: 101.683984,
     distanceKm: 0.3,
     xpReward: 80,
     category: 'Religious',
@@ -79,8 +103,8 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '🏳️',
     name: 'Dataran Merdeka',
     location: 'Kuala Lumpur',
-    latitude: 3.1478,
-    longitude: 101.6953,
+    latitude: 3.147860,
+    longitude: 101.693775,
     distanceKm: 2.1,
     xpReward: 80,
     category: 'National',
@@ -94,8 +118,8 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '🏛️',
     name: 'George Town',
     location: 'Penang',
-    latitude: 5.4141,
-    longitude: 100.3288,
+    latitude: 5.414130,
+    longitude: 100.328750,
     distanceKm: 280,
     xpReward: 120,
     category: 'UNESCO',
@@ -109,8 +133,8 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '🏯',
     name: 'Malacca City',
     location: 'Melaka',
-    latitude: 2.1896,
-    longitude: 102.2501,
+    latitude: 2.189594,
+    longitude: 102.250086,
     distanceKm: 145,
     xpReward: 120,
     category: 'UNESCO',
@@ -124,8 +148,8 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '🛕',
     name: 'Kek Lok Si Temple',
     location: 'Penang',
-    latitude: 5.3994,
-    longitude: 100.2739,
+    latitude: 5.399018,
+    longitude: 100.273544,
     distanceKm: 282,
     xpReward: 90,
     category: 'Religious',
@@ -139,8 +163,8 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '⛰️',
     name: 'Cameron Highlands',
     location: 'Pahang',
-    latitude: 4.4696,
-    longitude: 101.3808,
+    latitude: 4.469516,
+    longitude: 101.379261,
     distanceKm: 90,
     xpReward: 100,
     category: 'Nature',
@@ -154,8 +178,8 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '🕌',
     name: 'Zahir Mosque',
     location: 'Kedah',
-    latitude: 6.1216,
-    longitude: 100.3672,
+    latitude: 6.121736,
+    longitude: 100.367257,
     distanceKm: 400,
     xpReward: 90,
     category: 'Religious',
@@ -169,8 +193,8 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '🏺',
     name: 'Lenggong Valley',
     location: 'Perak',
-    latitude: 5.1075,
-    longitude: 100.9717,
+    latitude: 5.107540,
+    longitude: 100.971580,
     distanceKm: 200,
     xpReward: 120,
     category: 'UNESCO',
@@ -184,8 +208,9 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '🕌',
     name: 'Crystal Mosque',
     location: 'Terengganu',
-    latitude: 5.3390,
-    longitude: 103.1360,
+    // Masjid Kristal, Pulau Wan Man (visitor-facing mosque building).
+    latitude: 5.322160,
+    longitude: 103.120670,
     distanceKm: 480,
     xpReward: 90,
     category: 'Religious',
@@ -199,8 +224,8 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '🌳',
     name: 'Taman Negara',
     location: 'Pahang',
-    latitude: 4.3806,
-    longitude: 102.4048,
+    latitude: 4.381349,
+    longitude: 102.401529,
     distanceKm: 150,
     xpReward: 110,
     category: 'Nature',
@@ -214,8 +239,8 @@ const List<HeritageMapSite> heritageMapSites = [
     icon: '🕌',
     name: 'Sultan Abu Bakar State Mosque',
     location: 'Johor',
-    latitude: 1.4667,
-    longitude: 103.7576,
+    latitude: 1.465265,
+    longitude: 103.757401,
     distanceKm: 340,
     xpReward: 90,
     category: 'Religious',
@@ -1241,8 +1266,8 @@ class _SiteOptionsSheet extends StatelessWidget {
 /// A brief, self-contained info page for one heritage site —
 /// reachable from the site options sheet. Shows the site's category,
 /// location, and a short description, with a "Take Quiz" call-to-action
-/// if one exists, and a "Full Guide" button linking to the app's
-/// general Traveller's Guide (transport / etiquette / safety info).
+/// if one exists, and a "Full Guide" button that opens the matching
+/// site page in Traveller's Guide.
 class SiteGuideScreen extends StatelessWidget {
   final HeritageMapSite site;
   final bool completed;
@@ -1431,25 +1456,13 @@ class SiteGuideScreen extends StatelessWidget {
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => Scaffold(
-                            backgroundColor: Colors.white,
-                            appBar: AppBar(
-                              title: const Text(
-                                "Traveller's Guide",
-                                style: TextStyle(color: Colors.black),
-                              ),
-                              backgroundColor: Colors.white,
-                              elevation: 0,
-                              iconTheme: const IconThemeData(color: Colors.black),
-                            ),
-                            body: TravelInfoPage(totalXp: totalXp),
-                          ),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => HeritageDetailScreen(
+                          site: site.toHeritageSite(),
                         ),
-                      );
-                    },
+                      ),
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0F8A5F),
                       side: const BorderSide(color: Color(0xFF0F8A5F)),
