@@ -18,9 +18,14 @@ class AchievementProvider extends ChangeNotifier {
   int _totalXp = 0;
   Map<String, List<String>> _visitedSites = {};
   Map<String, bool> _claimedBonuses = {};
+  bool _isLoading = true;
+
+  // Quiz tracking
   Set<String> _completedQuizIds = {};
   List<QuizAttempt> _quizHistory = [];
-  bool _isLoading = true;
+
+  // ✅ Track badges that have already been celebrated
+  Set<String> _celebratedBadges = {};
 
   // Hive box reference
   late Box _box;
@@ -32,9 +37,10 @@ class AchievementProvider extends ChangeNotifier {
   int get totalXp => _totalXp;
   Map<String, List<String>> get visitedSites => _visitedSites;
   Map<String, bool> get claimedBonuses => _claimedBonuses;
+  bool get isLoading => _isLoading;
   Set<String> get completedQuizIds => _completedQuizIds;
   List<QuizAttempt> get quizHistory => _quizHistory;
-  bool get isLoading => _isLoading;
+  Set<String> get celebratedBadges => _celebratedBadges;
 
   UserAchievement get achievement {
     return BadgeService.getUserAchievement(_totalXp, _visitedSites);
@@ -58,18 +64,20 @@ class AchievementProvider extends ChangeNotifier {
   // INITIALIZATION
   // ============================================================
 
-  /// Loads user data: tries Hive first, falls back to dummy data
   Future<void> loadUserData() async {
     _isLoading = true;
     notifyListeners();
 
-    // Open Hive box
-    _box = await Hive.openBox('userProgress');
+    try {
+      _box = await Hive.openBox('userProgress');
+    } catch (e) {
+      debugPrint('❌ Hive open error: $e');
+      _box = await Hive.openBox('userProgress');
+    }
 
     bool hasSavedData = await _loadFromHive();
 
     if (!hasSavedData) {
-      // First launch - load dummy data and save it
       _loadDummyData();
       await _saveToHive();
     }
@@ -83,47 +91,37 @@ class AchievementProvider extends ChangeNotifier {
   // HIVE PERSISTENCE
   // ============================================================
 
-  /// Saves all user progress to Hive
   Future<void> _saveToHive() async {
     try {
       await _box.put('totalXp', _totalXp);
       await _box.put('visitedSites', _visitedSites);
       await _box.put('claimedBonuses', _claimedBonuses);
       await _box.put('completedQuizIds', _completedQuizIds.toList());
-      await _box.put('quizHistory', _quizHistory.map((a) => a.toMap()).toList());
+      await _box.put('celebratedBadges', _celebratedBadges.toList());
       debugPrint('✅ Progress saved to Hive');
     } catch (e) {
       debugPrint('❌ Error saving to Hive: $e');
     }
   }
 
-  /// Loads user progress from Hive
-  /// Returns true if data was loaded, false if no data exists
   Future<bool> _loadFromHive() async {
     try {
       final savedXp = _box.get('totalXp');
       final savedVisited = _box.get('visitedSites');
       final savedBonuses = _box.get('claimedBonuses');
-      final savedCompletedQuizIds = _box.get('completedQuizIds');
-      final savedQuizHistory = _box.get('quizHistory');
+      final savedQuizIds = _box.get('completedQuizIds');
+      final savedCelebrated = _box.get('celebratedBadges');
 
       if (savedXp != null && savedVisited != null && savedBonuses != null) {
         _totalXp = savedXp;
         _visitedSites = Map<String, List<String>>.from(savedVisited);
         _claimedBonuses = Map<String, bool>.from(savedBonuses);
-
-        // These two fields were added after the above three, so older
-        // saved data may not have them yet — default to empty rather
-        // than fail the whole load.
-        if (savedCompletedQuizIds != null) {
-          _completedQuizIds = Set<String>.from(savedCompletedQuizIds);
+        if (savedQuizIds != null) {
+          _completedQuizIds = Set<String>.from(savedQuizIds);
         }
-        if (savedQuizHistory != null) {
-          _quizHistory = (savedQuizHistory as List)
-              .map((m) => QuizAttempt.fromMap(Map<String, dynamic>.from(m as Map)))
-              .toList();
+        if (savedCelebrated != null) {
+          _celebratedBadges = Set<String>.from(savedCelebrated);
         }
-
         debugPrint('✅ Data loaded from Hive: XP = $_totalXp');
         return true;
       }
@@ -140,7 +138,6 @@ class AchievementProvider extends ChangeNotifier {
 
   void _loadDummyData() {
     _totalXp = 470;
-
     _visitedSites = {
       'badge_kl': [
         'site_klcc',
@@ -163,7 +160,6 @@ class AchievementProvider extends ChangeNotifier {
       ],
       'badge_perak': [],
     };
-
     _claimedBonuses = {
       'badge_kl': false,
       'badge_melaka': false,
@@ -172,13 +168,18 @@ class AchievementProvider extends ChangeNotifier {
       'badge_sabah': false,
       'badge_perak': false,
     };
+    _celebratedBadges = {};
+    _completedQuizIds = {};
+    _quizHistory = [];
   }
 
-  /// Resets all data (for testing)
   void reset() async {
     _totalXp = 0;
     _visitedSites = {};
     _claimedBonuses = {};
+    _completedQuizIds = {};
+    _quizHistory = [];
+    _celebratedBadges = {};
     notifyListeners();
     await _saveToHive();
   }
@@ -187,7 +188,6 @@ class AchievementProvider extends ChangeNotifier {
   // XP OPERATIONS
   // ============================================================
 
-  /// Add XP and save to Hive
   int addXp(int amount) {
     if (amount <= 0) return _totalXp;
 
@@ -196,7 +196,7 @@ class AchievementProvider extends ChangeNotifier {
 
     _totalXp += amount;
     notifyListeners();
-    _saveToHive();  // ✅ Persist
+    _saveToHive();
 
     int newLevel = BadgeService.getCurrentLevel(_totalXp).level;
     if (newLevel > oldLevel) {
@@ -206,7 +206,6 @@ class AchievementProvider extends ChangeNotifier {
     return _totalXp;
   }
 
-  /// Add XP from visiting a site and save
   int addSiteVisit(String badgeId, String siteId) {
     if (_visitedSites.containsKey(badgeId) &&
         _visitedSites[badgeId]!.contains(siteId)) {
@@ -221,7 +220,6 @@ class AchievementProvider extends ChangeNotifier {
     int xp = BadgeService.calculateSiteXp(siteId);
     _totalXp += xp;
 
-    // Check newly completed badges
     List<StateBadge> newlyCompleted = BadgeService.getNewlyCompletedBadges(
       _visitedSites,
       _visitedSites,
@@ -237,7 +235,7 @@ class AchievementProvider extends ChangeNotifier {
     }
 
     notifyListeners();
-    _saveToHive();  // ✅ Persist
+    _saveToHive();
     return _totalXp;
   }
 
@@ -246,23 +244,11 @@ class AchievementProvider extends ChangeNotifier {
     return addXp(xp);
   }
 
-  /// Records a completed quiz attempt: marks the site as done (so it
-  /// can't be retaken), adds it to history, and awards its XP. Calling
-  /// this again for a site that's already completed is a no-op — the
-  /// guard lives here (not just in the UI) so the state can't be
-  /// double-counted even if a screen somehow calls this twice.
   void addQuizAttempt(QuizAttempt attempt) {
-    if (_completedQuizIds.contains(attempt.siteId)) return;
-
+    if (attempt.siteId.isEmpty) return;
     _completedQuizIds.add(attempt.siteId);
     _quizHistory.add(attempt);
-
-    if (attempt.xpEarned > 0) {
-      addXp(attempt.xpEarned); // addXp already notifies + saves
-    } else {
-      notifyListeners();
-      _saveToHive();
-    }
+    addXp(attempt.xpEarned);
   }
 
   int addJournalXp(int wordCount, {bool hasPhoto = false}) {
@@ -297,7 +283,7 @@ class AchievementProvider extends ChangeNotifier {
     _totalXp += bonusXp;
 
     notifyListeners();
-    _saveToHive();  // ✅ Persist
+    _saveToHive();
     return bonusXp;
   }
 
@@ -319,6 +305,17 @@ class AchievementProvider extends ChangeNotifier {
     }
 
     return unclaimed;
+  }
+
+  // ============================================================
+  // CELEBRATED BADGES
+  // ============================================================
+
+  void markBadgeCelebrated(String badgeId) {
+    if (!_celebratedBadges.contains(badgeId)) {
+      _celebratedBadges.add(badgeId);
+      _saveToHive();
+    }
   }
 
   // ============================================================
@@ -361,7 +358,7 @@ class AchievementProvider extends ChangeNotifier {
     }
 
     notifyListeners();
-    _saveToHive();  // ✅ Persist
+    _saveToHive();
   }
 
   // ============================================================

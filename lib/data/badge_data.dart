@@ -93,9 +93,7 @@ const List<StateBadge> allStateBadges = [
     stateName: 'Kedah',
     badgeIcon: '🌾',
     badgeTheme: 'Paddy Field',
-    requiredSiteIds: [
-      // Add actual site IDs here
-    ],
+    requiredSiteIds: [],
     totalPieces: 1,
     description: 'Complete all heritage sites in Kedah',
     bonusXp: 150,
@@ -106,9 +104,7 @@ const List<StateBadge> allStateBadges = [
     stateName: 'Perlis',
     badgeIcon: '🌿',
     badgeTheme: 'Green Landscape',
-    requiredSiteIds: [
-      // Add actual site IDs here
-    ],
+    requiredSiteIds: [],
     totalPieces: 1,
     description: 'Complete all heritage sites in Perlis',
     bonusXp: 150,
@@ -152,9 +148,7 @@ const List<StateBadge> allStateBadges = [
     stateName: 'Negeri Sembilan',
     badgeIcon: '🐃',
     badgeTheme: 'Buffalo',
-    requiredSiteIds: [
-      // Add actual site IDs here
-    ],
+    requiredSiteIds: [],
     totalPieces: 1,
     description: 'Complete all heritage sites in Negeri Sembilan',
     bonusXp: 150,
@@ -182,9 +176,7 @@ const List<StateBadge> allStateBadges = [
     stateName: 'Terengganu',
     badgeIcon: '⛵',
     badgeTheme: 'Fishing Boat',
-    requiredSiteIds: [
-      // Add actual site IDs here
-    ],
+    requiredSiteIds: [],
     totalPieces: 1,
     description: 'Complete all heritage sites in Terengganu',
     bonusXp: 150,
@@ -195,9 +187,7 @@ const List<StateBadge> allStateBadges = [
     stateName: 'Kelantan',
     badgeIcon: '🎨',
     badgeTheme: 'Cultural Arts',
-    requiredSiteIds: [
-      // Add actual site IDs here
-    ],
+    requiredSiteIds: [],
     totalPieces: 1,
     description: 'Complete all heritage sites in Kelantan',
     bonusXp: 150,
