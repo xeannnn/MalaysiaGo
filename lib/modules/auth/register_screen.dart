@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 import 'auth_service.dart';
 
+/// Displays the registration form for new users.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -10,10 +12,6 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final AuthService _auth = AuthService();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   final TextEditingController _nameController = TextEditingController();
@@ -27,22 +25,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _hidePassword = true;
   bool _hideConfirmPassword = true;
   bool _isLoading = false;
-  bool _obscurePassword = true;
 
-  Future<void> _register() async {
-    if (_nameController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createAccount() async {
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
-      await _auth.register(
+      await _authService.register(
         name: _nameController.text,
         email: _emailController.text,
         password: _passwordController.text,
@@ -117,61 +120,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     } finally {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        setState(() {
+          _isLoading = false;
+        });
       }
-    } on FirebaseAuthException catch (e) {
-      String message = 'Registration failed';
-      if (e.code == 'email-already-in-use') {
-        message = 'Email already in use.';
-      } else if (e.code == 'weak-password') {
-        message = 'Password is too weak.';
-      }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
-
-    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Create Account',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Start your heritage adventure today',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
       backgroundColor: const Color(0xFFF5F5F7),
       appBar: AppBar(
         title: const Text('Register Account'),
@@ -374,42 +332,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
-                keyboardType: TextInputType.emailAddress,
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock),
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                  ),
-                ),
-                obscureText: _obscurePassword,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _register,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: const Color(0xFF0F8A5F),
-                  foregroundColor: Colors.white,
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Register', style: TextStyle(fontSize: 16)),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Already have an account? Login'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

@@ -6,8 +6,26 @@ import '../widgets/app_header.dart';
 /// color. Add/replace entries here to change what shows up in the
 /// grid — these stand in for real site artwork until that's ready.
 const List<String> _pieceIcons = [
-  '🏛️', '🎭', '⛩️', '🌺', '🗼', '🏯', '🖼️', '⛺', '🦚', '🏺',
-  '💎', '⛰️', '🌋', '⚓', '🛡️', '🏆', '🕌', '🏰', '🎨', '🏵️'
+  '🏛️',
+  '🎭',
+  '⛩️',
+  '🌺',
+  '🗼',
+  '🏯',
+  '🖼️',
+  '⛺',
+  '🦚',
+  '🏺',
+  '💎',
+  '⛰️',
+  '🌋',
+  '⚓',
+  '🛡️',
+  '🏆',
+  '🕌',
+  '🏰',
+  '🎨',
+  '🏵️',
 ];
 
 const List<Color> _pieceColors = [
@@ -47,7 +65,10 @@ class PassportScreen extends StatelessWidget {
                 sliver: SliverToBoxAdapter(
                   child: Column(
                     children: [
-                      const PassportHeroCard(collected: collected, total: totalPieces),
+                      const PassportHeroCard(
+                        collected: collected,
+                        total: totalPieces,
+                      ),
                       const SizedBox(height: 16),
                       Align(
                         alignment: Alignment.centerLeft,
@@ -57,7 +78,6 @@ class PassportScreen extends StatelessWidget {
                           ),
                           child: Text(
                             'Tap any piece to view site details',
-                            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey[600],
@@ -141,7 +161,6 @@ class PassportScreen extends StatelessWidget {
 class PassportHeroCard extends StatelessWidget {
   final int collected;
   final int total;
-  const PassportHeroCard({super.key, required this.collected, required this.total});
 
   const PassportHeroCard({
     super.key,
