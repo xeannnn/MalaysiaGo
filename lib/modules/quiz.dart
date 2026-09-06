@@ -3,20 +3,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// ---------------------------------------------------------------
-/// HERITAGE QUIZ MODULE
-/// ---------------------------------------------------------------
-/// Everything for the heritage quiz feature lives in this one file
-/// so it can be dropped into the project as a single, self-contained
-/// unit: data models, question retrieval, and all three screens
-/// (intro -> question flow -> results).
-///
-/// Entry point: QuizIntroScreen(siteId: '<id>')
-/// ---------------------------------------------------------------
+// ================================================================
+// MODELS
+// ================================================================
 
-// ============================== MODELS ==============================
-
-/// A single multiple-choice quiz question tied to a heritage site.
 class QuizQuestion {
   final String question;
   final List<String> options;
@@ -32,27 +22,46 @@ class QuizQuestion {
     required this.xpReward,
   });
 
-  /// Returns a copy of this question with its options shuffled into a
-  /// new random order — the correct answer's *text* stays correct,
-  /// its index just moves to wherever it landed. Used so the same
-  /// question doesn't always show its answer in the same position
-  /// (previously ~63% of questions had the correct answer as option
-  /// A, which is guessable).
+  factory QuizQuestion.fromSupabase(
+      Map<String, dynamic> data,
+      ) {
+    final rawOptions = data['options'];
+
+    return QuizQuestion(
+      question: data['question']?.toString() ?? '',
+      options: rawOptions is List
+          ? rawOptions.map((option) => option.toString()).toList()
+          : const <String>[],
+      correctIndex:
+      (data['correct_index'] as num?)?.toInt() ?? 0,
+      explanation:
+      data['explanation']?.toString() ?? '',
+      xpReward:
+      (data['xp_reward'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   QuizQuestion withShuffledOptions(Random random) {
-    final indices = List<int>.generate(options.length, (i) => i)..shuffle(random);
-    final newOptions = [for (final i in indices) options[i]];
+    if (options.isEmpty ||
+        correctIndex < 0 ||
+        correctIndex >= options.length) {
+      return this;
+    }
+
+    final correctAnswer = options[correctIndex];
+    final shuffledOptions = List<String>.from(options)
+      ..shuffle(random);
+
     return QuizQuestion(
       question: question,
-      options: newOptions,
-      correctIndex: indices.indexOf(correctIndex),
+      options: shuffledOptions,
+      correctIndex: shuffledOptions.indexOf(correctAnswer),
       explanation: explanation,
       xpReward: xpReward,
     );
   }
 }
 
-/// Metadata for the heritage site a quiz belongs to — shown on the
-/// quiz intro card before the questions start.
 class QuizSite {
   final String id;
   final String icon;
@@ -71,10 +80,22 @@ class QuizSite {
     required this.description,
     required this.difficulty,
   });
+
+  factory QuizSite.fromSupabase(
+      Map<String, dynamic> data,
+      ) {
+    return QuizSite(
+      id: data['site_id']?.toString() ?? '',
+      icon: data['icon']?.toString() ?? '📍',
+      name: data['name']?.toString() ?? 'Heritage Site',
+      location: data['location']?.toString() ?? '',
+      category: data['category']?.toString() ?? '',
+      description: data['description']?.toString() ?? '',
+      difficulty: data['difficulty']?.toString() ?? 'Easy',
+    );
+  }
 }
 
-/// A record of one completed quiz attempt — used to block retakes and
-/// to power the quiz history/scores screen.
 class QuizAttempt {
   final String siteId;
   final String siteName;
@@ -94,707 +115,165 @@ class QuizAttempt {
     required this.completedAt,
   });
 
-  Map<String, dynamic> toMap() => {
-    'siteId': siteId,
-    'siteName': siteName,
-    'siteIcon': siteIcon,
-    'correctCount': correctCount,
-    'totalQuestions': totalQuestions,
-    'xpEarned': xpEarned,
-    'completedAt': completedAt.toIso8601String(),
-  };
+  Map<String, dynamic> toMap() {
+    return {
+      'siteId': siteId,
+      'siteName': siteName,
+      'siteIcon': siteIcon,
+      'correctCount': correctCount,
+      'totalQuestions': totalQuestions,
+      'xpEarned': xpEarned,
+      'completedAt': completedAt.toIso8601String(),
+    };
+  }
 
-  factory QuizAttempt.fromMap(Map<dynamic, dynamic> map) => QuizAttempt(
-    siteId: map['siteId'] as String,
-    siteName: map['siteName'] as String,
-    siteIcon: map['siteIcon'] as String,
-    correctCount: map['correctCount'] as int,
-    totalQuestions: map['totalQuestions'] as int,
-    xpEarned: map['xpEarned'] as int,
-    completedAt: DateTime.parse(map['completedAt'] as String),
-  );
-
+  factory QuizAttempt.fromMap(
+      Map<dynamic, dynamic> map,
+      ) {
+    return QuizAttempt(
+      siteId: map['siteId']?.toString() ?? '',
+      siteName: map['siteName']?.toString() ?? '',
+      siteIcon: map['siteIcon']?.toString() ?? '📍',
+      correctCount:
+      (map['correctCount'] as num?)?.toInt() ?? 0,
+      totalQuestions:
+      (map['totalQuestions'] as num?)?.toInt() ?? 0,
+      xpEarned:
+      (map['xpEarned'] as num?)?.toInt() ?? 0,
+      completedAt: DateTime.tryParse(
+        map['completedAt']?.toString() ?? '',
+      ) ??
+          DateTime.now(),
+    );
+  }
 }
 
-/// Called when a quiz is finished. MainScreen (main.dart) uses this to
-/// add the XP to the running total, mark the site as completed so it
-/// can't be retaken, and record a QuizAttempt for the history screen.
-typedef QuizCompleteCallback = void Function(QuizAttempt attempt);
+typedef QuizCompleteCallback = void Function(
+    QuizAttempt attempt,
+    );
 
-/// The quiz content selected from Supabase (or the bundled fallback).
 class QuizBundle {
   final QuizSite site;
   final List<QuizQuestion> questions;
 
-  const QuizBundle({required this.site, required this.questions});
+  const QuizBundle({
+    required this.site,
+    required this.questions,
+  });
 }
 
-// ========================= QUESTION RETRIEVAL =========================
+// ================================================================
+// SUPABASE QUIZ REPOSITORY
+// ================================================================
 
-/// Retrieves quiz site info and quiz questions for a given heritage
-/// site ID.
-///
-/// Supabase is the primary source. The in-memory maps remain an offline
-/// fallback so users can still take a quiz if the device has no connection
-/// or the database migration has not yet been applied.
 class QuizRepository {
   QuizRepository._();
 
-  static final Map<String, QuizSite> _sites = {
-    'batu_caves': const QuizSite(
-      id: 'batu_caves',
-      icon: '⛩️',
-      name: 'Batu Caves',
-      location: 'Selangor · Religious',
-      category: 'Religious',
-      description: 'Sacred limestone cathedral above Kuala Lumpur',
-      difficulty: 'Easy',
-    ),
-    'george_town': const QuizSite(
-      id: 'george_town',
-      icon: '🏛️',
-      name: 'George Town',
-      location: 'Penang · UNESCO',
-      category: 'UNESCO',
-      description:
-      'Historic colonial port city famous for street art and heritage shophouses',
-      difficulty: 'Medium',
-    ),
-    'malacca_city': const QuizSite(
-      id: 'malacca_city',
-      icon: '🏯',
-      name: 'Malacca City',
-      location: 'Melaka · UNESCO',
-      category: 'UNESCO',
-      description:
-      'Historic trading port shaped by Portuguese, Dutch, and British rule',
-      difficulty: 'Medium',
-    ),
-    'merdeka_square': const QuizSite(
-      id: 'merdeka_square',
-      icon: '🏳️',
-      name: 'Dataran Merdeka',
-      location: 'Kuala Lumpur · National',
-      category: 'National',
-      description:
-      'Historic square where Malaysia\'s independence was declared in 1957',
-      difficulty: 'Easy',
-    ),
-    'masjid_zahir': const QuizSite(
-      id: 'masjid_zahir',
-      icon: '🕌',
-      name: 'Zahir Mosque',
-      location: 'Kedah · Religious',
-      category: 'Religious',
-      description:
-      'One of Malaysia\'s oldest and grandest mosques, completed in 1912',
-      difficulty: 'Easy',
-    ),
-    'lenggong_valley': const QuizSite(
-      id: 'lenggong_valley',
-      icon: '🏺',
-      name: 'Lenggong Valley',
-      location: 'Perak · UNESCO',
-      category: 'UNESCO',
-      description:
-      'UNESCO-listed archaeological valley where "Perak Man" was discovered',
-      difficulty: 'Medium',
-    ),
-    'crystal_mosque': const QuizSite(
-      id: 'crystal_mosque',
-      icon: '🕌',
-      name: 'Crystal Mosque',
-      location: 'Terengganu · Religious',
-      category: 'Religious',
-      description:
-      'A steel-and-glass mosque on an island in the Terengganu River',
-      difficulty: 'Easy',
-    ),
-    'taman_negara': const QuizSite(
-      id: 'taman_negara',
-      icon: '🌳',
-      name: 'Taman Negara',
-      location: 'Pahang · Nature',
-      category: 'Nature',
-      description: 'Widely cited as one of the world\'s oldest rainforests',
-      difficulty: 'Medium',
-    ),
-    'sultan_abu_bakar_mosque': const QuizSite(
-      id: 'sultan_abu_bakar_mosque',
-      icon: '🕌',
-      name: 'Sultan Abu Bakar State Mosque',
-      location: 'Johor · Religious',
-      category: 'Religious',
-      description: 'A Victorian-Moorish mosque overlooking the Johor Strait',
-      difficulty: 'Medium',
-    ),
-  };
+  static final Random _random = Random();
 
-  static final Map<String, List<QuizQuestion>> _questions = {
-    'batu_caves': const [
-      QuizQuestion(
-        question: 'How many steps lead up to the Cathedral Cave at Batu Caves?',
-        options: ['182 steps', '272 steps', '320 steps', '214 steps'],
-        correctIndex: 1,
-        explanation:
-        'The iconic 272 colourful steps were repainted in 2018 in a rainbow gradient that took 15 days to complete.',
-        xpReward: 27,
-      ),
-      QuizQuestion(
-        question:
-        'What is the height of the golden Lord Murugan statue at Batu Caves?',
-        options: ['28 metres', '35 metres', '43 metres', '55 metres'],
-        correctIndex: 2,
-        explanation:
-        'The 43-metre gold-plated statue of Lord Murugan is the tallest in the world, built with 1,550 cubic metres of concrete.',
-        xpReward: 27,
-      ),
-      QuizQuestion(
-        question:
-        'Which Hindu festival draws over a million devotees to Batu Caves every year?',
-        options: ['Thaipusam', 'Deepavali', 'Vesak Day', 'Ponggal'],
-        correctIndex: 0,
-        explanation:
-        'Thaipusam is the largest annual gathering at Batu Caves, with devotees carrying kavadi up the 272 steps as an act of devotion.',
-        xpReward: 26,
-      ),
-      QuizQuestion(
-        question:
-        'Roughly how old is the limestone hill that Batu Caves is formed within?',
-        options: ['About 400 million years', 'About 4 million years', 'About 40,000 years', 'About 4,000 years'],
-        correctIndex: 0,
-        explanation:
-        'The limestone forming Batu Caves is estimated to be around 400 million years old, among the oldest rock formations in Malaysia.',
-        xpReward: 26,
-      ),
-      QuizQuestion(
-        question:
-        'Which smaller cave near the entrance features statues and dioramas depicting a Hindu epic?',
-        options: ['Ramayana Cave', 'Ganesh Cave', 'Skanda Cave', 'Vishnu Cave'],
-        correctIndex: 0,
-        explanation:
-        'The Ramayana Cave, located near the main entrance, depicts scenes from the Hindu epic Ramayana through statues and murals.',
-        xpReward: 26,
-      ),
-    ],
-    'george_town': const [
-      QuizQuestion(
-        question:
-        'In what year were George Town and Malacca jointly inscribed as a UNESCO World Heritage Site?',
-        options: ['2000', '2008', '2012', '2015'],
-        correctIndex: 1,
-        explanation:
-        'George Town and Malacca were jointly listed in 2008 as "Melaka and George Town, Historic Cities of the Straits of Malacca."',
-        xpReward: 27,
-      ),
-      QuizQuestion(
-        question:
-        'George Town is world-famous for which public art form found throughout its streets?',
-        options: [
-          'Street murals',
-          'Neon signage',
-          'Sand sculptures',
-          'Ice sculptures',
-        ],
-        correctIndex: 0,
-        explanation:
-        'Artists like Ernest Zacharevic popularised the interactive street murals that now draw visitors across George Town.',
-        xpReward: 27,
-      ),
-      QuizQuestion(
-        question:
-        'Which George Town street is historically nicknamed "Harmony Street" for its cluster of temples, mosques, and churches?',
-        options: [
-          'Lebuh Chulia',
-          'Jalan Masjid Kapitan Keling',
-          'Lebuh Armenian',
-          'Jalan Penang',
-        ],
-        correctIndex: 1,
-        explanation:
-        'Jalan Masjid Kapitan Keling (formerly Pitt Street) earned the nickname for the diverse houses of worship along it.',
-        xpReward: 26,
-      ),
-      QuizQuestion(
-        question: 'In what year did Captain Francis Light found George Town, the first British settlement in the region?',
-        options: ['1786', '1824', '1867', '1900'],
-        correctIndex: 0,
-        explanation: 'Francis Light established George Town for the British East India Company in 1786.',
-        xpReward: 26,
-      ),
-      QuizQuestion(
-        question: 'What is the name of the covered pedestrian walkway in front of George Town\'s shophouses, shielding walkers from sun and rain?',
-        options: ['Five-foot way', 'Skywalk', 'Colonnade', 'Veranda deck'],
-        correctIndex: 0,
-        explanation: 'The "five-foot way" is a covered passage mandated in Straits Settlements shophouse design, a hallmark of the area\'s architecture.',
-        xpReward: 26,
-      ),
-    ],
-    'malacca_city': const [
-      QuizQuestion(
-        question: 'Which European power first colonised Malacca, in 1511?',
-        options: ['Portuguese', 'Dutch', 'British', 'Spanish'],
-        correctIndex: 0,
-        explanation:
-        'Malacca fell to Portuguese forces under Afonso de Albuquerque in 1511.',
-        xpReward: 27,
-      ),
-      QuizQuestion(
-        question:
-        'What is the name of the Portuguese fortress ruins still standing in Malacca today?',
-        options: [
-          'A Famosa',
-          'Fort Cornwallis',
-          'Fort Santiago',
-          'Fort Margherita',
-        ],
-        correctIndex: 0,
-        explanation:
-        'A Famosa was built by the Portuguese in 1511; only the Porta de Santiago gate survives today.',
-        xpReward: 27,
-      ),
-      QuizQuestion(
-        question:
-        'Which street in Malacca is best known for its antique shops and Peranakan heritage?',
-        options: [
-          'Jonker Street',
-          'Jalan Hang Tuah',
-          'Lebuh Chulia',
-          'Orchard Road',
-        ],
-        correctIndex: 0,
-        explanation:
-        'Jonker Street (Jalan Hang Jebat) is the heart of Malacca\'s Peranakan and antique trading heritage.',
-        xpReward: 26,
-      ),
-      QuizQuestion(
-        question: 'Which strategic strait, historically vital to global trade, does Malacca sit alongside?',
-        options: ['Strait of Malacca', 'Strait of Hormuz', 'Strait of Gibraltar', 'Bosphorus Strait'],
-        correctIndex: 0,
-        explanation: 'Malacca\'s position on the Strait of Malacca made it a key trading port for centuries.',
-        xpReward: 26,
-      ),
-      QuizQuestion(
-        question: 'Which European power took control of Malacca from the Portuguese in 1641?',
-        options: ['Dutch', 'British', 'Spanish', 'French'],
-        correctIndex: 0,
-        explanation: 'The Dutch East India Company captured Malacca from the Portuguese in 1641, ruling it for over 150 years.',
-        xpReward: 26,
-      ),
-    ],
-    'merdeka_square': const [
-      QuizQuestion(
-        question:
-        'What historic event took place at Dataran Merdeka at midnight on 31 August 1957?',
-        options: [
-          'Declaration of Malaysia\'s independence',
-          'Coronation of the first King',
-          'Opening of the first railway',
-          'Signing of a peace treaty',
-        ],
-        correctIndex: 0,
-        explanation:
-        'The Union Jack was lowered and the Malayan flag raised for the first time as independence was declared.',
-        xpReward: 27,
-      ),
-      QuizQuestion(
-        question:
-        'What was Dataran Merdeka historically used for during the colonial era?',
-        options: [
-          'A cricket field ("the Padang")',
-          'A horse racing track',
-          'A military parade ground only',
-          'A marketplace',
-        ],
-        correctIndex: 0,
-        explanation:
-        'It was known as the Selangor Club Padang, used for cricket and other colonial-era sports.',
-        xpReward: 27,
-      ),
-      QuizQuestion(
-        question:
-        'Dataran Merdeka is home to one of the tallest flagpoles in the world, standing at roughly what height?',
-        options: [
-          '95 metres',
-          '20 metres',
-          '50 metres',
-          'There is no flagpole',
-        ],
-        correctIndex: 0,
-        explanation:
-        'The flagpole at Dataran Merdeka stands around 95 metres tall, among the tallest in the world.',
-        xpReward: 26,
-      ),
-      QuizQuestion(
-        question: 'Which black-and-white timber colonial clubhouse borders the padang at Dataran Merdeka?',
-        options: ['Royal Selangor Club', 'KL Railway Station', 'Central Market', 'National Museum'],
-        correctIndex: 0,
-        explanation: 'The Royal Selangor Club, a Tudor-style timber building, has overlooked the padang since the colonial era.',
-        xpReward: 26,
-      ),
-      QuizQuestion(
-        question: 'What architectural style is the Sultan Abdul Samad Building, beside Dataran Merdeka, known for?',
-        options: ['Moorish (Indo-Saracenic)', 'Gothic Revival', 'Brutalist', 'Art Deco'],
-        correctIndex: 0,
-        explanation: 'Its onion domes and horseshoe arches reflect the Moorish (Indo-Saracenic) style popular in British colonial buildings.',
-        xpReward: 26,
-      ),
-    ],
-    'masjid_zahir': const [
-      QuizQuestion(
-        question: 'In what year was Zahir Mosque completed?',
-        options: ['1887', '1912', '1935', '1957'],
-        correctIndex: 1,
-        explanation:
-        'Zahir Mosque was completed in 1912, commissioned by the Sultan of Kedah.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question:
-        'Zahir Mosque\'s five black domes are said to represent what in Islam?',
-        options: [
-          'The Five Pillars of Islam',
-          'The five daily prayers only',
-          'The five founders of Kedah',
-          'The five states of Malaysia',
-        ],
-        correctIndex: 0,
-        explanation:
-        'The mosque\'s five domes are widely said to symbolise the Five Pillars of Islam.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question:
-        'Zahir Mosque was built on ground with what earlier significance?',
-        options: [
-          'The burial site of Kedah warriors who died fighting Siamese forces in 1821',
-          'The site of the first Kedah royal palace',
-          'A former British army barracks',
-          'An ancient Buddhist temple ruin',
-        ],
-        correctIndex: 0,
-        explanation:
-        'The mosque stands where Kedah warriors killed defending the state against Siamese invasion in 1821 were laid to rest.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question: 'Zahir Mosque is located in which Kedah city, the state capital?',
-        options: ['Alor Setar', 'Sungai Petani', 'Kulim', 'Langkawi Town'],
-        correctIndex: 0,
-        explanation: 'Zahir Mosque stands in the heart of Alor Setar, Kedah\'s state capital, facing the Alor Setar padang.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question: 'What architectural style is Zahir Mosque generally described as?',
-        options: ['Moorish-influenced Islamic', 'Chinese pagoda-style', 'Brutalist concrete', 'Gothic Revival'],
-        correctIndex: 0,
-        explanation: 'Zahir Mosque\'s onion domes and arched facade reflect a Moorish-influenced Islamic architectural style common to early 20th-century Malay state mosques.',
-        xpReward: 30,
-      ),
-    ],
-    'lenggong_valley': const [
-      QuizQuestion(
-        question:
-        'In what year was Lenggong Valley inscribed as a UNESCO World Heritage Site?',
-        options: ['2000', '2008', '2012', '2019'],
-        correctIndex: 2,
-        explanation:
-        'Lenggong Valley was inscribed by UNESCO in 2012 for its exceptional prehistoric record.',
-        xpReward: 40,
-      ),
-      QuizQuestion(
-        question:
-        'The skeleton known as "Perak Man," found in Lenggong Valley, is estimated to be roughly how old?',
-        options: ['5,000 years', '8,000 years', '11,000 years', '20,000 years'],
-        correctIndex: 2,
-        explanation:
-        'Perak Man is estimated at around 11,000 years old, one of the most complete prehistoric skeletons found in Southeast Asia.',
-        xpReward: 40,
-      ),
-      QuizQuestion(
-        question: 'Perak Man was discovered in what type of site?',
-        options: [
-          'A limestone cave',
-          'A riverbank rice field',
-          'A hilltop temple ruin',
-          'A coastal shell midden',
-        ],
-        correctIndex: 0,
-        explanation:
-        'Perak Man was unearthed in Gua Gunung Runtuh, a limestone cave within the Lenggong Valley.',
-        xpReward: 40,
-      ),
-      QuizQuestion(
-        question: 'Lenggong Valley\'s prehistoric record is notable for spanning roughly how long a period of continuous human activity?',
-        options: ['About 1.83 million years', 'About 18,000 years', 'About 1,800 years', 'About 180 years'],
-        correctIndex: 0,
-        explanation: 'Lenggong Valley shows evidence of continuous human occupation stretching back around 1.83 million years, among the longest such records outside Africa.',
-        xpReward: 40,
-      ),
-      QuizQuestion(
-        question: 'A notable skeletal find at Lenggong Valley showed signs consistent with what unusual physical condition?',
-        options: ['Dwarfism', 'A healed broken leg', 'Severe arthritis', 'Blindness'],
-        correctIndex: 0,
-        explanation: 'One skeleton excavated at Lenggong, "Perak Woman," is notable for skeletal features consistent with dwarfism, adding to the site\'s archaeological significance.',
-        xpReward: 40,
-      ),
-    ],
-    'crystal_mosque': const [
-      QuizQuestion(
-        question: 'In what year did the Crystal Mosque officially open?',
-        options: ['1998', '2003', '2008', '2015'],
-        correctIndex: 2,
-        explanation:
-        'The Crystal Mosque opened in 2008 as part of the Islamic Heritage Park in Kuala Terengganu.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question: 'What modern materials give the Crystal Mosque its name?',
-        options: [
-          'Steel and glass',
-          'Marble and gold leaf',
-          'Bamboo and thatch',
-          'Granite and copper',
-        ],
-        correctIndex: 0,
-        explanation:
-        'Its steel-and-glass structure, which catches and reflects light, gives the mosque its "crystal" name.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question: 'The Crystal Mosque sits on an island within which river?',
-        options: [
-          'Terengganu River',
-          'Pahang River',
-          'Perak River',
-          'Kelantan River',
-        ],
-        correctIndex: 0,
-        explanation:
-        'The mosque is built on Wan Man Island in the Terengganu River.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question: 'The Crystal Mosque is part of a larger themed park showcasing replicas of famous world landmarks — what is that park called?',
-        options: ['Islamic Heritage Park', 'Terengganu Heritage Village', 'Taman Tamadun Islam', 'Kuala Terengganu Waterfront'],
-        correctIndex: 0,
-        explanation: 'The Crystal Mosque anchors the Islamic Heritage Park (Taman Tamadun Islam), which also features scaled replicas of famous Islamic monuments worldwide.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question: 'What lighting effect is the Crystal Mosque particularly known for at night?',
-        options: ['Colour-changing LED illumination', 'Torch-lit walkways only', 'Neon signage', 'Laser projection shows'],
-        correctIndex: 0,
-        explanation: 'The mosque\'s steel-and-glass structure is fitted with LED lights that cycle through colours after dark, making it a popular night-time landmark.',
-        xpReward: 30,
-      ),
-    ],
-    'taman_negara': const [
-      QuizQuestion(
-        question:
-        'Taman Negara is often cited as one of the world\'s oldest rainforests — roughly how old is it estimated to be?',
-        options: [
-          '10 million years',
-          '50 million years',
-          '130 million years',
-          '500 million years',
-        ],
-        correctIndex: 2,
-        explanation:
-        'Taman Negara\'s rainforest is estimated at around 130 million years old, older than the Amazon.',
-        xpReward: 37,
-      ),
-      QuizQuestion(
-        question:
-        'Taman Negara is home to a canopy walkway considered among the longest in the world — roughly how long is it?',
-        options: [
-          'Around 100 metres',
-          'Around 250 metres',
-          'Over 500 metres',
-          'Over 2 kilometres',
-        ],
-        correctIndex: 2,
-        explanation:
-        'The canopy walkway near Kuala Tahan stretches over 500 metres, strung high above the forest floor.',
-        xpReward: 37,
-      ),
-      QuizQuestion(
-        question:
-        'Which village serves as the main gateway for treks into Taman Negara?',
-        options: [
-          'Kuala Tahan',
-          'Kuala Besut',
-          'Kuala Kubu Bharu',
-          'Kuala Lipis',
-        ],
-        correctIndex: 0,
-        explanation:
-        'Kuala Tahan, where the Tahan and Tembeling rivers meet, is the usual starting point for the park.',
-        xpReward: 36,
-      ),
-      QuizQuestion(
-        question: 'Taman Negara spans across which three Malaysian states?',
-        options: ['Pahang, Kelantan, and Terengganu', 'Selangor, Perak, and Kedah', 'Johor, Melaka, and Negeri Sembilan', 'Sabah, Sarawak, and Labuan'],
-        correctIndex: 0,
-        explanation: 'Taman Negara stretches across the borders of Pahang, Kelantan, and Terengganu, making it one of the largest protected areas in Peninsular Malaysia.',
-        xpReward: 36,
-      ),
-      QuizQuestion(
-        question: 'Which of Peninsular Malaysia\'s highest peaks lies within Taman Negara and is a popular multi-day trek?',
-        options: ['Gunung Tahan', 'Gunung Kinabalu', 'Gunung Ledang', 'Gunung Jerai'],
-        correctIndex: 0,
-        explanation: 'Gunung Tahan, the highest peak in Peninsular Malaysia at 2,187 metres, lies within Taman Negara and draws experienced trekkers on multi-day climbs.',
-        xpReward: 36,
-      ),
-    ],
-    'sultan_abu_bakar_mosque': const [
-      QuizQuestion(
-        question:
-        'Sultan Abu Bakar State Mosque is named after the Johor ruler often called the "Father of Modern Johor" — who was he?',
-        options: [
-          'Sultan Abu Bakar',
-          'Sultan Ibrahim',
-          'Sultan Iskandar',
-          'Sultan Mahmud Shah',
-        ],
-        correctIndex: 0,
-        explanation:
-        'The mosque honours Sultan Abu Bakar, credited with modernising Johor in the late 19th century.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question:
-        'The mosque overlooks which strait, with views toward Singapore?',
-        options: [
-          'Johor Strait',
-          'Malacca Strait',
-          'Penang Strait',
-          'Karimata Strait',
-        ],
-        correctIndex: 0,
-        explanation:
-        'Perched on a hill in Johor Bahru, the mosque looks out over the Johor Strait.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question:
-        'The mosque\'s architecture is an unusual blend of Islamic style with which other influence?',
-        options: [
-          'Victorian British',
-          'Japanese',
-          'Spanish colonial',
-          'Scandinavian',
-        ],
-        correctIndex: 0,
-        explanation:
-        'Built between 1892 and 1900, it combines Moorish Islamic elements with Victorian British architectural style.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question: 'Roughly how many worshippers can Sultan Abu Bakar State Mosque accommodate?',
-        options: ['Around 2,000', 'Around 200', 'Around 20,000', 'Around 500'],
-        correctIndex: 0,
-        explanation: 'The mosque can hold approximately 2,000 worshippers, making it one of the largest state mosques in Malaysia at the time it was built.',
-        xpReward: 30,
-      ),
-      QuizQuestion(
-        question: 'How many years did it take to construct Sultan Abu Bakar State Mosque?',
-        options: ['About 8 years', 'About 1 year', 'About 20 years', 'About 3 months'],
-        correctIndex: 0,
-        explanation: 'Construction ran from 1892 to 1900, taking roughly 8 years to complete.',
-        xpReward: 30,
-      ),
-    ],
-  };
+  static SupabaseClient get _client =>
+      Supabase.instance.client;
 
-  /// Returns site metadata for the quiz intro card, or null if no
-  /// quiz exists for that site yet.
-  static QuizSite? getSite(String siteId) => _sites[siteId];
-
-  /// Returns the ordered list of quiz questions for a site. Returns
-  /// an empty list if no quiz exists for that site yet.
-  static List<QuizQuestion> getQuestions(String siteId) =>
-      _questions[siteId] ?? const [];
-
-  /// Loads active questions from Supabase. A missing/empty table deliberately
-  /// falls back to the bundled pool rather than leaving the quiz unusable.
-  static Future<QuizBundle?> load(String siteId) async {
-    final fallbackSite = getSite(siteId);
-    final fallbackQuestions = getQuestions(siteId);
+  static Future<QuizBundle?> loadQuiz(
+      String siteId, {
+        int count = 5,
+      }) async {
     try {
-      final siteRow = await Supabase.instance.client
+      /*
+       * Your existing quiz_sites table uses site_id as its primary
+       * key and does not contain an is_active column.
+       */
+      final siteData = await _client
           .from('quiz_sites')
           .select()
           .eq('site_id', siteId)
           .maybeSingle();
-      final rows = await Supabase.instance.client
+
+      if (siteData == null) {
+        debugPrint(
+          'No quiz site found in Supabase for $siteId.',
+        );
+        return null;
+      }
+
+      /*
+       * Your existing quiz_questions table uses display_order and
+       * contains the is_active column.
+       */
+      final questionData = await _client
           .from('quiz_questions')
           .select()
           .eq('site_id', siteId)
           .eq('is_active', true)
           .order('display_order');
 
-      if (siteRow != null && rows.isNotEmpty) {
-        final site = QuizSite(
-          id: siteRow['site_id'] as String,
-          icon: siteRow['icon'] as String? ?? fallbackSite?.icon ?? '📍',
-          name: siteRow['name'] as String? ?? fallbackSite?.name ?? siteId,
-          location: siteRow['location'] as String? ?? fallbackSite?.location ?? 'Malaysia',
-          category: siteRow['category'] as String? ?? fallbackSite?.category ?? 'Heritage',
-          description: siteRow['description'] as String? ?? fallbackSite?.description ?? '',
-          difficulty: siteRow['difficulty'] as String? ?? fallbackSite?.difficulty ?? 'Easy',
+      if (questionData.isEmpty) {
+        debugPrint(
+          'No active questions found for $siteId.',
         );
-        final questions = rows.map<QuizQuestion>((row) => QuizQuestion(
-          question: row['question'] as String,
-          options: List<String>.from(row['options'] as List),
-          correctIndex: (row['correct_index'] as num).toInt(),
-          explanation: row['explanation'] as String,
-          xpReward: (row['xp_reward'] as num).toInt(),
-        )).toList();
-        return QuizBundle(site: site, questions: questions);
+        return null;
       }
-    } catch (_) {
-      // Offline and schema errors use the bundled questions below.
+
+      final site = QuizSite.fromSupabase(
+        Map<String, dynamic>.from(siteData),
+      );
+
+      final questionPool = questionData
+          .map(
+            (row) => QuizQuestion.fromSupabase(
+          Map<String, dynamic>.from(row),
+        ),
+      )
+          .where(
+            (question) =>
+        question.question.isNotEmpty &&
+            question.options.length >= 2 &&
+            question.correctIndex >= 0 &&
+            question.correctIndex <
+                question.options.length,
+      )
+          .toList();
+
+      if (questionPool.isEmpty) {
+        return null;
+      }
+
+      /*
+       * Randomize the pool, select up to five questions, then
+       * separately randomize each question's answer choices.
+       */
+      questionPool.shuffle(_random);
+
+      final selectedQuestions = questionPool
+          .take(count)
+          .map(
+            (question) =>
+            question.withShuffledOptions(_random),
+      )
+          .toList();
+
+      return QuizBundle(
+        site: site,
+        questions: selectedQuestions,
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to load quiz for $siteId: $error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+      return null;
     }
-    if (fallbackSite == null || fallbackQuestions.isEmpty) return null;
-    return QuizBundle(site: fallbackSite, questions: fallbackQuestions);
-  }
-
-  /// Total possible XP for a site's quiz — used on the intro card.
-  static int totalXp(String siteId) =>
-      getQuestions(siteId).fold(0, (sum, q) => sum + q.xpReward);
-
-  static final Random _random = Random();
-
-  /// Picks a random subset of [count] questions from the site's full
-  /// question pool (or all of them if the pool has fewer than
-  /// [count]), in random order, with each question's own answer
-  /// options also shuffled. Call this once per quiz attempt (from
-  /// QuizIntroScreen) rather than per rebuild, so the same set of
-  /// questions is used consistently through that attempt.
-  ///
-  /// This is what makes the quiz "different every time" without
-  /// depending on any external API — it works entirely offline. A
-  /// site with only 3 questions in its pool will always show all 3
-  /// (just reordered); a site with a bigger pool (see the 5-question
-  /// pools below) will genuinely vary which 3 you get.
-  static List<QuizQuestion> getRandomQuestions(String siteId, {int count = 3}) {
-    final pool = List<QuizQuestion>.from(getQuestions(siteId));
-    pool.shuffle(_random);
-    final selected = pool.take(count).toList();
-    return selected.map((q) => q.withShuffledOptions(_random)).toList();
   }
 }
 
-// ============================ INTRO SCREEN ============================
+// ================================================================
+// QUIZ INTRO SCREEN
+// ================================================================
 
-/// Shown when the user is near a heritage site with a quiz available.
-/// In the full app this is triggered by GPS proximity; for now it's
-/// launched directly with a `siteId` so the flow can be demoed
-/// without real location data wired up yet.
-class QuizIntroScreen extends StatelessWidget {
+class QuizIntroScreen extends StatefulWidget {
   final String siteId;
   final QuizCompleteCallback onQuizComplete;
+
   const QuizIntroScreen({
     super.key,
     required this.siteId,
@@ -802,659 +281,695 @@ class QuizIntroScreen extends StatelessWidget {
   });
 
   @override
+  State<QuizIntroScreen> createState() =>
+      _QuizIntroScreenState();
+}
+
+class _QuizIntroScreenState
+    extends State<QuizIntroScreen> {
+  late Future<QuizBundle?> _quizFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadQuiz();
+  }
+
+  void _loadQuiz() {
+    _quizFuture = QuizRepository.loadQuiz(
+      widget.siteId,
+      count: 5,
+    );
+  }
+
+  void _retry() {
+    setState(_loadQuiz);
+  }
+
+  void _startQuiz(QuizBundle bundle) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => QuizScreen(
+          site: bundle.site,
+          questions: bundle.questions,
+          onQuizComplete: widget.onQuizComplete,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<QuizBundle?>(
-      future: QuizRepository.load(siteId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF0B1130),
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        final bundle = snapshot.data;
-        final site = bundle?.site;
-        final fullPool = bundle?.questions ?? const <QuizQuestion>[];
-
-        if (site == null || fullPool.isEmpty) {
-          return Scaffold(
-            backgroundColor: const Color(0xFF0B1130),
-            body: Center(
-              child: Text(
-                'No quiz available for this site yet.',
-                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+    return Scaffold(
+      backgroundColor: const Color(0xFF0B1130),
+      appBar: AppBar(
+        title: const Text('Heritage Quiz'),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: FutureBuilder<QuizBundle?>(
+        future: _quizFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState !=
+              ConnectionState.done) {
+            return const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF4ADE80),
               ),
-            ),
+            );
+          }
+
+          final bundle = snapshot.data;
+
+          if (bundle == null) {
+            return _QuizUnavailable(
+              onRetry: _retry,
+            );
+          }
+
+          final site = bundle.site;
+          final questions = bundle.questions;
+
+          final totalPossibleXp =
+          questions.fold<int>(
+            0,
+                (total, question) =>
+            total + question.xpReward,
           );
-        }
 
-        // Picked once here (not re-picked on every rebuild) so the count
-        // and XP shown on this card exactly match what QuizScreen below
-        // will actually ask.
-        final questions = List<QuizQuestion>.from(fullPool)..shuffle(QuizRepository._random);
-        final selectedQuestions = questions.take(3).map((q) => q.withShuffledOptions(QuizRepository._random)).toList();
-        final totalXp = selectedQuestions.fold<int>(0, (sum, q) => sum + q.xpReward);
-
-        return Scaffold(
-          backgroundColor: const Color(0xFF0B1130),
-          body: SafeArea(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF0B1130), Color(0xFF141B4D), Color(0xFF1B1440)],
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              24,
+              20,
+              24,
+              32,
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16A34A)
+                        .withOpacity(0.18),
+                    borderRadius:
+                    BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF4ADE80)
+                          .withOpacity(0.5),
+                    ),
+                  ),
+                  child: const Text(
+                    '📍 You are nearby',
+                    style: TextStyle(
+                      color: Color(0xFF4ADE80),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, right: 12),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close, color: Colors.white70),
+                const SizedBox(height: 28),
+                Text(
+                  site.icon,
+                  style: const TextStyle(fontSize: 72),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  site.name,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  site.location,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  site.description,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.07),
+                    borderRadius:
+                    BorderRadius.circular(18),
+                    border: Border.all(
+                      color:
+                      Colors.white.withOpacity(0.12),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      _IntroInformationRow(
+                        icon: Icons.quiz,
+                        label: 'Questions',
+                        value: '${questions.length}',
+                      ),
+                      const Divider(
+                        color: Colors.white12,
+                        height: 28,
+                      ),
+                      _IntroInformationRow(
+                        icon: Icons.bolt,
+                        label: 'Possible XP',
+                        value: '$totalPossibleXp XP',
+                      ),
+                      const Divider(
+                        color: Colors.white12,
+                        height: 28,
+                      ),
+                      _IntroInformationRow(
+                        icon: Icons.speed,
+                        label: 'Difficulty',
+                        value: site.difficulty,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton.icon(
+                    onPressed: () =>
+                        _startQuiz(bundle),
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text(
+                      'Start Quiz',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                      const Color(0xFF16A34A),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                        BorderRadius.circular(16),
                       ),
                     ),
                   ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 24),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF16A34A).withOpacity(0.18),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(0xFF16A34A).withOpacity(0.5),
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('📍', style: TextStyle(fontSize: 12)),
-                                SizedBox(width: 6),
-                                Text(
-                                  "You're nearby",
-                                  style: TextStyle(
-                                    color: Color(0xFF4ADE80),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Text(site.icon, style: const TextStyle(fontSize: 28)),
-                              const SizedBox(width: 10),
-                              Text(
-                                site.name,
-                                style: const TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            site.location,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.55),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            '"${site.description}"',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontStyle: FontStyle.italic,
-                              color: Colors.white.withOpacity(0.75),
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.08),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEC4899).withOpacity(0.2),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: const Text(
-                                    '🧠',
-                                    style: TextStyle(fontSize: 20),
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${selectedQuestions.length}-Question Heritage Quiz',
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Earn up to +$totalXp XP for correct answers',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.white.withOpacity(0.6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _StatBox(
-                                  label: 'Questions',
-                                  value: '${selectedQuestions.length}',
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _StatBox(
-                                  label: 'XP Reward',
-                                  value: '+$totalXp',
-                                  valueColor: const Color(0xFFFBBF24),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _StatBox(
-                                  label: 'Difficulty',
-                                  value: site.difficulty,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              fullscreenDialog: true,
-                              builder: (_) => QuizScreen(
-                                siteId: siteId,
-                                questions: selectedQuestions,
-                                onQuizComplete: onQuizComplete,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Ink(
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF16A34A), Color(0xFF0D9488)],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'Start Quiz  →',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
 
-class _StatBox extends StatelessWidget {
+class _IntroInformationRow extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String value;
-  final Color valueColor;
-  const _StatBox({
+
+  const _IntroInformationRow({
+    required this.icon,
     required this.label,
     required this.value,
-    this.valueColor = Colors.white,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: Column(
-        children: [
-          Text(
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: const Color(0xFF4ADE80),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.white.withOpacity(0.5),
+            style: const TextStyle(
+              color: Colors.white70,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: valueColor,
-            ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _QuizUnavailable extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _QuizUnavailable({
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.cloud_off,
+              size: 64,
+              color: Colors.white54,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Quiz unavailable',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'The quiz could not be loaded. Check your internet connection and make sure the site and questions exist in Supabase.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white60,
+                fontSize: 15,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                const Color(0xFF16A34A),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// =========================== QUESTION SCREEN ===========================
+// ================================================================
+// QUESTION SCREEN
+// ================================================================
 
-/// The question-by-question quiz flow for a heritage site. `questions`
-/// is the already-randomized set chosen by QuizIntroScreen (via
-/// [QuizRepository.getRandomQuestions]) — this screen is purely
-/// presentation + answer-state logic, it doesn't re-pick questions
-/// itself so what's shown here always matches what the intro card
-/// promised.
 class QuizScreen extends StatefulWidget {
-  final String siteId;
+  final QuizSite site;
   final List<QuizQuestion> questions;
   final QuizCompleteCallback onQuizComplete;
+
   const QuizScreen({
     super.key,
-    required this.siteId,
+    required this.site,
     required this.questions,
     required this.onQuizComplete,
   });
 
   @override
-  State<QuizScreen> createState() => _QuizScreenState();
+  State<QuizScreen> createState() =>
+      _QuizScreenState();
 }
 
 class _QuizScreenState extends State<QuizScreen> {
-  late final QuizSite? _site = QuizRepository.getSite(widget.siteId);
-  late final List<QuizQuestion> _questions = widget.questions;
-
-  int _currentIndex = 0;
-  int? _selectedIndex;
-  bool _answered = false;
-  int _xpEarned = 0;
+  int _currentQuestionIndex = 0;
   int _correctCount = 0;
+  int _xpEarned = 0;
 
-  QuizQuestion get _current => _questions[_currentIndex];
-  bool get _isLastQuestion => _currentIndex == _questions.length - 1;
+  int? _selectedAnswerIndex;
+  bool _answered = false;
+
+  QuizQuestion get _currentQuestion =>
+      widget.questions[_currentQuestionIndex];
+
+  bool get _isLastQuestion =>
+      _currentQuestionIndex ==
+          widget.questions.length - 1;
 
   void _selectAnswer(int index) {
-    if (_answered) return;
+    if (_answered) {
+      return;
+    }
+
+    final isCorrect =
+        index == _currentQuestion.correctIndex;
+
     setState(() {
-      _selectedIndex = index;
+      _selectedAnswerIndex = index;
       _answered = true;
-      if (index == _current.correctIndex) {
-        _xpEarned += _current.xpReward;
+
+      if (isCorrect) {
         _correctCount++;
+        _xpEarned +=
+            _currentQuestion.xpReward;
       }
     });
   }
 
-  void _nextQuestion() {
-    if (_isLastQuestion) {
-      widget.onQuizComplete(
-        QuizAttempt(
-          siteId: widget.siteId,
-          siteName: _site?.name ?? '',
-          siteIcon: _site?.icon ?? '📍',
-          correctCount: _correctCount,
-          totalQuestions: _questions.length,
-          xpEarned: _xpEarned,
-          completedAt: DateTime.now(),
-        ),
-      );
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => QuizCompleteScreen(
-            siteName: _site?.name ?? '',
-            xpEarned: _xpEarned,
-            totalQuestions: _questions.length,
-          ),
-        ),
-      );
+  void _continueQuiz() {
+    if (!_answered) {
       return;
     }
+
+    if (_isLastQuestion) {
+      _finishQuiz();
+      return;
+    }
+
     setState(() {
-      _currentIndex++;
-      _selectedIndex = null;
+      _currentQuestionIndex++;
+      _selectedAnswerIndex = null;
       _answered = false;
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_site == null || _questions.isEmpty) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0B1130),
-        body: Center(
-          child: Text(
-            'Quiz unavailable',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      );
-    }
+  void _finishQuiz() {
+    final attempt = QuizAttempt(
+      siteId: widget.site.id,
+      siteName: widget.site.name,
+      siteIcon: widget.site.icon,
+      correctCount: _correctCount,
+      totalQuestions: widget.questions.length,
+      xpEarned: _xpEarned,
+      completedAt: DateTime.now(),
+    );
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0B1130),
-      body: SafeArea(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF0B1130), Color(0xFF141B4D), Color(0xFF1B1440)],
-            ),
-          ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Question ${_currentIndex + 1} of ${_questions.length}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withOpacity(0.6),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '+$_xpEarned XP',
-                        style: const TextStyle(
-                          color: Color(0xFFFBBF24),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: List.generate(_questions.length, (i) {
-                    final isPast = i < _currentIndex;
-                    final isCurrent = i == _currentIndex;
-                    return Expanded(
-                      child: Container(
-                        margin: EdgeInsets.only(
-                          right: i == _questions.length - 1 ? 0 : 6,
-                        ),
-                        height: 5,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(3),
-                          color: (isPast || isCurrent)
-                              ? const Color(0xFF34D6C7)
-                              : Colors.white.withOpacity(0.12),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Text(_site.icon, style: const TextStyle(fontSize: 14)),
-                    const SizedBox(width: 6),
-                    Text(
-                      _site.name,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _current.question,
-                  style: const TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    height: 1.3,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ...List.generate(_current.options.length, (index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _AnswerOption(
-                      letter: String.fromCharCode(65 + index),
-                      text: _current.options[index],
-                      state: _optionState(index),
-                      onTap: () => _selectAnswer(index),
-                    ),
-                  );
-                }),
-                if (_answered) ...[
-                  const SizedBox(height: 4),
-                  _ExplanationCard(
-                    isCorrect: _selectedIndex == _current.correctIndex,
-                    xpReward: _current.xpReward,
-                    explanation: _current.explanation,
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onPressed: _nextQuestion,
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _isLastQuestion
-                                ? 'See Results  →'
-                                : 'Next Question  →',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+    widget.onQuizComplete(attempt);
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => QuizResultScreen(
+          attempt: attempt,
         ),
       ),
     );
   }
 
-  _AnswerState _optionState(int index) {
-    if (!_answered) return _AnswerState.idle;
-    if (index == _current.correctIndex) return _AnswerState.correct;
-    if (index == _selectedIndex) return _AnswerState.incorrect;
-    return _AnswerState.dimmed;
+  Color _optionBackground(int index) {
+    if (!_answered) {
+      return Colors.white;
+    }
+
+    if (index == _currentQuestion.correctIndex) {
+      return const Color(0xFFE8F8EE);
+    }
+
+    if (index == _selectedAnswerIndex) {
+      return const Color(0xFFFDE8E8);
+    }
+
+    return Colors.white;
   }
-}
 
-enum _AnswerState { idle, correct, incorrect, dimmed }
+  Color _optionBorder(int index) {
+    if (!_answered) {
+      return const Color(0xFFE5E7EB);
+    }
 
-class _AnswerOption extends StatelessWidget {
-  final String letter;
-  final String text;
-  final _AnswerState state;
-  final VoidCallback onTap;
+    if (index == _currentQuestion.correctIndex) {
+      return const Color(0xFF16A34A);
+    }
 
-  const _AnswerOption({
-    required this.letter,
-    required this.text,
-    required this.state,
-    required this.onTap,
-  });
+    if (index == _selectedAnswerIndex) {
+      return const Color(0xFFDC2626);
+    }
+
+    return const Color(0xFFE5E7EB);
+  }
+
+  IconData? _optionIcon(int index) {
+    if (!_answered) {
+      return null;
+    }
+
+    if (index == _currentQuestion.correctIndex) {
+      return Icons.check_circle;
+    }
+
+    if (index == _selectedAnswerIndex) {
+      return Icons.cancel;
+    }
+
+    return null;
+  }
+
+  Color _optionIconColor(int index) {
+    if (index == _currentQuestion.correctIndex) {
+      return const Color(0xFF16A34A);
+    }
+
+    return const Color(0xFFDC2626);
+  }
 
   @override
   Widget build(BuildContext context) {
-    Color background;
-    Color border;
-    Color textColor = Colors.white;
-    Color circleColor = Colors.white.withOpacity(0.1);
-    Widget? trailingIcon;
+    final question = _currentQuestion;
 
-    switch (state) {
-      case _AnswerState.idle:
-        background = Colors.white.withOpacity(0.05);
-        border = Colors.white.withOpacity(0.1);
-        break;
-      case _AnswerState.correct:
-        background = const Color(0xFF16A34A).withOpacity(0.18);
-        border = const Color(0xFF16A34A);
-        textColor = const Color(0xFF4ADE80);
-        circleColor = const Color(0xFF16A34A);
-        trailingIcon = const Icon(Icons.check, color: Colors.white, size: 16);
-        break;
-      case _AnswerState.incorrect:
-        background = const Color(0xFFDC2626).withOpacity(0.18);
-        border = const Color(0xFFDC2626);
-        textColor = const Color(0xFFF87171);
-        circleColor = const Color(0xFFDC2626);
-        trailingIcon = const Icon(Icons.close, color: Colors.white, size: 16);
-        break;
-      case _AnswerState.dimmed:
-        background = Colors.white.withOpacity(0.03);
-        border = Colors.white.withOpacity(0.06);
-        textColor = Colors.white.withOpacity(0.35);
-        circleColor = Colors.white.withOpacity(0.06);
-        break;
-    }
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: border, width: 1.5),
-        ),
-        child: Row(
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F7),
+      appBar: AppBar(
+        title: Text(widget.site.name),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+      ),
+      body: SafeArea(
+        child: Column(
           children: [
-            Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: circleColor,
-                shape: BoxShape.circle,
+            LinearProgressIndicator(
+              value: (_currentQuestionIndex + 1) /
+                  widget.questions.length,
+              minHeight: 7,
+              backgroundColor:
+              const Color(0xFFE5E7EB),
+              color: const Color(0xFF16A34A),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Question '
+                              '${_currentQuestionIndex + 1} '
+                              'of ${widget.questions.length}',
+                          style: const TextStyle(
+                            color: Color(0xFF0F8A5F),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '$_xpEarned XP',
+                          style: const TextStyle(
+                            color: Color(0xFFD97706),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      question.question,
+                      style: const TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.bold,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 26),
+                    ...List.generate(
+                      question.options.length,
+                          (index) {
+                        final icon =
+                        _optionIcon(index);
+
+                        return Padding(
+                          padding:
+                          const EdgeInsets.only(
+                            bottom: 12,
+                          ),
+                          child: InkWell(
+                            onTap: () =>
+                                _selectAnswer(index),
+                            borderRadius:
+                            BorderRadius.circular(14),
+                            child: Container(
+                              width: double.infinity,
+                              padding:
+                              const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color:
+                                _optionBackground(
+                                  index,
+                                ),
+                                borderRadius:
+                                BorderRadius.circular(
+                                  14,
+                                ),
+                                border: Border.all(
+                                  color: _optionBorder(
+                                    index,
+                                  ),
+                                  width: 2,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor:
+                                    const Color(
+                                      0xFFEEF2F7,
+                                    ),
+                                    child: Text(
+                                      String.fromCharCode(
+                                        65 + index,
+                                      ),
+                                      style:
+                                      const TextStyle(
+                                        color:
+                                        Colors.black87,
+                                        fontWeight:
+                                        FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      question
+                                          .options[index],
+                                      style:
+                                      const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight:
+                                        FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  if (icon != null)
+                                    Icon(
+                                      icon,
+                                      color:
+                                      _optionIconColor(
+                                        index,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    if (_answered) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding:
+                        const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color:
+                          const Color(0xFFE9F9EF),
+                          borderRadius:
+                          BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedAnswerIndex ==
+                                  question.correctIndex
+                                  ? 'Correct!'
+                                  : 'Correct answer: '
+                                  '${question.options[question.correctIndex]}',
+                              style: const TextStyle(
+                                color:
+                                Color(0xFF166534),
+                                fontWeight:
+                                FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              question.explanation,
+                              style: const TextStyle(
+                                color:
+                                Color(0xFF166534),
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              alignment: Alignment.center,
-              child:
-              trailingIcon ??
-                  Text(
-                    letter,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 12,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                22,
+                10,
+                22,
+                20,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed:
+                  _answered ? _continueQuiz : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                    const Color(0xFF16A34A),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                    Colors.grey.shade300,
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                      BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    _isLastQuestion
+                        ? 'Finish Quiz'
+                        : 'Next Question',
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: textColor,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -1465,168 +980,135 @@ class _AnswerOption extends StatelessWidget {
   }
 }
 
-class _ExplanationCard extends StatelessWidget {
-  final bool isCorrect;
-  final int xpReward;
-  final String explanation;
+// ================================================================
+// RESULT SCREEN
+// ================================================================
 
-  const _ExplanationCard({
-    required this.isCorrect,
-    required this.xpReward,
-    required this.explanation,
-  });
+class QuizResultScreen extends StatelessWidget {
+  final QuizAttempt attempt;
 
-  @override
-  Widget build(BuildContext context) {
-    final color = isCorrect ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            isCorrect ? '✓ Correct! +$xpReward XP' : '✗ Not quite',
-            style: TextStyle(
-              color: isCorrect
-                  ? const Color(0xFF4ADE80)
-                  : const Color(0xFFF87171),
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            explanation,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.white.withOpacity(0.75),
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// =========================== COMPLETE SCREEN ===========================
-
-/// Shown after the last question is answered — summarizes XP earned.
-class QuizCompleteScreen extends StatelessWidget {
-  final String siteName;
-  final int xpEarned;
-  final int totalQuestions;
-
-  const QuizCompleteScreen({
+  const QuizResultScreen({
     super.key,
-    required this.siteName,
-    required this.xpEarned,
-    required this.totalQuestions,
+    required this.attempt,
   });
 
   @override
   Widget build(BuildContext context) {
+    final percentage = attempt.totalQuestions == 0
+        ? 0
+        : ((attempt.correctCount /
+        attempt.totalQuestions) *
+        100)
+        .round();
+
+    String message;
+
+    if (percentage == 100) {
+      message = 'Perfect score!';
+    } else if (percentage >= 80) {
+      message = 'Excellent work!';
+    } else if (percentage >= 60) {
+      message = 'Great effort!';
+    } else {
+      message = 'Keep exploring!';
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF0B1130),
       body: SafeArea(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF0B1130), Color(0xFF141B4D), Color(0xFF1B1440)],
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 88,
-                  height: 88,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFBBF24).withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text('🏆', style: TextStyle(fontSize: 40)),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Quiz Complete!',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 Text(
-                  siteName,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.white.withOpacity(0.6),
+                  attempt.siteIcon,
+                  style: const TextStyle(fontSize: 80),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 10),
+                Text(
+                  attempt.siteName,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 17,
+                  ),
+                ),
+                const SizedBox(height: 30),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 28,
-                    vertical: 18,
-                  ),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white.withOpacity(0.08)),
-                  ),
-                  child: Text(
-                    '+$xpEarned XP earned',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFBBF24),
+                    color:
+                    Colors.white.withOpacity(0.08),
+                    borderRadius:
+                    BorderRadius.circular(20),
+                    border: Border.all(
+                      color:
+                      Colors.white.withOpacity(0.12),
                     ),
                   ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '${attempt.correctCount}/'
+                            '${attempt.totalQuestions}',
+                        style: const TextStyle(
+                          color: Color(0xFF4ADE80),
+                          fontSize: 52,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Text(
+                        'Correct answers',
+                        style: TextStyle(
+                          color: Colors.white60,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        '+${attempt.xpEarned} XP',
+                        style: const TextStyle(
+                          color: Color(0xFFFBBF24),
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 30),
                 SizedBox(
                   width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    icon: const Icon(Icons.map),
+                    label: const Text(
+                      'Return to Map',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    onPressed: () => Navigator.of(
-                      context,
-                    ).popUntil((route) => route.isFirst),
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'Back to Home',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                      const Color(0xFF16A34A),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                        BorderRadius.circular(14),
                       ),
                     ),
                   ),
@@ -1639,181 +1121,125 @@ class QuizCompleteScreen extends StatelessWidget {
     );
   }
 }
-// ============================ HISTORY SCREEN ============================
 
-/// Shows every completed quiz attempt with its score and XP earned —
-/// reachable via the "History" button on the Map screen.
+// ================================================================
+// QUIZ HISTORY SCREEN
+// ================================================================
+
 class QuizHistoryScreen extends StatelessWidget {
   final List<QuizAttempt> attempts;
-  const QuizHistoryScreen({super.key, required this.attempts});
+
+  const QuizHistoryScreen({
+    super.key,
+    required this.attempts,
+  });
+
+  String _formatDate(DateTime date) {
+    final day =
+    date.day.toString().padLeft(2, '0');
+    final month =
+    date.month.toString().padLeft(2, '0');
+
+    return '$day/$month/${date.year}';
+  }
+
+  int _percentage(QuizAttempt attempt) {
+    if (attempt.totalQuestions == 0) {
+      return 0;
+    }
+
+    return ((attempt.correctCount /
+        attempt.totalQuestions) *
+        100)
+        .round();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Most recent first.
-    final sorted = List<QuizAttempt>.from(attempts)
-      ..sort((a, b) => b.completedAt.compareTo(a.completedAt));
-    final totalXp = attempts.fold<int>(0, (sum, a) => sum + a.xpEarned);
+    final sortedAttempts =
+    List<QuizAttempt>.from(attempts)
+      ..sort(
+            (first, second) => second.completedAt
+            .compareTo(first.completedAt),
+      );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
       appBar: AppBar(
-        title: const Text(
-          'Quiz History',
-          style: TextStyle(color: Colors.black),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        title: const Text('Quiz History'),
       ),
-      body: sorted.isEmpty
-          ? Center(
+      backgroundColor: const Color(0xFFF5F5F7),
+      body: sortedAttempts.isEmpty
+          ? const Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('📋', style: TextStyle(fontSize: 40)),
-              const SizedBox(height: 8),
+              Icon(
+                Icons.quiz_outlined,
+                size: 64,
+                color: Colors.black38,
+              ),
+              SizedBox(height: 16),
               Text(
-                'No quizzes completed yet',
-                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
+                'No quizzes completed yet.',
+                style: TextStyle(
+                  color: Colors.black54,
+                  fontSize: 16,
+                ),
               ),
             ],
           ),
         ),
       )
-          : ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F8A5F),
-              borderRadius: BorderRadius.circular(16),
+          : ListView.builder(
+        padding: const EdgeInsets.all(18),
+        itemCount: sortedAttempts.length,
+        itemBuilder: (context, index) {
+          final attempt =
+          sortedAttempts[index];
+
+          return Card(
+            margin:
+            const EdgeInsets.only(bottom: 12),
+            elevation: 1,
+            shape: RoundedRectangleBorder(
+              borderRadius:
+              BorderRadius.circular(16),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Quizzes Completed',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    Text(
-                      '${sorted.length}',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
+            child: Padding(
+              padding:
+              const EdgeInsets.all(8),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor:
+                  const Color(0xFFE9F9EF),
+                  child: Text(attempt.siteIcon),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text(
-                      'Total XP Earned',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    Text(
-                      '+$totalXp',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFFBBF24),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...sorted.map(
-                (attempt) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _AttemptCard(attempt: attempt),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AttemptCard extends StatelessWidget {
-  final QuizAttempt attempt;
-  const _AttemptCard({required this.attempt});
-
-  @override
-  Widget build(BuildContext context) {
-    final scorePercent = attempt.totalQuestions == 0
-        ? 0
-        : ((attempt.correctCount / attempt.totalQuestions) * 100).round();
-    final date = attempt.completedAt;
-    final dateLabel =
-        '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E5EA)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Text(attempt.siteIcon, style: const TextStyle(fontSize: 20)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+                title: Text(
                   attempt.siteName,
                   style: const TextStyle(
-                    fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '$dateLabel · ${attempt.correctCount}/${attempt.totalQuestions} correct ($scorePercent%)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                subtitle: Text(
+                  '${_formatDate(attempt.completedAt)}\n'
+                      '${attempt.correctCount}/'
+                      '${attempt.totalQuestions} correct '
+                      '(${_percentage(attempt)}%)',
                 ),
-              ],
+                isThreeLine: true,
+                trailing: Text(
+                  '+${attempt.xpEarned} XP',
+                  style: const TextStyle(
+                    color: Color(0xFF16A34A),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ),
-          ),
-          Text(
-            '+${attempt.xpEarned} XP',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFB8720A),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
