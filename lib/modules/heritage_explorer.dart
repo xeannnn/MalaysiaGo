@@ -32,6 +32,10 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  // Search is only applied after the user submits a valid keyword.
+  String _submittedSearch = '';
+  String? _searchMessage;
+
   static const List<String> _categories = [
     'All',
     'UNESCO',
@@ -60,7 +64,7 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
 
     try {
       final List<HeritageSite> result =
-          await HeritageApiService.fetchMalaysiaHeritage();
+      await HeritageApiService.fetchMalaysiaHeritage();
 
       if (!mounted) {
         return;
@@ -84,19 +88,53 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
     }
   }
 
+  void _submitSearch() {
+    final String query = _searchController.text.trim();
+
+    if (query.isEmpty) {
+      setState(() {
+        _searchMessage = 'Please enter a search keyword.';
+        _submittedSearch = '';
+      });
+      return;
+    }
+
+    if (query.length < 3) {
+      setState(() {
+        _searchMessage = 'Please enter at least 3 characters.';
+        _submittedSearch = '';
+      });
+      return;
+    }
+
+    setState(() {
+      _searchMessage = null;
+      _submittedSearch = query;
+    });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+
+    setState(() {
+      _submittedSearch = '';
+      _searchMessage = null;
+    });
+  }
+
   List<HeritageSite> get _filteredSites {
-    final String query = _searchController.text.trim().toLowerCase();
+    final String query = _submittedSearch.trim().toLowerCase();
 
     return _sites.where((HeritageSite site) {
       final bool categoryMatch =
           _selectedCategory == 'All' ||
-          site.category.toLowerCase() == _selectedCategory.toLowerCase();
+              site.category.toLowerCase() == _selectedCategory.toLowerCase();
 
       final bool searchMatch =
           query.isEmpty ||
-          site.name.toLowerCase().contains(query) ||
-          site.location.toLowerCase().contains(query) ||
-          site.category.toLowerCase().contains(query);
+              site.name.toLowerCase().contains(query) ||
+              site.location.toLowerCase().contains(query) ||
+              site.category.toLowerCase().contains(query);
 
       return categoryMatch && searchMatch;
     }).toList();
@@ -212,11 +250,27 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: SearchBarField(
             controller: _searchController,
-            onChanged: (_) {
-              setState(() {});
-            },
+            onSearch: _submitSearch,
+            onClear: _clearSearch,
           ),
         ),
+
+        if (_searchMessage != null) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _searchMessage!,
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ],
 
         const SizedBox(height: 14),
 
@@ -250,59 +304,59 @@ class _HeritageExplorerScreenState extends State<HeritageExplorerScreen> {
         Expanded(
           child: displaySites.isEmpty
               ? Center(
-                  child: Text(
-                    "No heritage sites found matching '${_searchController.text}'",
-                    style: const TextStyle(color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                )
+            child: Text(
+              "No heritage sites found matching '$_submittedSearch'",
+              style: const TextStyle(color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          )
               : ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    if (editorPick != null &&
-                        _searchController.text.trim().isEmpty &&
-                        _selectedCategory == 'All') ...[
-                      const Text(
-                        "Editor's Pick",
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey,
-                        ),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      GestureDetector(
-                        onTap: () {
-                          _openHeritageDetail(editorPick);
-                        },
-                        child: EditorPickCard(site: editorPick),
-                      ),
-
-                      const SizedBox(height: 20),
-                    ],
-
-                    Text(
-                      '${displaySites.length} sites found',
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    ...displaySites.map(
-                      (HeritageSite site) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: GestureDetector(
-                          onTap: () {
-                            _openHeritageDetail(site);
-                          },
-                          child: SiteCard(site: site),
-                        ),
-                      ),
-                    ),
-                  ],
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            children: [
+              if (editorPick != null &&
+                  _submittedSearch.isEmpty &&
+                  _selectedCategory == 'All') ...[
+                const Text(
+                  "Editor's Pick",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey,
+                  ),
                 ),
+
+                const SizedBox(height: 10),
+
+                GestureDetector(
+                  onTap: () {
+                    _openHeritageDetail(editorPick);
+                  },
+                  child: EditorPickCard(site: editorPick),
+                ),
+
+                const SizedBox(height: 20),
+              ],
+
+              Text(
+                '${displaySites.length} sites found',
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+
+              const SizedBox(height: 12),
+
+              ...displaySites.map(
+                    (HeritageSite site) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GestureDetector(
+                    onTap: () {
+                      _openHeritageDetail(site);
+                    },
+                    child: SiteCard(site: site),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -374,22 +428,40 @@ class SegmentedTabBar extends StatelessWidget {
 
 class SearchBarField extends StatelessWidget {
   final TextEditingController controller;
-  final ValueChanged<String> onChanged;
+  final VoidCallback onSearch;
+  final VoidCallback onClear;
 
   const SearchBarField({
     super.key,
     required this.controller,
-    required this.onChanged,
+    required this.onSearch,
+    required this.onClear,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      onSubmitted: (_) => onSearch(),
       decoration: InputDecoration(
         hintText: 'Search sites, states, categories...',
         prefixIcon: const Icon(Icons.search),
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_forward),
+              onPressed: onSearch,
+              tooltip: 'Search',
+            ),
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: onClear,
+              tooltip: 'Clear',
+            ),
+          ],
+        ),
         filled: true,
         fillColor: Colors.grey.shade200,
         border: OutlineInputBorder(
@@ -618,22 +690,22 @@ class SiteCard extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: site.imageUrl.isNotEmpty
                 ? Image.network(
-                    site.imageUrl,
-                    width: 55,
-                    height: 55,
-                    fit: BoxFit.cover,
-                    errorBuilder:
-                        (
-                          BuildContext context,
-                          Object error,
-                          StackTrace? stackTrace,
-                        ) {
-                          return const Icon(
-                            Icons.account_balance,
-                            color: Colors.grey,
-                          );
-                        },
-                  )
+              site.imageUrl,
+              width: 55,
+              height: 55,
+              fit: BoxFit.cover,
+              errorBuilder:
+                  (
+                  BuildContext context,
+                  Object error,
+                  StackTrace? stackTrace,
+                  ) {
+                return const Icon(
+                  Icons.account_balance,
+                  color: Colors.grey,
+                );
+              },
+            )
                 : const Icon(Icons.account_balance, color: Colors.grey),
           ),
 
@@ -701,11 +773,11 @@ class SiteCard extends StatelessWidget {
                         .where((String tag) => tag != site.category)
                         .map(
                           (String tag) => TagPill(
-                            label: tag,
-                            background: const Color(0xFFF0F0F0),
-                            textColor: Colors.grey.shade700,
-                          ),
-                        ),
+                        label: tag,
+                        background: const Color(0xFFF0F0F0),
+                        textColor: Colors.grey.shade700,
+                      ),
+                    ),
 
                     if (site.visited)
                       const TagPill(
