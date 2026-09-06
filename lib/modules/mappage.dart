@@ -130,7 +130,7 @@ const List<HeritageMapSite> heritageMapSites = [
     xpReward: 90,
     category: 'Religious',
     visited: false,
-    hasQuiz: false,
+    hasQuiz: true,
     briefInfo:
     'Malaysia\'s largest Buddhist temple complex, built up a hillside in Air Itam around a seven-tier pagoda blending Chinese, Thai, and Burmese architecture. A giant bronze statue of Kuan Yin overlooks the grounds.',
   ),
@@ -145,7 +145,7 @@ const List<HeritageMapSite> heritageMapSites = [
     xpReward: 100,
     category: 'Nature',
     visited: false,
-    hasQuiz: false,
+    hasQuiz: true,
     briefInfo:
     'A cool hill-station region of rolling tea plantations, strawberry farms, and mossy forest trails, first developed by the British in the 1920s. A popular escape from Malaysia\'s lowland heat.',
   ),
