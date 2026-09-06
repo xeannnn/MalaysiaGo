@@ -3,1210 +3,483 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 
 import '../models.dart';
-
+import 'passport.dart';
 
 class HeritageDetailScreen extends StatefulWidget {
-
   final HeritageSite site;
 
-  const HeritageDetailScreen({
-    super.key,
-    required this.site,
-  });
-
+  const HeritageDetailScreen({super.key, required this.site});
 
   @override
-  State<HeritageDetailScreen> createState() =>
-      _HeritageDetailScreenState();
-
+  State<HeritageDetailScreen> createState() => _HeritageDetailScreenState();
 }
 
-
-
-class _HeritageDetailScreenState
-    extends State<HeritageDetailScreen> {
-
-
+class _HeritageDetailScreenState extends State<HeritageDetailScreen> {
   int selectedTab = 0;
-
-
 
   @override
   Widget build(BuildContext context) {
-
-
     final site = widget.site;
 
-
     return Scaffold(
-
       backgroundColor: Colors.white,
 
-
       body: SafeArea(
-
         child: Column(
-
           children: [
-
-
             _buildHeader(site),
-
 
             _buildTabs(),
 
-
             Expanded(
-
               child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
 
-                padding:
-                const EdgeInsets.all(20),
-
-                child:
-                _buildContent(site),
-
+                child: _buildContent(site),
               ),
-
             ),
 
-
             _buildPassportButton(),
-
-
           ],
-
         ),
-
       ),
-
     );
-
   }
 
-
-
-
-
   Widget _buildHeader(HeritageSite site) {
-
-
     return Container(
-
       height: 230,
 
-
-      padding:
-      const EdgeInsets.fromLTRB(
-          20,
-          15,
-          20,
-          20
-      ),
-
+      padding: const EdgeInsets.fromLTRB(20, 15, 20, 20),
 
       decoration: BoxDecoration(
-
-
         image: site.imageUrl.isNotEmpty
-
             ? DecorationImage(
+                image: NetworkImage(site.imageUrl),
 
-          image:
-          NetworkImage(site.imageUrl),
+                fit: BoxFit.cover,
 
-          fit:
-          BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  Colors.black.withValues(alpha: 0.35),
 
-          colorFilter:
-          ColorFilter.mode(
-
-            Colors.black.withOpacity(0.35),
-
-            BlendMode.darken,
-
-          ),
-
-        )
-
+                  BlendMode.darken,
+                ),
+              )
             : null,
 
-
-        gradient:
-        site.imageUrl.isEmpty
-
+        gradient: site.imageUrl.isEmpty
             ? const LinearGradient(
+                colors: [Color(0xffB7D8C8), Color(0xff557568)],
 
-          colors: [
+                begin: Alignment.topCenter,
 
-            Color(0xffB7D8C8),
-
-            Color(0xff557568),
-
-          ],
-
-          begin:
-          Alignment.topCenter,
-
-          end:
-          Alignment.bottomCenter,
-
-        )
-
+                end: Alignment.bottomCenter,
+              )
             : null,
-
       ),
 
-
-
-
       child: Column(
-
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-
+        crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
-
-
           Row(
-
-            mainAxisAlignment:
-            MainAxisAlignment.spaceBetween,
-
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
             children: [
-
-
               CircleAvatar(
+                backgroundColor: Colors.black26,
 
-                backgroundColor:
-                Colors.black26,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
 
-
-                child:
-                IconButton(
-
-                  icon:
-                  const Icon(
-
-                    Icons.arrow_back,
-
-                    color:
-                    Colors.white,
-
-                  ),
-
-                  onPressed: (){
-
+                  onPressed: () {
                     Navigator.pop(context);
-
                   },
-
                 ),
-
               ),
-
-
 
               Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
 
-                padding:
-                const EdgeInsets.symmetric(
-
-                    horizontal:10,
-
-                    vertical:5
-
+                  vertical: 5,
                 ),
 
+                decoration: BoxDecoration(
+                  color: Colors.green,
 
-                decoration:
-                BoxDecoration(
-
-                  color:
-                  Colors.green,
-
-                  borderRadius:
-                  BorderRadius.circular(20),
-
+                  borderRadius: BorderRadius.circular(20),
                 ),
 
-
-                child:
-                const Text(
-
+                child: const Text(
                   "✓ Visited",
 
-                  style:
-                  TextStyle(
+                  style: TextStyle(
+                    color: Colors.white,
 
-                    color:
-                    Colors.white,
-
-                    fontWeight:
-                    FontWeight.bold,
-
+                    fontWeight: FontWeight.bold,
                   ),
-
                 ),
-
               ),
-
             ],
-
           ),
-
-
 
           const Spacer(),
 
-
-
           Row(
-
             children: [
-
-
               _tag(site.category),
 
+              const SizedBox(width: 8),
 
-              const SizedBox(width:8),
-
-
-              _tag(
-                  "• ${site.difficulty}"
-              ),
-
+              _tag("• ${site.difficulty}"),
 
               const Spacer(),
 
-
-
               Container(
+                padding: const EdgeInsets.all(10),
 
-                padding:
-                const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
 
-
-                decoration:
-                BoxDecoration(
-
-                  color:
-                  Colors.orange,
-
-                  borderRadius:
-                  BorderRadius.circular(15),
-
+                  borderRadius: BorderRadius.circular(15),
                 ),
 
-
-                child:
-                Text(
-
+                child: Text(
                   "+${site.xp} XP",
 
-                  style:
-                  const TextStyle(
+                  style: const TextStyle(
+                    color: Colors.white,
 
-                    color:
-                    Colors.white,
-
-                    fontWeight:
-                    FontWeight.bold,
-
+                    fontWeight: FontWeight.bold,
                   ),
-
                 ),
-
-              )
-
-
+              ),
             ],
-
           ),
 
-
-
-
-          const SizedBox(height:8),
-
-
+          const SizedBox(height: 8),
 
           Text(
-
             site.name,
 
+            style: const TextStyle(
+              color: Colors.white,
 
-            style:
-            const TextStyle(
+              fontSize: 24,
 
-              color:
-              Colors.white,
-
-              fontSize:
-              24,
-
-              fontWeight:
-              FontWeight.bold,
-
+              fontWeight: FontWeight.bold,
             ),
-
           ),
 
-
-
           Text(
-
             site.location,
 
-
-            style:
-            const TextStyle(
-
-              color:
-              Colors.white70,
-
-              fontSize:
-              14,
-
-            ),
-
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
-
-
         ],
-
       ),
-
     );
-
   }
 
-
-
-
-
-
-  Widget _tag(String text){
-
-
+  Widget _tag(String text) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
 
-      padding:
-      const EdgeInsets.symmetric(
+      decoration: BoxDecoration(
+        color: Colors.white,
 
-          horizontal:10,
-
-          vertical:5
-
+        borderRadius: BorderRadius.circular(20),
       ),
 
-
-      decoration:
-      BoxDecoration(
-
-        color:
-        Colors.white,
-
-        borderRadius:
-        BorderRadius.circular(20),
-
-      ),
-
-
-      child:
-      Text(
-
+      child: Text(
         text,
 
-        style:
-        const TextStyle(
+        style: const TextStyle(
+          color: Colors.green,
 
-          color:
-          Colors.green,
+          fontSize: 12,
 
-          fontSize:
-          12,
-
-          fontWeight:
-          FontWeight.bold,
-
+          fontWeight: FontWeight.bold,
         ),
-
       ),
-
     );
-
   }
 
-
-
-
-
-
-
-  Widget _buildTabs(){
-
-
-    final tabs = [
-
-      "📖 Overview",
-
-      "💡 Tips",
-
-      "ℹ️ Visit Info",
-
-    ];
-
-
+  Widget _buildTabs() {
+    final tabs = ["📖 Overview", "💡 Tips", "ℹ️ Visit Info"];
 
     return Row(
+      children: List.generate(tabs.length, (index) {
+        return Expanded(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                selectedTab = index;
+              });
+            },
 
-      children:
+            child: Container(
+              padding: const EdgeInsets.all(15),
 
-      List.generate(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: selectedTab == index
+                        ? Colors.green
+                        : Colors.transparent,
 
-        tabs.length,
-
-            (index){
-
-
-          return Expanded(
-
-
-            child:
-            GestureDetector(
-
-
-              onTap: (){
-
-
-                setState(() {
-
-                  selectedTab=index;
-
-                });
-
-
-              },
-
-
-              child:
-              Container(
-
-                padding:
-                const EdgeInsets.all(15),
-
-
-                decoration:
-                BoxDecoration(
-
-                  border:
-                  Border(
-
-                    bottom:
-                    BorderSide(
-
-                      color:
-
-                      selectedTab == index
-
-                          ?
-
-                      Colors.green
-
-                          :
-
-                      Colors.transparent,
-
-
-                      width:
-                      2,
-
-                    ),
-
+                    width: 2,
                   ),
-
                 ),
-
-
-
-                child:
-                Text(
-
-                  tabs[index],
-
-
-                  textAlign:
-                  TextAlign.center,
-
-
-                  style:
-                  TextStyle(
-
-                    fontSize:
-                    12,
-
-
-                    color:
-
-                    selectedTab == index
-
-                        ?
-
-                    Colors.green
-
-                        :
-
-                    Colors.grey,
-
-                    fontWeight:
-                    FontWeight.bold,
-
-                  ),
-
-                ),
-
               ),
 
+              child: Text(
+                tabs[index],
+
+                textAlign: TextAlign.center,
+
+                style: TextStyle(
+                  fontSize: 12,
+
+                  color: selectedTab == index ? Colors.green : Colors.grey,
+
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-
-          );
-
-
-        },
-
-      ),
-
+          ),
+        );
+      }),
     );
-
-
   }
 
-
-
-
-
-
-
-  Widget _buildContent(HeritageSite site){
-
-
-    if(selectedTab == 1){
-
+  Widget _buildContent(HeritageSite site) {
+    if (selectedTab == 1) {
       return _tips(site);
-
     }
 
-
-    if(selectedTab == 2){
-
+    if (selectedTab == 2) {
       return _visitInfo(site);
-
     }
-
 
     return _overview(site);
-
-
   }
 
-
-
-
-
-
-
-  Widget _overview(HeritageSite site){
-
-
+  Widget _overview(HeritageSite site) {
     return Column(
-
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
-
+      crossAxisAlignment: CrossAxisAlignment.start,
 
       children: [
-
-
-
         Container(
+          padding: const EdgeInsets.all(15),
 
-          padding:
-          const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: const Color(0xffE8FFF3),
 
-
-          decoration:
-          BoxDecoration(
-
-            color:
-            const Color(0xffE8FFF3),
-
-            borderRadius:
-            BorderRadius.circular(15),
-
+            borderRadius: BorderRadius.circular(15),
           ),
 
-
-          child:
-          Text(
-
+          child: Text(
             site.description,
 
-            style:
-            const TextStyle(
+            style: const TextStyle(
+              color: Colors.green,
 
-              color:
-              Colors.green,
-
-              fontWeight:
-              FontWeight.bold,
-
+              fontWeight: FontWeight.bold,
             ),
-
           ),
-
         ),
 
-
-
-        const SizedBox(height:20),
-
-
+        const SizedBox(height: 20),
 
         Text(
-
           site.description,
 
-          style:
-          const TextStyle(
-
-            fontSize:
-            15,
-
-            height:
-            1.5,
-
-          ),
-
+          style: const TextStyle(fontSize: 15, height: 1.5),
         ),
 
-
-
-
-        const SizedBox(height:20),
-
-
+        const SizedBox(height: 20),
 
         Row(
-
           children: [
+            Expanded(child: _smallCard("Best Time", site.bestTime)),
 
+            const SizedBox(width: 10),
 
-            Expanded(
-
-              child:
-              _smallCard(
-
-                "Best Time",
-
-                site.bestTime,
-
-              ),
-
-            ),
-
-
-
-            const SizedBox(width:10),
-
-
-
-            Expanded(
-
-              child:
-              _smallCard(
-
-                "Duration",
-
-                site.duration,
-
-              ),
-
-            ),
-
+            Expanded(child: _smallCard("Duration", site.duration)),
           ],
-
         ),
 
-
-
-        const SizedBox(height:20),
-
-
+        const SizedBox(height: 20),
 
         _map(site),
-
-
-
       ],
-
     );
-
   }
 
-
-
-
-
-
-
-  Widget _smallCard(String title,String value){
-
-
+  Widget _smallCard(String title, String value) {
     return Container(
+      padding: const EdgeInsets.all(12),
 
-      padding:
-      const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
 
-
-      decoration:
-      BoxDecoration(
-
-        color:
-        Colors.grey.shade100,
-
-        borderRadius:
-        BorderRadius.circular(15),
-
+        borderRadius: BorderRadius.circular(15),
       ),
 
-
-      child:
-      Column(
-
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
+          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
 
+          const SizedBox(height: 5),
 
-          Text(
-
-            title,
-
-            style:
-            const TextStyle(
-
-              color:
-              Colors.grey,
-
-              fontSize:
-              12,
-
-            ),
-
-          ),
-
-
-
-          const SizedBox(height:5),
-
-
-
-          Text(
-
-            value,
-
-            style:
-            const TextStyle(
-
-              fontWeight:
-              FontWeight.bold,
-
-            ),
-
-          )
-
-
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
-
       ),
-
     );
-
   }
 
-
-
-
-
-
-
-  Widget _tips(HeritageSite site){
-
-
+  Widget _tips(HeritageSite site) {
     return Column(
+      children: site.tips
+          .map(
+            (tip) => Card(
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Colors.green,
 
-      children:
-
-
-      site.tips.map(
-
-              (tip)=>Card(
-
-            child:
-            ListTile(
-
-              leading:
-              const CircleAvatar(
-
-                backgroundColor:
-                Colors.green,
-
-                child:
-                Icon(
-
-                  Icons.check,
-
-                  color:
-                  Colors.white,
-
+                  child: Icon(Icons.check, color: Colors.white),
                 ),
 
+                title: Text(tip),
               ),
-
-              title:
-              Text(tip),
-
             ),
-
           )
-
-      ).toList(),
-
-
+          .toList(),
     );
-
-
   }
 
-
-
-
-
-
-
-  Widget _visitInfo(HeritageSite site){
-
-
+  Widget _visitInfo(HeritageSite site) {
     return Column(
-
       children: [
+        _info("Opening Hours", site.openingHours),
 
+        _info("Entry Fee", site.entryFee),
 
-        _info(
-            "Opening Hours",
-            site.openingHours
-        ),
+        _info("Category", site.category),
 
+        _info("Difficulty", site.difficulty),
 
-        _info(
-            "Entry Fee",
-            site.entryFee
-        ),
-
-
-        _info(
-            "Category",
-            site.category
-        ),
-
-
-        _info(
-            "Difficulty",
-            site.difficulty
-        ),
-
-
-        _info(
-            "XP Reward",
-            "+${site.xp} XP"
-        ),
-
-
+        _info("XP Reward", "+${site.xp} XP"),
       ],
-
     );
-
   }
 
-
-
-
-
-
-
-  Widget _info(String title,String value){
-
-
+  Widget _info(String title, String value) {
     return Card(
+      child: ListTile(
+        title: Text(title, style: const TextStyle(color: Colors.grey)),
 
-      child:
-      ListTile(
-
-        title:
-        Text(
-
-          title,
-
-          style:
-          const TextStyle(
-
-              color:
-              Colors.grey
-
-          ),
-
-        ),
-
-
-        subtitle:
-        Text(
-
+        subtitle: Text(
           value,
 
-          style:
-          const TextStyle(
-
-            fontWeight:
-            FontWeight.bold,
-
-          ),
-
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-
       ),
-
     );
-
   }
 
-
-
-
-
-
-
   Widget _map(HeritageSite site) {
-
     return SizedBox(
-
       height: 200,
 
-
       child: ClipRRect(
-
-        borderRadius:
-        BorderRadius.circular(20),
-
+        borderRadius: BorderRadius.circular(20),
 
         child: FlutterMap(
-
           options: MapOptions(
-
-            initialCenter: ll.LatLng(
-
-              site.latitude,
-
-              site.longitude,
-
-            ),
-
+            initialCenter: ll.LatLng(site.latitude, site.longitude),
 
             // reduced from 15 to 14
             // prevents Batu Caves tile loading issue
             initialZoom: 14,
-
-
           ),
-
-
 
           children: [
-
-
             TileLayer(
+              urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
 
-              urlTemplate:
+              userAgentPackageName: "com.example.malaysiago",
 
-              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-
-
-              userAgentPackageName:
-
-              "com.example.malaysiago",
-
-
-              maxZoom:
-
-              19,
-
-
+              maxZoom: 19,
             ),
-
-
 
             MarkerLayer(
-
               markers: [
-
-
                 Marker(
+                  point: ll.LatLng(site.latitude, site.longitude),
 
-                  point:
+                  width: 50,
 
-                  ll.LatLng(
+                  height: 50,
 
-                    site.latitude,
-
-                    site.longitude,
-
-                  ),
-
-
-                  width:
-
-                  50,
-
-
-                  height:
-
-                  50,
-
-
-                  child:
-
-                  const Icon(
-
+                  child: const Icon(
                     Icons.location_pin,
 
-                    color:
+                    color: Colors.red,
 
-                    Colors.red,
-
-                    size:
-
-                    45,
-
+                    size: 45,
                   ),
-
                 ),
-
-
               ],
-
             ),
-
-
 
             const RichAttributionWidget(
-
               attributions: [
-
-                TextSourceAttribution(
-
-                  '© OpenStreetMap contributors',
-
-                ),
-
+                TextSourceAttribution('© OpenStreetMap contributors'),
               ],
-
             ),
-
-
           ],
-
-
         ),
-
       ),
-
     );
-
   }
 
-
-
-
-
-
-
-  Widget _buildPassportButton(){
-
-
+  Widget _buildPassportButton() {
     return Container(
+      padding: const EdgeInsets.all(15),
 
-      padding:
-      const EdgeInsets.all(15),
+      width: double.infinity,
 
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.deepPurple,
 
-      width:
-      double.infinity,
+          padding: const EdgeInsets.all(15),
 
-
-      child:
-      ElevatedButton(
-
-        style:
-        ElevatedButton.styleFrom(
-
-          backgroundColor:
-          Colors.deepPurple,
-
-          padding:
-          const EdgeInsets.all(15),
-
-          shape:
-          RoundedRectangleBorder(
-
-            borderRadius:
-            BorderRadius.circular(15),
-
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
-
         ),
 
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) =>
+                  const Scaffold(body: SafeArea(child: PassportScreen())),
+            ),
+          );
+        },
 
-        onPressed: (){},
-
-
-        child:
-        const Text(
-
+        child: const Text(
           "🧩 View in Passport",
 
-          style:
-          TextStyle(
-
-            color:
-            Colors.white,
-
-            fontWeight:
-            FontWeight.bold,
-
-          ),
-
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-
       ),
-
     );
-
-
   }
-
-
 }

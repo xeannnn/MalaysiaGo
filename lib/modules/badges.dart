@@ -10,12 +10,7 @@ import '../data/badge_data.dart';
 import '../services/achievement_provider.dart';
 
 class BadgesScreen extends StatefulWidget {
-  final ValueChanged<int> onXpEarned;
-
-  const BadgesScreen({
-    super.key,
-    required this.onXpEarned,
-  });
+  const BadgesScreen({super.key});
 
   @override
   State<BadgesScreen> createState() => _BadgesScreenState();
@@ -87,42 +82,39 @@ class _BadgesScreenState extends State<BadgesScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.85,
-                      crossAxisSpacing: 14,
-                      mainAxisSpacing: 14,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                        final badge = allStateBadges[index];
-                        final progress = progressMap[badge.id];
-                        final unlocked = progress?.unlockedPieces ?? 0;
-                        final complete = progress?.isComplete ?? false;
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.85,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 14,
+                        ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final badge = activeStateBadges[index];
+                      final progress = progressMap[badge.id];
+                      final unlocked = progress?.unlockedPieces ?? 0;
+                      final complete = progress?.isComplete ?? false;
 
-                        // Fetch real-time visited sites list for this badge
-                        final visited = provider.visitedSites[badge.id] ?? <String>[];
+                      // Fetch real-time visited sites list for this badge
+                      final visited =
+                          provider.visitedSites[badge.id] ?? <String>[];
 
-                        return _BadgeCard(
-                          badge: badge,
-                          unlockedPieces: unlocked,
-                          isComplete: complete,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => BadgeDetailScreen(
-                                  badge: badge,
-                                  visitedSites: visited,
-                                  totalXp: provider.totalXp,
-                                  onXpEarned: widget.onXpEarned,
-                                ),
+                      return _BadgeCard(
+                        badge: badge,
+                        unlockedPieces: unlocked,
+                        isComplete: complete,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BadgeDetailScreen(
+                                badge: badge,
+                                visitedSites: visited,
                               ),
-                            );
-                          },
-                        );
-                      },
-                      childCount: allStateBadges.length,
-                    ),
+                            ),
+                          );
+                        },
+                      );
+                    }, childCount: activeStateBadges.length),
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -160,7 +152,7 @@ class _XpProgressCard extends StatelessWidget {
     final nextLevel = LevelConfig.getNextLevel(currentLevelConfig.level);
     final double progress = nextLevel != null && nextLevel != currentLevelConfig
         ? (xp - currentLevelConfig.xpRequired) /
-        (nextLevel.xpRequired - currentLevelConfig.xpRequired)
+              (nextLevel.xpRequired - currentLevelConfig.xpRequired)
         : 1.0;
 
     return Container(
@@ -185,10 +177,7 @@ class _XpProgressCard extends StatelessWidget {
                 children: [
                   const Text(
                     'Level',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -202,9 +191,12 @@ class _XpProgressCard extends StatelessWidget {
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -226,7 +218,7 @@ class _XpProgressCard extends StatelessWidget {
                     ? '${xp - currentLevelConfig.xpRequired} / ${nextLevel.xpRequired - currentLevelConfig.xpRequired} XP'
                     : 'Max Level Reached!',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 12,
                 ),
               ),
@@ -235,7 +227,7 @@ class _XpProgressCard extends StatelessWidget {
                 Text(
                   '$xpToNext XP to next level',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 11,
                   ),
                 ),
@@ -248,7 +240,7 @@ class _XpProgressCard extends StatelessWidget {
               children: [
                 Container(
                   height: 8,
-                  color: Colors.white.withOpacity(0.25),
+                  color: Colors.white.withValues(alpha: 0.25),
                 ),
                 FractionallySizedBox(
                   widthFactor: progress.clamp(0.0, 1.0),
@@ -267,11 +259,15 @@ class _XpProgressCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              _StatChip(icon: '🏅', label: '$completedBadges/$totalBadges Badges'),
+              _StatChip(
+                icon: '🏅',
+                label: '$completedBadges/$totalBadges Badges',
+              ),
               const SizedBox(width: 10),
               _StatChip(
                 icon: '🌟',
-                label: '${(completedBadges / totalBadges * 100).toInt()}% Complete',
+                label:
+                    '${(completedBadges / totalBadges * 100).toInt()}% Complete',
               ),
             ],
           ),
@@ -292,7 +288,7 @@ class _StatChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -347,12 +343,12 @@ class _BadgeCard extends StatelessWidget {
           border: Border.all(
             color: isComplete
                 ? const Color(0xFF16A34A)
-                : Colors.grey.withOpacity(0.15),
+                : Colors.grey.withValues(alpha: 0.15),
             width: isComplete ? 2 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
+              color: Colors.grey.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -370,9 +366,11 @@ class _BadgeCard extends StatelessWidget {
                   child: CircularProgressIndicator(
                     value: progress.clamp(0.0, 1.0),
                     strokeWidth: 4,
-                    backgroundColor: Colors.grey.withOpacity(0.15),
+                    backgroundColor: Colors.grey.withValues(alpha: 0.15),
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      isComplete ? const Color(0xFF16A34A) : const Color(0xFF6D5BD0),
+                      isComplete
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFF6D5BD0),
                     ),
                   ),
                 ),
@@ -395,7 +393,7 @@ class _BadgeCard extends StatelessWidget {
                     width: 52,
                     height: 52,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6D5BD0).withOpacity(0.15),
+                      color: const Color(0xFF6D5BD0).withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
@@ -413,14 +411,11 @@ class _BadgeCard extends StatelessWidget {
                     width: 52,
                     height: 52,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
-                    child: const Text(
-                      '🔒',
-                      style: TextStyle(fontSize: 20),
-                    ),
+                    child: const Text('🔒', style: TextStyle(fontSize: 20)),
                   ),
               ],
             ),
@@ -436,7 +431,9 @@ class _BadgeCard extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              isComplete ? '✅ Completed!' : '$unlockedPieces/${badge.totalPieces}',
+              isComplete
+                  ? '✅ Completed!'
+                  : '$unlockedPieces/${badge.totalPieces}',
               style: TextStyle(
                 fontSize: 11,
                 color: isComplete ? const Color(0xFF16A34A) : Colors.grey[600],
@@ -447,15 +444,17 @@ class _BadgeCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: isComplete
-                    ? const Color(0xFF16A34A).withOpacity(0.1)
-                    : const Color(0xFF6D5BD0).withOpacity(0.1),
+                    ? const Color(0xFF16A34A).withValues(alpha: 0.1)
+                    : const Color(0xFF6D5BD0).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 badge.badgeTheme,
                 style: TextStyle(
                   fontSize: 9,
-                  color: isComplete ? const Color(0xFF16A34A) : const Color(0xFF6D5BD0),
+                  color: isComplete
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFF6D5BD0),
                 ),
               ),
             ),
@@ -473,15 +472,11 @@ class _BadgeCard extends StatelessWidget {
 class BadgeDetailScreen extends StatefulWidget {
   final StateBadge badge;
   final List<String> visitedSites;
-  final int totalXp;
-  final ValueChanged<int> onXpEarned;
 
   const BadgeDetailScreen({
     super.key,
     required this.badge,
     required this.visitedSites,
-    required this.totalXp,
-    required this.onXpEarned,
   });
 
   @override
@@ -502,7 +497,8 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
 
   void _claimBonus() {
     final provider = Provider.of<AchievementProvider>(context, listen: false);
-    final visitedSites = provider.visitedSites[widget.badge.id] ?? widget.visitedSites;
+    final visitedSites =
+        provider.visitedSites[widget.badge.id] ?? widget.visitedSites;
 
     if (widget.badge.isComplete(visitedSites) && !_bonusClaimed) {
       int bonusXp = provider.claimBadgeBonus(widget.badge.id);
@@ -510,7 +506,6 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
         setState(() {
           _bonusClaimed = true;
         });
-        widget.onXpEarned(bonusXp);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('🎉 Bonus +$bonusXp XP for completing this badge!'),
@@ -524,7 +519,8 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<AchievementProvider>(context);
-    final visitedSites = provider.visitedSites[widget.badge.id] ?? widget.visitedSites;
+    final visitedSites =
+        provider.visitedSites[widget.badge.id] ?? widget.visitedSites;
     final unlocked = widget.badge.getUnlockedPieces(visitedSites);
     final complete = widget.badge.isComplete(visitedSites);
     final progress = widget.badge.getProgress(visitedSites);
@@ -550,11 +546,11 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
                 borderRadius: BorderRadius.circular(20),
                 gradient: complete
                     ? const LinearGradient(
-                  colors: [Color(0xFF16A34A), Color(0xFF0D9488)],
-                )
+                        colors: [Color(0xFF16A34A), Color(0xFF0D9488)],
+                      )
                     : const LinearGradient(
-                  colors: [Color(0xFF6D5BD0), Color(0xFF8B7FE8)],
-                ),
+                        colors: [Color(0xFF6D5BD0), Color(0xFF8B7FE8)],
+                      ),
               ),
               child: Column(
                 children: [
@@ -562,7 +558,7 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
@@ -583,7 +579,7 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
                   Text(
                     widget.badge.badgeTheme,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
+                      color: Colors.white.withValues(alpha: 0.85),
                       fontSize: 14,
                     ),
                   ),
@@ -597,7 +593,7 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
                             Text(
                               '$unlocked / ${widget.badge.totalPieces} pieces collected',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.85),
+                                color: Colors.white.withValues(alpha: 0.85),
                                 fontSize: 12,
                               ),
                             ),
@@ -608,7 +604,7 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
                                 children: [
                                   Container(
                                     height: 6,
-                                    color: Colors.white.withOpacity(0.25),
+                                    color: Colors.white.withValues(alpha: 0.25),
                                   ),
                                   FractionallySizedBox(
                                     widthFactor: progress.clamp(0.0, 1.0),
@@ -637,7 +633,10 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
                   if (complete) ...[
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFBBF24),
                         borderRadius: BorderRadius.circular(20),
@@ -734,10 +733,7 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
             // Required Sites List
             const Text(
               'Required Heritage Sites',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
 
@@ -745,13 +741,16 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
               final visited = visitedSites.contains(siteId);
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.05),
+                      color: Colors.grey.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -764,22 +763,22 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
                       height: 28,
                       decoration: BoxDecoration(
                         color: visited
-                            ? const Color(0xFF16A34A).withOpacity(0.1)
-                            : Colors.grey.withOpacity(0.1),
+                            ? const Color(0xFF16A34A).withValues(alpha: 0.1)
+                            : Colors.grey.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
                       child: visited
                           ? const Icon(
-                        Icons.check,
-                        color: Color(0xFF16A34A),
-                        size: 16,
-                      )
+                              Icons.check,
+                              color: Color(0xFF16A34A),
+                              size: 16,
+                            )
                           : const Icon(
-                        Icons.lock_outline,
-                        color: Colors.grey,
-                        size: 16,
-                      ),
+                              Icons.lock_outline,
+                              color: Colors.grey,
+                              size: 16,
+                            ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -798,7 +797,9 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
                             visited ? '✅ Visited' : '🔒 Not yet visited',
                             style: TextStyle(
                               fontSize: 11,
-                              color: visited ? const Color(0xFF16A34A) : Colors.grey[500],
+                              color: visited
+                                  ? const Color(0xFF16A34A)
+                                  : Colors.grey[500],
                             ),
                           ),
                         ],
@@ -821,7 +822,7 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.05),
+                color: Colors.grey.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -829,18 +830,12 @@ class _BadgeDetailScreenState extends State<BadgeDetailScreen> {
                 children: [
                   const Text(
                     'About this badge',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     widget.badge.description,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[700],
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                   ),
                 ],
               ),

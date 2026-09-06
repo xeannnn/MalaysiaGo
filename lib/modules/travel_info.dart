@@ -120,7 +120,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -522,7 +522,7 @@ class _TransportCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: badgeColor.withOpacity(0.8),
+                        color: badgeColor.withValues(alpha: 0.8),
                       ),
                     ),
                   ],

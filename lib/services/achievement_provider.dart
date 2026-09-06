@@ -35,6 +35,8 @@ class AchievementProvider extends ChangeNotifier {
   Set<String> get completedQuizIds => _completedQuizIds;
   List<QuizAttempt> get quizHistory => _quizHistory;
   bool get isLoading => _isLoading;
+  Set<String> get visitedHeritageSiteIds =>
+      _visitedSites.values.expand((siteIds) => siteIds).toSet();
 
   UserAchievement get achievement {
     return BadgeService.getUserAchievement(_totalXp, _visitedSites);
@@ -52,13 +54,13 @@ class AchievementProvider extends ChangeNotifier {
     return badgeProgress.where((p) => p.isComplete).length;
   }
 
-  int get totalBadges => allStateBadges.length;
+  int get totalBadges => activeStateBadges.length;
 
   // ============================================================
   // INITIALIZATION
   // ============================================================
 
-  /// Loads user data: tries Hive first, falls back to dummy data
+  /// Loads locally persisted achievement data.
   Future<void> loadUserData() async {
     _isLoading = true;
     notifyListeners();
@@ -69,8 +71,8 @@ class AchievementProvider extends ChangeNotifier {
     bool hasSavedData = await _loadFromHive();
 
     if (!hasSavedData) {
-      // First launch - load dummy data and save it
-      _loadDummyData();
+      // A real user must start with an empty passport and zero XP.
+      _loadEmptyData();
       await _saveToHive();
     }
 
@@ -90,7 +92,11 @@ class AchievementProvider extends ChangeNotifier {
       await _box.put('visitedSites', _visitedSites);
       await _box.put('claimedBonuses', _claimedBonuses);
       await _box.put('completedQuizIds', _completedQuizIds.toList());
-      await _box.put('quizHistory', _quizHistory.map((a) => a.toMap()).toList());
+      await _box.put(
+        'quizHistory',
+        _quizHistory.map((a) => a.toMap()).toList(),
+      );
+      await _box.put('progressSchemaVersion', 2);
       debugPrint('✅ Progress saved to Hive');
     } catch (e) {
       debugPrint('❌ Error saving to Hive: $e');
@@ -108,9 +114,14 @@ class AchievementProvider extends ChangeNotifier {
       final savedQuizHistory = _box.get('quizHistory');
 
       if (savedXp != null && savedVisited != null && savedBonuses != null) {
-        _totalXp = savedXp;
-        _visitedSites = Map<String, List<String>>.from(savedVisited);
-        _claimedBonuses = Map<String, bool>.from(savedBonuses);
+        _totalXp = (savedXp as num).toInt();
+        _visitedSites = (savedVisited as Map).map(
+          (key, value) =>
+              MapEntry(key.toString(), List<String>.from(value as Iterable)),
+        );
+        _claimedBonuses = (savedBonuses as Map).map(
+          (key, value) => MapEntry(key.toString(), value == true),
+        );
 
         // These two fields were added after the above three, so older
         // saved data may not have them yet — default to empty rather
@@ -120,8 +131,17 @@ class AchievementProvider extends ChangeNotifier {
         }
         if (savedQuizHistory != null) {
           _quizHistory = (savedQuizHistory as List)
-              .map((m) => QuizAttempt.fromMap(Map<String, dynamic>.from(m as Map)))
+              .map(
+                (m) => QuizAttempt.fromMap(Map<String, dynamic>.from(m as Map)),
+              )
               .toList();
+        }
+
+        final schemaVersion =
+            (_box.get('progressSchemaVersion') as num?)?.toInt() ?? 1;
+        if (schemaVersion < 2) {
+          _migrateLegacyProgress();
+          await _saveToHive();
         }
 
         debugPrint('✅ Data loaded from Hive: XP = $_totalXp');
@@ -135,50 +155,47 @@ class AchievementProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // DUMMY DATA (First Launch Only)
+  // DEFAULT DATA (First Launch Only)
   // ============================================================
 
-  void _loadDummyData() {
-    _totalXp = 470;
-
-    _visitedSites = {
-      'badge_kl': [
-        'site_klcc',
-        'site_pasar_seni',
-        'site_perdana_garden',
-        'site_merdeka_square',
-      ],
-      'badge_melaka': [
-        'site_afamosa',
-        'site_st_paul',
-      ],
-      'badge_penang': [
-        'site_fort_cornwallis',
-      ],
-      'badge_sarawak': [
-        'site_sarawak_museum',
-      ],
-      'badge_sabah': [
-        'site_mt_kinabalu',
-      ],
-      'badge_perak': [],
-    };
-
-    _claimedBonuses = {
-      'badge_kl': false,
-      'badge_melaka': false,
-      'badge_penang': false,
-      'badge_sarawak': false,
-      'badge_sabah': false,
-      'badge_perak': false,
-    };
-  }
-
-  /// Resets all data (for testing)
-  void reset() async {
+  void _loadEmptyData() {
     _totalXp = 0;
     _visitedSites = {};
     _claimedBonuses = {};
+    _completedQuizIds = {};
+    _quizHistory = [];
+  }
+
+  void _migrateLegacyProgress() {
+    final hasDemoSeed =
+        _totalXp == 470 &&
+        _completedQuizIds.isEmpty &&
+        (_visitedSites['badge_kl']?.contains('site_klcc') ?? false);
+    if (hasDemoSeed) {
+      _loadEmptyData();
+      return;
+    }
+
+    const aliases = <String, String>{
+      'site_merdeka_square': 'merdeka_square',
+      'site_batu_caves': 'batu_caves',
+      'site_penang_street_art': 'george_town',
+      'site_jonker_street': 'malacca_city',
+      'site_kek_lok_si': 'kek_lok_si',
+      'site_taman_negara': 'taman_negara',
+    };
+
+    _visitedSites = _visitedSites.map(
+      (badgeId, siteIds) => MapEntry(
+        badgeId,
+        siteIds.map((siteId) => aliases[siteId] ?? siteId).toSet().toList(),
+      ),
+    );
+  }
+
+  /// Resets all data (for testing)
+  Future<void> reset() async {
+    _loadEmptyData();
     notifyListeners();
     await _saveToHive();
   }
@@ -196,7 +213,7 @@ class AchievementProvider extends ChangeNotifier {
 
     _totalXp += amount;
     notifyListeners();
-    _saveToHive();  // ✅ Persist
+    _saveToHive(); // ✅ Persist
 
     int newLevel = BadgeService.getCurrentLevel(_totalXp).level;
     if (newLevel > oldLevel) {
@@ -221,28 +238,42 @@ class AchievementProvider extends ChangeNotifier {
     int xp = BadgeService.calculateSiteXp(siteId);
     _totalXp += xp;
 
-    // Check newly completed badges
-    List<StateBadge> newlyCompleted = BadgeService.getNewlyCompletedBadges(
-      _visitedSites,
-      _visitedSites,
-    );
-
-    for (StateBadge badge in newlyCompleted) {
-      if (!_claimedBonuses.containsKey(badge.id) ||
-          !_claimedBonuses[badge.id]!) {
-        _claimedBonuses[badge.id] = false;
-        _totalXp += badge.bonusXp;
-        _claimedBonuses[badge.id] = true;
-      }
-    }
-
     notifyListeners();
-    _saveToHive();  // ✅ Persist
+    _saveToHive(); // ✅ Persist
     return _totalXp;
   }
 
+  /// Records a verified GPS visit using the IDs shared by the map and quizzes.
+  int addHeritageVisit(String siteId, String stateName) {
+    final normalizedState = stateName.split('·').first.toLowerCase().trim();
+    const badgeByState = <String, String>{
+      'kuala lumpur': 'badge_kl',
+      'selangor': 'badge_selangor',
+      'penang': 'badge_penang',
+      'perak': 'badge_perak',
+      'kedah': 'badge_kedah',
+      'perlis': 'badge_perlis',
+      'melaka': 'badge_melaka',
+      'malacca': 'badge_melaka',
+      'johor': 'badge_johor',
+      'negeri sembilan': 'badge_ns',
+      'pahang': 'badge_pahang',
+      'terengganu': 'badge_tganu',
+      'kelantan': 'badge_kelantan',
+      'sarawak': 'badge_sarawak',
+      'sabah': 'badge_sabah',
+    };
+
+    final badgeId = badgeByState[normalizedState] ?? 'badge_other';
+    return addSiteVisit(badgeId, siteId);
+  }
+
   int addQuizXp(int score, int totalQuestions, {bool perfect = false}) {
-    int xp = BadgeService.calculateQuizXp(score, totalQuestions, perfect: perfect);
+    int xp = BadgeService.calculateQuizXp(
+      score,
+      totalQuestions,
+      perfect: perfect,
+    );
     return addXp(xp);
   }
 
@@ -297,7 +328,7 @@ class AchievementProvider extends ChangeNotifier {
     _totalXp += bonusXp;
 
     notifyListeners();
-    _saveToHive();  // ✅ Persist
+    _saveToHive(); // ✅ Persist
     return bonusXp;
   }
 
@@ -308,7 +339,7 @@ class AchievementProvider extends ChangeNotifier {
   List<StateBadge> getUnclaimedBonuses() {
     List<StateBadge> unclaimed = [];
 
-    for (StateBadge badge in allStateBadges) {
+    for (StateBadge badge in activeStateBadges) {
       List<String> visited = _visitedSites[badge.id] ?? [];
       if (badge.isComplete(visited)) {
         if (!_claimedBonuses.containsKey(badge.id) ||
@@ -349,7 +380,7 @@ class AchievementProvider extends ChangeNotifier {
 
     _totalXp += totalXpGained;
 
-    for (StateBadge badge in allStateBadges) {
+    for (StateBadge badge in activeStateBadges) {
       List<String> visited = _visitedSites[badge.id] ?? [];
       if (badge.isComplete(visited)) {
         if (!_claimedBonuses.containsKey(badge.id) ||
@@ -361,7 +392,7 @@ class AchievementProvider extends ChangeNotifier {
     }
 
     notifyListeners();
-    _saveToHive();  // ✅ Persist
+    _saveToHive(); // ✅ Persist
   }
 
   // ============================================================
@@ -369,6 +400,6 @@ class AchievementProvider extends ChangeNotifier {
   // ============================================================
 
   void _onLevelUp(int oldLevel, int newLevel) {
-    print('🎉 Level Up! $oldLevel → $newLevel');
+    debugPrint('🎉 Level Up! $oldLevel → $newLevel');
   }
 }

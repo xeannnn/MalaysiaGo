@@ -9,9 +9,7 @@ class ScanPage extends StatelessWidget {
   Future<void> _openScanner(BuildContext context) async {
     final String? result = await Navigator.push<String>(
       context,
-      MaterialPageRoute<String>(
-        builder: (_) => const FullScreenScannerPage(),
-      ),
+      MaterialPageRoute<String>(builder: (_) => const FullScreenScannerPage()),
     );
 
     if (!context.mounted) {
@@ -20,11 +18,7 @@ class ScanPage extends StatelessWidget {
 
     if (result != null && result.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'QR scanned successfully: $result',
-          ),
-        ),
+        SnackBar(content: Text('QR scanned successfully: $result')),
       );
     }
   }
@@ -37,13 +31,9 @@ class ScanPage extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
-                mainAxisAlignment:
-                MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   GestureDetector(
                     onTap: () {
@@ -51,19 +41,14 @@ class ScanPage extends StatelessWidget {
                     },
                     child: const Row(
                       children: [
-                        Icon(
-                          Icons.arrow_back,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                        Icon(Icons.arrow_back, color: Colors.white, size: 20),
                         SizedBox(width: 4),
                         Text(
                           'Back',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 15,
-                            fontWeight:
-                            FontWeight.w500,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -92,8 +77,7 @@ class ScanPage extends StatelessWidget {
                     child: Icon(
                       Icons.account_balance,
                       size: 100,
-                      color:
-                      Colors.cyanAccent.shade100,
+                      color: Colors.cyanAccent.shade100,
                     ),
                   ),
                   SizedBox(
@@ -136,18 +120,11 @@ class ScanPage extends StatelessWidget {
               width: double.infinity,
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius:
-                BorderRadius.vertical(
-                  top: Radius.circular(24),
-                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Center(
@@ -156,8 +133,7 @@ class ScanPage extends StatelessWidget {
                       height: 4,
                       decoration: BoxDecoration(
                         color: Colors.grey.shade300,
-                        borderRadius:
-                        BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
@@ -190,25 +166,17 @@ class ScanPage extends StatelessWidget {
                     width: double.infinity,
                     height: 50,
                     decoration: BoxDecoration(
-                      borderRadius:
-                      BorderRadius.circular(14),
-                      gradient:
-                      const LinearGradient(
-                        colors: [
-                          Color(0xFF10B981),
-                          Color(0xFF0D9488),
-                        ],
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF10B981), Color(0xFF0D9488)],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(
-                            0xFF10B981,
-                          ).withOpacity(0.3),
+                          color: const Color(0xFF10B981).withValues(alpha: 0.3),
                           blurRadius: 10,
-                          offset:
-                          const Offset(0, 4),
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -216,18 +184,11 @@ class ScanPage extends StatelessWidget {
                       onPressed: () {
                         _openScanner(context);
                       },
-                      style:
-                      ElevatedButton.styleFrom(
-                        backgroundColor:
-                        Colors.transparent,
-                        shadowColor:
-                        Colors.transparent,
-                        shape:
-                        RoundedRectangleBorder(
-                          borderRadius:
-                          BorderRadius.circular(
-                            14,
-                          ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                       icon: const Icon(
@@ -240,8 +201,7 @@ class ScanPage extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
-                          fontWeight:
-                          FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -319,20 +279,14 @@ class ScanPage extends StatelessWidget {
               bottom: !isTop ? 0 : null,
               left: 0,
               right: 0,
-              child: Container(
-                height: thickness,
-                color: color,
-              ),
+              child: Container(height: thickness, color: color),
             ),
             Positioned(
               top: 0,
               bottom: 0,
               left: isLeft ? 0 : null,
               right: !isLeft ? 0 : null,
-              child: Container(
-                width: thickness,
-                color: color,
-              ),
+              child: Container(width: thickness, color: color),
             ),
           ],
         ),
@@ -346,37 +300,24 @@ class ScanPage extends StatelessWidget {
     required String xp,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius:
-        BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.shade200,
-        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Row(
-        mainAxisAlignment:
-        MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
-              Text(
-                emoji,
-                style: const TextStyle(
-                  fontSize: 18,
-                ),
-              ),
+              Text(emoji, style: const TextStyle(fontSize: 18)),
               const SizedBox(width: 12),
               Text(
                 title,
                 style: const TextStyle(
                   fontSize: 14,
-                  fontWeight:
-                  FontWeight.w600,
+                  fontWeight: FontWeight.w600,
                   color: Color(0xFF1E293B),
                 ),
               ),
@@ -396,24 +337,16 @@ class ScanPage extends StatelessWidget {
   }
 }
 
-class FullScreenScannerPage
-    extends StatefulWidget {
-  const FullScreenScannerPage({
-    super.key,
-  });
+class FullScreenScannerPage extends StatefulWidget {
+  const FullScreenScannerPage({super.key});
 
   @override
-  State<FullScreenScannerPage>
-  createState() =>
-      _FullScreenScannerPageState();
+  State<FullScreenScannerPage> createState() => _FullScreenScannerPageState();
 }
 
-class _FullScreenScannerPageState
-    extends State<FullScreenScannerPage> {
-  final MobileScannerController _controller =
-  MobileScannerController(
-    detectionSpeed:
-    DetectionSpeed.noDuplicates,
+class _FullScreenScannerPageState extends State<FullScreenScannerPage> {
+  final MobileScannerController _controller = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
   );
 
@@ -431,35 +364,29 @@ class _FullScreenScannerPageState
   }
 
   void _startCountdown() {
-    _timer = Timer.periodic(
-      const Duration(seconds: 1),
-          (Timer timer) {
-        if (!mounted ||
-            _hasFinished) {
-          timer.cancel();
-          return;
-        }
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      if (!mounted || _hasFinished) {
+        timer.cancel();
+        return;
+      }
 
-        if (_secondsRemaining <= 1) {
-          setState(() {
-            _secondsRemaining = 0;
-          });
+      if (_secondsRemaining <= 1) {
+        setState(() {
+          _secondsRemaining = 0;
+        });
 
-          timer.cancel();
+        timer.cancel();
 
-          _finishScanner();
-        } else {
-          setState(() {
-            _secondsRemaining--;
-          });
-        }
-      },
-    );
+        _finishScanner();
+      } else {
+        setState(() {
+          _secondsRemaining--;
+        });
+      }
+    });
   }
 
-  Future<void> _finishScanner({
-    String? result,
-  }) async {
+  Future<void> _finishScanner({String? result}) async {
     if (_hasFinished) {
       return;
     }
@@ -478,15 +405,10 @@ class _FullScreenScannerPageState
       return;
     }
 
-    Navigator.pop(
-      context,
-      result,
-    );
+    Navigator.pop(context, result);
   }
 
-  Future<void> _handleBarcode(
-      BarcodeCapture capture,
-      ) async {
+  Future<void> _handleBarcode(BarcodeCapture capture) async {
     if (_hasFinished) {
       return;
     }
@@ -495,20 +417,15 @@ class _FullScreenScannerPageState
       return;
     }
 
-    final Barcode barcode =
-        capture.barcodes.first;
+    final Barcode barcode = capture.barcodes.first;
 
-    final String? value =
-        barcode.rawValue;
+    final String? value = barcode.rawValue;
 
-    if (value == null ||
-        value.trim().isEmpty) {
+    if (value == null || value.trim().isEmpty) {
       return;
     }
 
-    await _finishScanner(
-      result: value,
-    );
+    await _finishScanner(result: value);
   }
 
   @override
@@ -523,8 +440,7 @@ class _FullScreenScannerPageState
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      onPopInvokedWithResult:
-          (bool didPop, Object? result) {
+      onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) {
           _timer?.cancel();
         }
@@ -537,103 +453,68 @@ class _FullScreenScannerPageState
             MobileScanner(
               controller: _controller,
               onDetect: _handleBarcode,
-              errorBuilder: (
-                  BuildContext context,
-                  MobileScannerException error,
-                  ) {
-                return Container(
-                  color: Colors.black,
-                  alignment:
-                  Alignment.center,
-                  padding:
-                  const EdgeInsets.all(
-                    24,
-                  ),
-                  child: Column(
-                    mainAxisSize:
-                    MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.camera_alt_outlined,
-                        color: Colors.white,
-                        size: 64,
+              errorBuilder:
+                  (BuildContext context, MobileScannerException error) {
+                    return Container(
+                      color: Colors.black,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.camera_alt_outlined,
+                            color: Colors.white,
+                            size: 64,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Unable to open camera',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            error.toString(),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(
-                        height: 16,
-                      ),
-                      const Text(
-                        'Unable to open camera',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight:
-                          FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 8,
-                      ),
-                      Text(
-                        error.toString(),
-                        textAlign:
-                        TextAlign.center,
-                        style: const TextStyle(
-                          color:
-                          Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                    );
+                  },
             ),
 
-            Container(
-              color: Colors.black
-                  .withOpacity(0.12),
-            ),
+            Container(color: Colors.black.withValues(alpha: 0.12)),
 
             Center(
               child: Container(
                 width: 250,
                 height: 250,
-                decoration:
-                BoxDecoration(
-                  borderRadius:
-                  BorderRadius.circular(
-                    18,
-                  ),
-                  border: Border.all(
-                    color:
-                    Colors.greenAccent,
-                    width: 3,
-                  ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.greenAccent, width: 3),
                 ),
               ),
             ),
 
             SafeArea(
               child: Padding(
-                padding:
-                const EdgeInsets.all(
-                  16,
-                ),
+                padding: const EdgeInsets.all(16),
                 child: Row(
-                  mainAxisAlignment:
-                  MainAxisAlignment
-                      .spaceBetween,
-                  crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      decoration:
-                      const BoxDecoration(
-                        color:
-                        Colors.black54,
-                        shape:
-                        BoxShape.circle,
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
                       ),
                       child: IconButton(
                         onPressed: () {
@@ -641,52 +522,36 @@ class _FullScreenScannerPageState
                         },
                         icon: const Icon(
                           Icons.close,
-                          color:
-                          Colors.white,
+                          color: Colors.white,
                           size: 28,
                         ),
                       ),
                     ),
 
                     Container(
-                      padding:
-                      const EdgeInsets
-                          .symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 9,
                       ),
-                      decoration:
-                      BoxDecoration(
-                        color:
-                        Colors.black54,
-                        borderRadius:
-                        BorderRadius
-                            .circular(
-                          20,
-                        ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
-                        mainAxisSize:
-                        MainAxisSize.min,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(
                             Icons.timer_outlined,
-                            color:
-                            Colors.white,
+                            color: Colors.white,
                             size: 18,
                           ),
-                          const SizedBox(
-                            width: 6,
-                          ),
+                          const SizedBox(width: 6),
                           Text(
                             '$_secondsRemaining s',
-                            style:
-                            const TextStyle(
-                              color:
-                              Colors.white,
+                            style: const TextStyle(
+                              color: Colors.white,
                               fontSize: 16,
-                              fontWeight:
-                              FontWeight.bold,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
@@ -702,43 +567,29 @@ class _FullScreenScannerPageState
               right: 24,
               bottom: 70,
               child: Container(
-                padding:
-                const EdgeInsets.all(
-                  14,
-                ),
-                decoration:
-                BoxDecoration(
-                  color:
-                  Colors.black54,
-                  borderRadius:
-                  BorderRadius.circular(
-                    14,
-                  ),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Column(
-                  mainAxisSize:
-                  MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'Scan Heritage QR',
-                      textAlign:
-                      TextAlign.center,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        color:
-                        Colors.white,
+                        color: Colors.white,
                         fontSize: 17,
-                        fontWeight:
-                        FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     SizedBox(height: 4),
                     Text(
                       'Place the QR code inside the green frame.\nScanner closes automatically after 30 seconds.',
-                      textAlign:
-                      TextAlign.center,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        color:
-                        Colors.white70,
+                        color: Colors.white70,
                         fontSize: 12,
                         height: 1.4,
                       ),

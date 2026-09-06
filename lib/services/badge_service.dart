@@ -4,7 +4,7 @@
 // ============================================================
 
 import '../models.dart';
-import '../data/badge_data.dart';  // Import your badge data
+import '../data/badge_data.dart'; // Import your badge data
 
 class BadgeService {
   // ============================================================
@@ -13,7 +13,7 @@ class BadgeService {
 
   /// Get all state badges (from badge_data.dart)
   static List<StateBadge> getAllBadges() {
-    return allStateBadges; // From badge_data.dart
+    return activeStateBadges;
   }
 
   /// Get a specific badge by ID
@@ -31,9 +31,9 @@ class BadgeService {
 
   /// Get progress for a specific badge
   static UserBadgeProgress getBadgeProgress(
-      StateBadge badge,
-      List<String> visitedSites,
-      ) {
+    StateBadge badge,
+    List<String> visitedSites,
+  ) {
     int unlocked = badge.getUnlockedPieces(visitedSites);
     bool complete = badge.isComplete(visitedSites);
 
@@ -52,11 +52,11 @@ class BadgeService {
 
   /// Get progress for all badges
   static List<UserBadgeProgress> getAllBadgeProgress(
-      Map<String, List<String>> visitedSites,
-      ) {
+    Map<String, List<String>> visitedSites,
+  ) {
     List<UserBadgeProgress> progress = [];
 
-    for (StateBadge badge in allStateBadges) {
+    for (StateBadge badge in activeStateBadges) {
       List<String> visited = visitedSites[badge.id] ?? [];
       progress.add(getBadgeProgress(badge, visited));
     }
@@ -70,11 +70,16 @@ class BadgeService {
 
   /// Calculate XP from visiting a heritage site
   static int calculateSiteXp(String siteId) {
-    return 100; // Base XP for any site visit
+    return 50; // Base XP shown by the GPS check-in mission.
   }
 
   /// Calculate XP from completing a quiz
-  static int calculateQuizXp(int score, int totalQuestions, {bool perfect = false}) {
+  static int calculateQuizXp(
+    int score,
+    int totalQuestions, {
+    bool perfect = false,
+  }) {
+    if (totalQuestions <= 0 || score <= 0) return 0;
     int baseXp = 25;
     if (perfect) {
       return baseXp + 25; // 50 XP for perfect score
@@ -129,9 +134,9 @@ class BadgeService {
 
   /// Check if a badge is complete and return bonus XP
   static int checkAndAwardBadgeBonus(
-      String badgeId,
-      List<String> visitedSites,
-      ) {
+    String badgeId,
+    List<String> visitedSites,
+  ) {
     StateBadge? badge = getBadgeById(badgeId);
     if (badge == null) return 0;
 
@@ -143,12 +148,12 @@ class BadgeService {
 
   /// Get newly completed badges (was locked, now unlocked)
   static List<StateBadge> getNewlyCompletedBadges(
-      Map<String, List<String>> oldVisitedSites,
-      Map<String, List<String>> newVisitedSites,
-      ) {
+    Map<String, List<String>> oldVisitedSites,
+    Map<String, List<String>> newVisitedSites,
+  ) {
     List<StateBadge> newlyCompleted = [];
 
-    for (StateBadge badge in allStateBadges) {
+    for (StateBadge badge in activeStateBadges) {
       bool wasComplete = badge.isComplete(oldVisitedSites[badge.id] ?? []);
       bool isCompleteNow = badge.isComplete(newVisitedSites[badge.id] ?? []);
 
@@ -166,9 +171,9 @@ class BadgeService {
 
   /// Get complete user achievement summary
   static UserAchievement getUserAchievement(
-      int totalXp,
-      Map<String, List<String>> visitedSites,
-      ) {
+    int totalXp,
+    Map<String, List<String>> visitedSites,
+  ) {
     List<UserBadgeProgress> progress = getAllBadgeProgress(visitedSites);
     int completedBadges = progress.where((p) => p.isComplete).length;
 
@@ -180,7 +185,7 @@ class BadgeService {
       totalXp: totalXp,
       level: currentLevel.level,
       xpToNextLevel: xpToNext,
-      totalBadges: allStateBadges.length,
+      totalBadges: activeStateBadges.length,
       completedBadges: completedBadges,
       badgeProgress: progress,
     );
