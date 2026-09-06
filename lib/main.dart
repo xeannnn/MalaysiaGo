@@ -44,7 +44,7 @@ Future<void> main() async {
   // Supabase initialization
   await Supabase.initialize(
     url: 'https://jcyecsnsiznmeddygkle.supabase.co',
-    anonKey: 'sb_publishable_ArQqnsMHEqiQRHZAR5E9hA_9y5NpWp1',
+    publishableKey: 'sb_publishable_ArQqnsMHEqiQRHZAR5E9hA_9y5NpWp1',
   );
 
   runApp(
@@ -74,9 +74,7 @@ class MalaysiaGoApp extends StatelessWidget {
       home: FirebaseAuth.instance.currentUser == null
           ? const LoginScreen()
           : const MainScreen(),
-      routes: {
-        '/home': (context) => const MainScreen(),
-      },
+      routes: {'/home': (context) => const MainScreen()},
     );
   }
 }
@@ -96,6 +94,7 @@ class _MainScreenState extends State<MainScreen> {
   String? _mapFocusSiteId;
 
   StreamSubscription<Position>? _locationSubscription;
+  Position? _currentPosition;
 
   final Set<String> _promptedSiteIds = <String>{};
 
@@ -112,8 +111,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _startHeritageLocationTracking() async {
     try {
-      final serviceEnabled =
-      await Geolocator.isLocationServiceEnabled();
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
         _showLocationMessage(
@@ -143,17 +141,14 @@ class _MainScreenState extends State<MainScreen> {
       }
 
       try {
-        final currentPosition =
-        await Geolocator.getCurrentPosition(
+        final currentPosition = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
           timeLimit: const Duration(seconds: 15),
         );
 
         _handlePositionUpdate(currentPosition);
       } catch (error) {
-        debugPrint(
-          'Could not obtain the initial GPS position: $error',
-        );
+        debugPrint('Could not obtain the initial GPS position: $error');
       }
 
       const locationSettings = LocationSettings(
@@ -173,19 +168,15 @@ class _MainScreenState extends State<MainScreen> {
             },
           );
     } catch (error, stackTrace) {
-      debugPrint(
-        'Unable to start heritage-site location tracking: $error',
-      );
+      debugPrint('Unable to start heritage-site location tracking: $error');
       debugPrintStack(stackTrace: stackTrace);
 
-      _showLocationMessage(
-        'Unable to start location tracking.',
-      );
+      _showLocationMessage('Unable to start location tracking.');
     }
   }
 
   void _handlePositionUpdate(Position position) {
-    if (!mounted || _arrivalDialogOpen) {
+    if (!mounted) {
       return;
     }
 
@@ -194,12 +185,19 @@ class _MainScreenState extends State<MainScreen> {
      * heritage-site prompt from appearing when the GPS position has
      * a very large uncertainty radius.
      */
-    if (position.accuracy >
-        _maximumAcceptedAccuracyMeters) {
+    if (position.accuracy > _maximumAcceptedAccuracyMeters) {
       debugPrint(
         'Ignoring inaccurate GPS reading: '
-            '${position.accuracy.toStringAsFixed(1)} metres',
+        '${position.accuracy.toStringAsFixed(1)} metres',
       );
+      return;
+    }
+
+    setState(() {
+      _currentPosition = position;
+    });
+
+    if (_arrivalDialogOpen) {
       return;
     }
 
@@ -218,8 +216,7 @@ class _MainScreenState extends State<MainScreen> {
         site.longitude,
       );
 
-      if (distance <= _arrivalRadiusMeters &&
-          distance < nearestDistance) {
+      if (distance <= _arrivalRadiusMeters && distance < nearestDistance) {
         nearestSite = site;
         nearestDistance = distance;
       }
@@ -230,6 +227,11 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     _promptedSiteIds.add(nearestSite.id);
+
+    Provider.of<AchievementProvider>(
+      context,
+      listen: false,
+    ).addHeritageVisit(nearestSite.id, nearestSite.location);
 
     _showHeritageSiteArrivalPrompt(
       site: nearestSite,
@@ -247,8 +249,7 @@ class _MainScreenState extends State<MainScreen> {
 
     _arrivalDialogOpen = true;
 
-    final shouldOpenSite =
-    await showDialog<bool>(
+    final shouldOpenSite = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
@@ -259,23 +260,15 @@ class _MainScreenState extends State<MainScreen> {
         return AlertDialog(
           title: Row(
             children: [
-              Text(
-                site.icon,
-                style: const TextStyle(fontSize: 30),
-              ),
+              Text(site.icon, style: const TextStyle(fontSize: 30)),
               const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'You are near ${site.name}!',
-                ),
-              ),
+              Expanded(child: Text('You are near ${site.name}!')),
             ],
           ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '${site.location} • $distanceText',
@@ -294,15 +287,12 @@ class _MainScreenState extends State<MainScreen> {
                     color: site.hasQuiz
                         ? const Color(0xFFE9F9EF)
                         : const Color(0xFFF3F4F6),
-                    borderRadius:
-                    BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        site.hasQuiz
-                            ? Icons.quiz
-                            : Icons.info_outline,
+                        site.hasQuiz ? Icons.quiz : Icons.info_outline,
                         color: site.hasQuiz
                             ? const Color(0xFF0F8A5F)
                             : Colors.grey,
@@ -313,9 +303,7 @@ class _MainScreenState extends State<MainScreen> {
                           site.hasQuiz
                               ? 'A heritage quiz is available for this site. Complete it to earn XP.'
                               : 'Site information is available. The quiz for this site is coming soon.',
-                          style: const TextStyle(
-                            fontSize: 13,
-                          ),
+                          style: const TextStyle(fontSize: 13),
                         ),
                       ),
                     ],
@@ -335,19 +323,10 @@ class _MainScreenState extends State<MainScreen> {
               onPressed: () {
                 Navigator.of(dialogContext).pop(true);
               },
-              icon: Icon(
-                site.hasQuiz
-                    ? Icons.quiz
-                    : Icons.menu_book,
-              ),
-              label: Text(
-                site.hasQuiz
-                    ? 'Info & Quiz'
-                    : 'View Info',
-              ),
+              icon: Icon(site.hasQuiz ? Icons.quiz : Icons.menu_book),
+              label: Text(site.hasQuiz ? 'Info & Quiz' : 'View Info'),
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                const Color(0xFF0F8A5F),
+                backgroundColor: const Color(0xFF0F8A5F),
                 foregroundColor: Colors.white,
               ),
             ),
@@ -386,20 +365,13 @@ class _MainScreenState extends State<MainScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          duration: const Duration(seconds: 4),
-        ),
+        SnackBar(content: Text(message), duration: const Duration(seconds: 4)),
       );
     });
   }
 
   void _handleQuizComplete(QuizAttempt attempt) {
-    final provider =
-    Provider.of<AchievementProvider>(
-      context,
-      listen: false,
-    );
+    final provider = Provider.of<AchievementProvider>(context, listen: false);
 
     provider.addQuizAttempt(attempt);
   }
@@ -429,8 +401,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider =
-    Provider.of<AchievementProvider>(context);
+    final provider = Provider.of<AchievementProvider>(context);
 
     Widget buildBody() {
       switch (_selectedTab) {
@@ -442,31 +413,25 @@ class _MainScreenState extends State<MainScreen> {
 
         case BottomTab.map:
           return MapScreen(
-            key: ValueKey<String?>(
-              'map-${_mapFocusSiteId ?? 'normal'}',
-            ),
+            key: ValueKey<String?>('map-${_mapFocusSiteId ?? 'normal'}'),
             totalXp: provider.totalXp,
-            completedQuizIds:
-            provider.completedQuizIds,
+            completedQuizIds: provider.completedQuizIds,
             quizHistory: provider.quizHistory,
             onQuizComplete: _handleQuizComplete,
             initialSiteId: _mapFocusSiteId,
+            visitedSiteIds: provider.visitedHeritageSiteIds,
+            userLatitude: _currentPosition?.latitude,
+            userLongitude: _currentPosition?.longitude,
           );
 
         case BottomTab.scan:
-          return const GpsCheckInScreen();
+          return GpsCheckInScreen(onSiteSelected: _openDetectedSiteOnMap);
 
         case BottomTab.community:
-          return CommunityScreen(
-            onViewOnMap: _openCommunitySiteOnMap,
-          );
+          return CommunityScreen(onViewOnMap: _openCommunitySiteOnMap);
 
         case BottomTab.badges:
-          return BadgesScreen(
-            onXpEarned: (xp) {
-              provider.addXp(xp);
-            },
-          );
+          return const BadgesScreen();
 
         case BottomTab.passport:
           return const PassportScreen();
@@ -474,9 +439,7 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     return Scaffold(
-      body: SafeArea(
-        child: buildBody(),
-      ),
+      body: SafeArea(child: buildBody()),
       bottomNavigationBar: AppBottomBar(
         selected: _selectedTab,
         onSelect: _selectTab,

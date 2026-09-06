@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'quiz.dart';
 import 'heritage_detail.dart';
@@ -20,11 +21,7 @@ import '../widgets/app_header.dart';
 /// the condition that requests set a real User-Agent identifying the
 /// app (done below) and don't hammer the server. If this app ever
 /// gets heavy production traffic, switch the tile URL to a paid
-/// provider (e.g. MapTiler, Stadia Maps) or self-hosted tiles — see
-/// MAPS_SETUP.md for details. "Distance away" values in
-/// [heritageMapSites] are still hardcoded demo data; wiring real GPS
-/// distance needs a location permission plugin (e.g. geolocator),
-/// which isn't included yet.
+/// provider (e.g. MapTiler, Stadia Maps) or self-hosted tiles.
 /// ---------------------------------------------------------------
 
 class HeritageMapSite {
@@ -80,6 +77,28 @@ class HeritageMapSite {
     bestTime: '',
     tips: const [],
   );
+
+  HeritageMapSite copyWith({double? distanceKm, bool? visited}) =>
+      HeritageMapSite(
+        id: id,
+        icon: icon,
+        name: name,
+        location: location,
+        latitude: latitude,
+        longitude: longitude,
+        distanceKm: distanceKm ?? this.distanceKm,
+        xpReward: xpReward,
+        category: category,
+        visited: visited ?? this.visited,
+        hasQuiz: hasQuiz,
+        briefInfo: briefInfo,
+      );
+}
+
+String formatSiteDistance(double distanceKm) {
+  if (!distanceKm.isFinite) return 'Distance unavailable';
+  if (distanceKm < 1) return '${(distanceKm * 1000).round()} m away';
+  return '${distanceKm.toStringAsFixed(1)} km away';
 }
 
 const List<HeritageMapSite> heritageMapSites = [
@@ -90,13 +109,13 @@ const List<HeritageMapSite> heritageMapSites = [
     location: 'Selangor',
     latitude: 3.237934,
     longitude: 101.683984,
-    distanceKm: 0.3,
-    xpReward: 80,
+    distanceKm: double.infinity,
+    xpReward: 120,
     category: 'Religious',
     visited: false,
     hasQuiz: true,
     briefInfo:
-    'A dramatic limestone cave complex crowned by a giant golden statue of Lord Murugan, reached by 272 rainbow-painted steps. It\'s one of the most visited Hindu shrines outside India and the centre of Malaysia\'s annual Thaipusam festival.',
+        'A dramatic limestone cave complex crowned by a giant golden statue of Lord Murugan, reached by 272 rainbow-painted steps. It\'s one of the most visited Hindu shrines outside India and the centre of Malaysia\'s annual Thaipusam festival.',
   ),
   HeritageMapSite(
     id: 'merdeka_square',
@@ -105,13 +124,13 @@ const List<HeritageMapSite> heritageMapSites = [
     location: 'Kuala Lumpur',
     latitude: 3.147860,
     longitude: 101.693775,
-    distanceKm: 2.1,
-    xpReward: 80,
+    distanceKm: double.infinity,
+    xpReward: 120,
     category: 'National',
-    visited: true,
+    visited: false,
     hasQuiz: true,
     briefInfo:
-    'The historic padang where Malaysia\'s independence was declared at midnight on 31 August 1957. Ringed by Mughal-style colonial buildings, with one of the world\'s tallest flagpoles at its centre.',
+        'The historic padang where Malaysia\'s independence was declared at midnight on 31 August 1957. Ringed by Mughal-style colonial buildings, with one of the world\'s tallest flagpoles at its centre.',
   ),
   HeritageMapSite(
     id: 'george_town',
@@ -120,13 +139,13 @@ const List<HeritageMapSite> heritageMapSites = [
     location: 'Penang',
     latitude: 5.414130,
     longitude: 100.328750,
-    distanceKm: 280,
+    distanceKm: double.infinity,
     xpReward: 120,
     category: 'UNESCO',
-    visited: true,
+    visited: false,
     hasQuiz: true,
     briefInfo:
-    'A UNESCO World Heritage colonial port city blending Chinese, Malay, Indian, and European influences across its shophouses, temples, and street art. Best explored slowly, on foot, through its historic core.',
+        'A UNESCO World Heritage colonial port city blending Chinese, Malay, Indian, and European influences across its shophouses, temples, and street art. Best explored slowly, on foot, through its historic core.',
   ),
   HeritageMapSite(
     id: 'malacca_city',
@@ -135,13 +154,13 @@ const List<HeritageMapSite> heritageMapSites = [
     location: 'Melaka',
     latitude: 2.189594,
     longitude: 102.250086,
-    distanceKm: 145,
+    distanceKm: double.infinity,
     xpReward: 120,
     category: 'UNESCO',
-    visited: true,
+    visited: false,
     hasQuiz: true,
     briefInfo:
-    'A UNESCO-listed trading port shaped in turn by Portuguese, Dutch, and British rule, still visible in its forts, churches, and Peranakan townhouses. Jonker Street is the heart of its antique-shop and night-market culture.',
+        'A UNESCO-listed trading port shaped in turn by Portuguese, Dutch, and British rule, still visible in its forts, churches, and Peranakan townhouses. Jonker Street is the heart of its antique-shop and night-market culture.',
   ),
   HeritageMapSite(
     id: 'kek_lok_si',
@@ -150,13 +169,13 @@ const List<HeritageMapSite> heritageMapSites = [
     location: 'Penang',
     latitude: 5.399018,
     longitude: 100.273544,
-    distanceKm: 282,
-    xpReward: 90,
+    distanceKm: double.infinity,
+    xpReward: 100,
     category: 'Religious',
     visited: false,
     hasQuiz: true,
     briefInfo:
-    'Malaysia\'s largest Buddhist temple complex, built up a hillside in Air Itam around a seven-tier pagoda blending Chinese, Thai, and Burmese architecture. A giant bronze statue of Kuan Yin overlooks the grounds.',
+        'Malaysia\'s largest Buddhist temple complex, built up a hillside in Air Itam around a seven-tier pagoda blending Chinese, Thai, and Burmese architecture. A giant bronze statue of Kuan Yin overlooks the grounds.',
   ),
   HeritageMapSite(
     id: 'cameron_highlands',
@@ -165,13 +184,13 @@ const List<HeritageMapSite> heritageMapSites = [
     location: 'Pahang',
     latitude: 4.469516,
     longitude: 101.379261,
-    distanceKm: 90,
+    distanceKm: double.infinity,
     xpReward: 100,
     category: 'Nature',
     visited: false,
     hasQuiz: true,
     briefInfo:
-    'A cool hill-station region of rolling tea plantations, strawberry farms, and mossy forest trails, first developed by the British in the 1920s. A popular escape from Malaysia\'s lowland heat.',
+        'A cool hill-station region of rolling tea plantations, strawberry farms, and mossy forest trails, first developed by the British in the 1920s. A popular escape from Malaysia\'s lowland heat.',
   ),
   HeritageMapSite(
     id: 'masjid_zahir',
@@ -180,13 +199,13 @@ const List<HeritageMapSite> heritageMapSites = [
     location: 'Kedah',
     latitude: 6.121736,
     longitude: 100.367257,
-    distanceKm: 400,
-    xpReward: 90,
+    distanceKm: double.infinity,
+    xpReward: 130,
     category: 'Religious',
     visited: false,
     hasQuiz: true,
     briefInfo:
-    'One of Malaysia\'s oldest and grandest mosques, completed in 1912 in a Moorish-Mughal style with five distinctive black domes. It stands on ground where Kedah warriors who fell defending the state in 1821 are buried.',
+        'One of Malaysia\'s oldest and grandest mosques, completed in 1912 in a Moorish-Mughal style with five distinctive black domes. It stands on ground where Kedah warriors who fell defending the state in 1821 are buried.',
   ),
   HeritageMapSite(
     id: 'lenggong_valley',
@@ -195,13 +214,13 @@ const List<HeritageMapSite> heritageMapSites = [
     location: 'Perak',
     latitude: 5.107540,
     longitude: 100.971580,
-    distanceKm: 200,
-    xpReward: 120,
+    distanceKm: double.infinity,
+    xpReward: 160,
     category: 'UNESCO',
     visited: false,
     hasQuiz: true,
     briefInfo:
-    'A UNESCO World Heritage archaeological valley where stone tools and the roughly 11,000-year-old skeleton known as "Perak Man" were unearthed. Its caves and open-air sites trace continuous human activity spanning hundreds of thousands of years.',
+        'A UNESCO World Heritage archaeological valley where stone tools and the roughly 11,000-year-old skeleton known as "Perak Man" were unearthed. Its caves and open-air sites trace continuous human activity spanning hundreds of thousands of years.',
   ),
   HeritageMapSite(
     id: 'crystal_mosque',
@@ -211,13 +230,13 @@ const List<HeritageMapSite> heritageMapSites = [
     // Masjid Kristal, Pulau Wan Man (visitor-facing mosque building).
     latitude: 5.322160,
     longitude: 103.120670,
-    distanceKm: 480,
-    xpReward: 90,
+    distanceKm: double.infinity,
+    xpReward: 130,
     category: 'Religious',
     visited: false,
     hasQuiz: true,
     briefInfo:
-    'A striking steel-and-glass mosque on an island in the Terengganu River, illuminated in shifting colours after dark. Opened in 2008 as part of the Islamic Heritage Park.',
+        'A striking steel-and-glass mosque on an island in the Terengganu River, illuminated in shifting colours after dark. Opened in 2008 as part of the Islamic Heritage Park.',
   ),
   HeritageMapSite(
     id: 'taman_negara',
@@ -226,13 +245,13 @@ const List<HeritageMapSite> heritageMapSites = [
     location: 'Pahang',
     latitude: 4.381349,
     longitude: 102.401529,
-    distanceKm: 150,
-    xpReward: 110,
+    distanceKm: double.infinity,
+    xpReward: 150,
     category: 'Nature',
     visited: false,
     hasQuiz: true,
     briefInfo:
-    'Widely cited as one of the world\'s oldest rainforests, home to a canopy walkway strung high above the forest floor. Kuala Tahan village is the usual gateway for jungle treks and river trips.',
+        'Widely cited as one of the world\'s oldest rainforests, home to a canopy walkway strung high above the forest floor. Kuala Tahan village is the usual gateway for jungle treks and river trips.',
   ),
   HeritageMapSite(
     id: 'sultan_abu_bakar_mosque',
@@ -241,13 +260,13 @@ const List<HeritageMapSite> heritageMapSites = [
     location: 'Johor',
     latitude: 1.465265,
     longitude: 103.757401,
-    distanceKm: 340,
-    xpReward: 90,
+    distanceKm: double.infinity,
+    xpReward: 130,
     category: 'Religious',
     visited: false,
     hasQuiz: true,
     briefInfo:
-    'A grand Victorian-Moorish mosque perched above the Johor Strait with views toward Singapore, built under Sultan Abu Bakar, the "Father of Modern Johor." Its blend of British and Islamic architecture is unusual among Malaysian mosques.',
+        'A grand Victorian-Moorish mosque perched above the Johor Strait with views toward Singapore, built under Sultan Abu Bakar, the "Father of Modern Johor." Its blend of British and Islamic architecture is unusual among Malaysian mosques.',
   ),
 ];
 
@@ -265,6 +284,9 @@ class MapScreen extends StatefulWidget {
   final List<QuizAttempt> quizHistory;
   final QuizCompleteCallback onQuizComplete;
   final String? initialSiteId;
+  final Set<String> visitedSiteIds;
+  final double? userLatitude;
+  final double? userLongitude;
 
   const MapScreen({
     super.key,
@@ -272,7 +294,10 @@ class MapScreen extends StatefulWidget {
     required this.completedQuizIds,
     required this.quizHistory,
     required this.onQuizComplete,
+    required this.visitedSiteIds,
     this.initialSiteId,
+    this.userLatitude,
+    this.userLongitude,
   });
 
   @override
@@ -282,15 +307,34 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   String _selectedCategory = 'All';
 
+  List<HeritageMapSite> get _sites => heritageMapSites.map((site) {
+    final hasLocation =
+        widget.userLatitude != null && widget.userLongitude != null;
+    final distanceKm = hasLocation
+        ? Geolocator.distanceBetween(
+                widget.userLatitude!,
+                widget.userLongitude!,
+                site.latitude,
+                site.longitude,
+              ) /
+              1000
+        : double.infinity;
+
+    return site.copyWith(
+      distanceKm: distanceKm,
+      visited: widget.visitedSiteIds.contains(site.id),
+    );
+  }).toList();
+
   List<HeritageMapSite> get _filteredSites => _selectedCategory == 'All'
-      ? heritageMapSites
-      : heritageMapSites.where((s) => s.category == _selectedCategory).toList();
+      ? _sites
+      : _sites.where((s) => s.category == _selectedCategory).toList();
 
   HeritageMapSite get _nearestSite => (List<HeritageMapSite>.from(
-    heritageMapSites,
+    _sites,
   )..sort((a, b) => a.distanceKm.compareTo(b.distanceKm))).first;
 
-  int get _visitedCount => heritageMapSites.where((s) => s.visited).length;
+  int get _visitedCount => _sites.where((s) => s.visited).length;
 
   bool _isCompleted(HeritageMapSite site) =>
       widget.completedQuizIds.contains(site.id);
@@ -308,11 +352,19 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
     if (_isCompleted(site)) {
-      final attempt = widget.quizHistory.lastWhere((a) => a.siteId == site.id);
+      QuizAttempt? attempt;
+      for (final item in widget.quizHistory.reversed) {
+        if (item.siteId == site.id) {
+          attempt = item;
+          break;
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'You\'ve already completed the ${site.name} quiz — scored ${attempt.correctCount}/${attempt.totalQuestions}.',
+            attempt == null
+                ? 'You\'ve already completed the ${site.name} quiz.'
+                : 'You\'ve already completed the ${site.name} quiz — scored ${attempt.correctCount}/${attempt.totalQuestions}.',
           ),
         ),
       );
@@ -390,14 +442,13 @@ class _MapScreenState extends State<MapScreen> {
             children: [
               AppHeader(
                 title: 'Heritage Map',
-                subtitle:
-                '$_visitedCount/${heritageMapSites.length} Sites Visited',
+                subtitle: '$_visitedCount/${_sites.length} Sites Visited',
                 xp: '${widget.totalXp}',
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _MapCanvas(
-                  sites: heritageMapSites,
+                  sites: _sites,
                   visitedCount: _visitedCount,
                   onTapSite: _openSite,
                   focusSiteId: widget.initialSiteId,
@@ -425,7 +476,7 @@ class _MapScreenState extends State<MapScreen> {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: _filterCategories.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
                           itemBuilder: (context, index) {
                             final category = _filterCategories[index];
                             final selected = category == _selectedCategory;
@@ -462,14 +513,14 @@ class _MapScreenState extends State<MapScreen> {
                   children: _filteredSites
                       .map(
                         (site) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _SiteListCard(
-                        site: site,
-                        completed: _isCompleted(site),
-                        onTap: () => _openSite(site),
-                      ),
-                    ),
-                  )
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _SiteListCard(
+                            site: site,
+                            completed: _isCompleted(site),
+                            onTap: () => _openSite(site),
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ),
@@ -589,16 +640,16 @@ class _MapCanvasState extends State<_MapCanvas> {
   List<Marker> get _markers => widget.sites
       .map(
         (site) => Marker(
-      point: site.latLng,
-      width: 44,
-      height: 54,
-      alignment: Alignment.topCenter,
-      child: GestureDetector(
-        onTap: () => widget.onTapSite(site),
-        child: _MapPin(site: site),
-      ),
-    ),
-  )
+          point: site.latLng,
+          width: 44,
+          height: 54,
+          alignment: Alignment.topCenter,
+          child: GestureDetector(
+            onTap: () => widget.onTapSite(site),
+            child: _MapPin(site: site),
+          ),
+        ),
+      )
       .toList();
 
   void _onMapReady() {
@@ -628,10 +679,7 @@ class _MapCanvasState extends State<_MapCanvas> {
 
     // Normal map opening: fit all heritage sites into view.
     _controller.fitCamera(
-      CameraFit.bounds(
-        bounds: _siteBounds,
-        padding: const EdgeInsets.all(36),
-      ),
+      CameraFit.bounds(bounds: _siteBounds, padding: const EdgeInsets.all(36)),
     );
   }
 
@@ -661,9 +709,9 @@ class _MapCanvasState extends State<_MapCanvas> {
                 onMapReady: _onMapReady,
                 interactionOptions: const InteractionOptions(
                   flags:
-                  InteractiveFlag.pinchZoom |
-                  InteractiveFlag.drag |
-                  InteractiveFlag.doubleTapZoom,
+                      InteractiveFlag.pinchZoom |
+                      InteractiveFlag.drag |
+                      InteractiveFlag.doubleTapZoom,
                 ),
               ),
               children: [
@@ -692,7 +740,7 @@ class _MapCanvasState extends State<_MapCanvas> {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.55),
+                  color: Colors.black.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -710,7 +758,6 @@ class _MapCanvasState extends State<_MapCanvas> {
               right: 12,
               child: _Pill(
                 label: '${widget.visitedCount}/${widget.sites.length} Visited',
-                dark: true,
               ),
             ),
             // Explicit zoom controls, in addition to native pinch-zoom —
@@ -747,7 +794,7 @@ class _ZoomButton extends StatelessWidget {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.55),
+          color: Colors.black.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(16),
         ),
         alignment: Alignment.center,
@@ -783,7 +830,7 @@ class _MapPin extends StatelessWidget {
             color: baseColor,
             shadows: [
               Shadow(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -830,26 +877,20 @@ class _MapPin extends StatelessWidget {
 }
 
 class _Pill extends StatelessWidget {
-  final String? icon;
   final String label;
-  final bool dark;
-  const _Pill({this.icon, required this.label, this.dark = false});
+  const _Pill({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: Colors.black.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Text(icon!, style: const TextStyle(fontSize: 9)),
-            const SizedBox(width: 4),
-          ],
           Text(
             label,
             style: const TextStyle(
@@ -907,7 +948,7 @@ class _NearbyBanner extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             alignment: Alignment.center,
@@ -928,10 +969,10 @@ class _NearbyBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${site.distanceKm} km away · Earn +${site.xpReward} XP',
+                  '${formatSiteDistance(site.distanceKm)} · Earn +${site.xpReward} XP',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                   ),
                 ),
               ],
@@ -939,7 +980,7 @@ class _NearbyBanner extends StatelessWidget {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(0.2),
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -1046,7 +1087,7 @@ class _SiteListCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${site.location} · ${site.distanceKm} km',
+                    '${site.location} · ${formatSiteDistance(site.distanceKm)}',
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
@@ -1139,7 +1180,7 @@ class _SiteOptionsSheet extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 20,
               offset: const Offset(0, 6),
             ),
@@ -1358,7 +1399,7 @@ class SiteGuideScreen extends StatelessWidget {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -1458,9 +1499,8 @@ class SiteGuideScreen extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => HeritageDetailScreen(
-                          site: site.toHeritageSite(),
-                        ),
+                        builder: (_) =>
+                            HeritageDetailScreen(site: site.toHeritageSite()),
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
@@ -1474,7 +1514,10 @@ class SiteGuideScreen extends StatelessWidget {
                     icon: const Icon(Icons.menu_book, size: 18),
                     label: const Text(
                       'Full Guide',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),

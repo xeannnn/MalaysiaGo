@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../data/badge_data.dart';
+import '../services/achievement_provider.dart';
 import '../widgets/app_header.dart';
 
 /// Each collectible piece: an icon cycled with a pastel background
@@ -37,35 +40,36 @@ const List<Color> _pieceColors = [
   Color(0xFFFFE4E1),
 ];
 
-/// Passport screen: hero progress card + grid of collectible pieces.
-/// `collected` / `totalPieces` are hardcoded for now — wire these up
-/// to real data later.
 class PassportScreen extends StatelessWidget {
   const PassportScreen({super.key});
 
-  static const int totalPieces = 40;
-  static const int collected = 24;
-
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AchievementProvider>();
+    final siteIds = activeStateBadges
+        .expand((badge) => badge.requiredSiteIds)
+        .toSet();
+    final totalPieces = siteIds.length;
+    final collected = provider.visitedHeritageSiteIds
+        .where(siteIds.contains)
+        .length;
+
     return Column(
       children: [
-        const AppHeader(
+        AppHeader(
           title: 'Digital Passport',
           subtitle: '$collected / $totalPieces Pieces',
-          xp: '1,250',
+          xp: '${provider.totalXp}',
         ),
         Expanded(
           child: CustomScrollView(
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverToBoxAdapter(
                   child: Column(
                     children: [
-                      const PassportHeroCard(
+                      PassportHeroCard(
                         collected: collected,
                         total: totalPieces,
                       ),
@@ -73,11 +77,9 @@ class PassportScreen extends StatelessWidget {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: 12,
-                          ),
+                          padding: const EdgeInsets.only(bottom: 12),
                           child: Text(
-                            'Tap any piece to view site details',
+                            'Each verified GPS check-in unlocks a piece',
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey[600],
@@ -91,65 +93,49 @@ class PassportScreen extends StatelessWidget {
               ),
 
               SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverGrid(
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 5,
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
                     childAspectRatio: 1,
                   ),
-                  delegate: SliverChildBuilderDelegate(
-                        (BuildContext context, int index) {
-                      final bool unlocked =
-                          index < collected;
+                  delegate: SliverChildBuilderDelegate((
+                    BuildContext context,
+                    int index,
+                  ) {
+                    final bool unlocked = index < collected;
 
-                      final Color color = unlocked
-                          ? _pieceColors[
-                      index % _pieceColors.length]
-                          : const Color(0xFFF0F0F0);
+                    final Color color = unlocked
+                        ? _pieceColors[index % _pieceColors.length]
+                        : const Color(0xFFF0F0F0);
 
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius:
-                          BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: unlocked
-                            ? Text(
-                          _pieceIcons[
-                          index %
-                              _pieceIcons.length],
-                          style:
-                          const TextStyle(
-                            fontSize: 20,
-                          ),
-                        )
-                            : const Text(
-                          '?',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight:
-                            FontWeight.bold,
-                            color: Color(
-                              0xFFB0B0B0,
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: unlocked
+                          ? Text(
+                              _pieceIcons[index % _pieceIcons.length],
+                              style: const TextStyle(fontSize: 20),
+                            )
+                          : const Text(
+                              '?',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFB0B0B0),
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                    childCount: totalPieces,
-                  ),
+                    );
+                  }, childCount: totalPieces),
                 ),
               ),
 
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 24),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),
         ),
@@ -170,8 +156,7 @@ class PassportHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final int percent =
-    (collected * 100 / total).round();
+    final int percent = (collected * 100 / total).round();
 
     return Container(
       width: double.infinity,
@@ -179,10 +164,7 @@ class PassportHeroCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF6D5BD0),
-            Color(0xFF8B7FE8),
-          ],
+          colors: [Color(0xFF6D5BD0), Color(0xFF8B7FE8)],
         ),
       ),
       child: Column(
@@ -191,7 +173,7 @@ class PassportHeroCard extends StatelessWidget {
           Text(
             'DIGITAL PASSPORT',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 11,
               fontWeight: FontWeight.bold,
             ),
@@ -213,7 +195,7 @@ class PassportHeroCard extends StatelessWidget {
           Text(
             'Collect all $total pieces to reveal the masterpiece',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               fontSize: 12,
             ),
           ),
@@ -221,10 +203,8 @@ class PassportHeroCard extends StatelessWidget {
           const SizedBox(height: 16),
 
           Row(
-            mainAxisAlignment:
-            MainAxisAlignment.spaceBetween,
-            crossAxisAlignment:
-            CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 '$collected / $total',
@@ -253,15 +233,11 @@ class PassportHeroCard extends StatelessWidget {
               children: [
                 Container(
                   height: 6,
-                  color:
-                  Colors.white.withOpacity(0.25),
+                  color: Colors.white.withValues(alpha: 0.25),
                 ),
                 FractionallySizedBox(
                   widthFactor: percent / 100,
-                  child: Container(
-                    height: 6,
-                    color: Colors.white,
-                  ),
+                  child: Container(height: 6, color: Colors.white),
                 ),
               ],
             ),

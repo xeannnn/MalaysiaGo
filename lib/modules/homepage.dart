@@ -58,22 +58,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final DocumentSnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
 
       final Map<String, dynamic>? data = snapshot.data();
 
       if (data != null) {
-        final String firestoreName =
-            data['name']?.toString().trim() ?? '';
+        final String firestoreName = data['name']?.toString().trim() ?? '';
 
-        final String firestoreState =
-            data['state']?.toString().trim() ?? '';
+        final String firestoreState = data['state']?.toString().trim() ?? '';
 
-        final String firestorePhoto =
-            data['photoUrl']?.toString().trim() ?? '';
+        final String firestorePhoto = data['photoUrl']?.toString().trim() ?? '';
 
         if (firestoreName.isNotEmpty) {
           name = firestoreName;
@@ -88,9 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } catch (error) {
-      debugPrint(
-        'Failed to load home profile: $error',
-      );
+      debugPrint('Failed to load home profile: $error');
     }
 
     if (!mounted) {
@@ -98,37 +93,27 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     setState(() {
-      _userName =
-      name.isEmpty ? 'MalaysiaGO User' : name;
+      _userName = name.isEmpty ? 'MalaysiaGO User' : name;
 
-      _userState =
-      state.isEmpty ? 'Malaysia' : state;
+      _userState = state.isEmpty ? 'Malaysia' : state;
 
       _photoUrl = photoUrl;
       _isLoadingProfile = false;
     });
   }
 
-  bool _hasVisitedSite(
-      AchievementProvider provider,
-      ) {
-    return provider.visitedSites.values.any(
-          (sites) => sites.isNotEmpty,
-    );
+  bool _hasVisitedSite(AchievementProvider provider) {
+    return provider.visitedSites.values.any((sites) => sites.isNotEmpty);
   }
 
-  int _visitedSiteCount(
-      AchievementProvider provider,
-      ) {
+  int _visitedSiteCount(AchievementProvider provider) {
     return provider.visitedSites.values.fold<int>(
       0,
-          (total, sites) => total + sites.length,
+      (total, sites) => total + sites.length,
     );
   }
 
-  int _visitedStateCount(
-      AchievementProvider provider,
-      ) {
+  int _visitedStateCount(AchievementProvider provider) {
     return provider.visitedSites.values
         .where((sites) => sites.isNotEmpty)
         .length;
@@ -138,9 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final String digits = xp.toString();
     final StringBuffer result = StringBuffer();
 
-    for (int index = 0;
-    index < digits.length;
-    index++) {
+    for (int index = 0; index < digits.length; index++) {
       final int remaining = digits.length - index;
 
       result.write(digits[index]);
@@ -185,10 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     ];
 
-    rankings.sort(
-          (first, second) =>
-          second.xp.compareTo(first.xp),
-    );
+    rankings.sort((first, second) => second.xp.compareTo(first.xp));
 
     return rankings;
   }
@@ -203,9 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openProfile() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const ProfileScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
     );
 
     if (mounted) {
@@ -226,26 +204,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final AchievementProvider provider =
-    Provider.of<AchievementProvider>(context);
+    final AchievementProvider provider = Provider.of<AchievementProvider>(
+      context,
+    );
 
     final int currentXp = provider.totalXp;
     final int level = provider.level.level;
     final String levelTitle = provider.level.title;
-    final int xpToNextLevel =
-        provider.xpToNextLevel;
-    final int completedBadges =
-        provider.completedBadges;
-    final int visitedSites =
-    _visitedSiteCount(provider);
-    final int visitedStates =
-    _visitedStateCount(provider);
+    final int xpToNextLevel = provider.xpToNextLevel;
+    final int completedBadges = provider.completedBadges;
+    final int visitedSites = _visitedSiteCount(provider);
+    final int visitedStates = _visitedStateCount(provider);
 
-    final bool gpsMissionCompleted =
-    _hasVisitedSite(provider);
+    final bool gpsMissionCompleted = _hasVisitedSite(provider);
 
-    final bool quizMissionCompleted =
-        provider.completedQuizIds.isNotEmpty;
+    final bool quizMissionCompleted = provider.completedQuizIds.isNotEmpty;
 
     final List<HomeMission> missions = [
       HomeMission(
@@ -258,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
       HomeMission(
         icon: '📝',
         title: 'Complete a heritage quiz',
-        xp: '+40 XP',
+        xp: 'Earn quiz XP',
         completed: quizMissionCompleted,
         onTap: _openHeritageMap,
       ),
@@ -274,8 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .where((mission) => mission.completed)
         .length;
 
-    final List<HomeRanking> rankings =
-    _buildRankings(currentXp);
+    final List<HomeRanking> rankings = _buildRankings(currentXp);
 
     return Column(
       children: [
@@ -288,16 +260,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: RefreshIndicator(
             onRefresh: _loadUserProfile,
             child: ListView(
-              physics:
-              const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-              ),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               children: [
                 WelcomeCard(
-                  name: _isLoadingProfile
-                      ? 'Loading...'
-                      : _userName,
+                  name: _isLoadingProfile ? 'Loading...' : _userName,
                   photoUrl: _photoUrl,
                   onProfileTap: _openProfile,
                   level: level,
@@ -314,46 +281,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   onNearbySites: _openHeritageMap,
                 ),
                 const SizedBox(height: 16),
-                ExploreGuideCard(
-                  onTap: () =>
-                      _openHeritageExplorer(currentXp),
-                ),
+                ExploreGuideCard(onTap: () => _openHeritageExplorer(currentXp)),
                 const SizedBox(height: 22),
                 SectionHeading(
                   title: 'Daily Missions',
-                  trailing:
-                  '$completedMissionCount/${missions.length} Done',
+                  trailing: '$completedMissionCount/${missions.length} Done',
                 ),
                 const SizedBox(height: 12),
                 ...missions.map(
-                      (mission) => Padding(
-                    padding:
-                    const EdgeInsets.only(bottom: 10),
-                    child: MissionCard(
-                      mission: mission,
-                    ),
+                  (mission) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: MissionCard(mission: mission),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const SectionHeading(
-                  title: 'Weekly Rankings',
-                ),
+                const SectionHeading(title: 'Weekly Rankings'),
                 const SizedBox(height: 12),
-                ...List.generate(
-                  rankings.length,
-                      (index) {
-                    return Padding(
-                      padding:
-                      const EdgeInsets.only(bottom: 8),
-                      child: RankingRow(
-                        rank: index + 1,
-                        entry: rankings[index],
-                        formattedXp:
-                        _formatXp(rankings[index].xp),
-                      ),
-                    );
-                  },
-                ),
+                ...List.generate(rankings.length, (index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: RankingRow(
+                      rank: index + 1,
+                      entry: rankings[index],
+                      formattedXp: _formatXp(rankings[index].xp),
+                    ),
+                  );
+                }),
                 const SizedBox(height: 24),
               ],
             ),
@@ -408,35 +361,23 @@ class SectionHeading extends StatelessWidget {
   final String title;
   final String? trailing;
 
-  const SectionHeading({
-    super.key,
-    required this.title,
-    this.trailing,
-  });
+  const SectionHeading({super.key, required this.title, this.trailing});
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment:
-      MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         if (trailing != null)
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: const Color(0xFFFDECC8),
-              borderRadius:
-              BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               trailing!,
@@ -487,31 +428,25 @@ class WelcomeCard extends StatelessWidget {
       return 1;
     }
 
-    final int currentLevelMinimum =
-        LevelConfig.getLevelByXp(
-          currentXp,
-        ).xpRequired;
+    final int currentLevelMinimum = LevelConfig.getLevelByXp(
+      currentXp,
+    ).xpRequired;
 
-    final int nextLevelMinimum =
-        currentXp + xpToNextLevel;
+    final int nextLevelMinimum = currentXp + xpToNextLevel;
 
-    final int levelRange =
-        nextLevelMinimum - currentLevelMinimum;
+    final int levelRange = nextLevelMinimum - currentLevelMinimum;
 
     if (levelRange <= 0) {
       return 1;
     }
 
-    return ((currentXp - currentLevelMinimum) /
-        levelRange)
-        .clamp(0.0, 1.0);
+    return ((currentXp - currentLevelMinimum) / levelRange).clamp(0.0, 1.0);
   }
 
   String get _profileInitial {
     final String trimmedName = name.trim();
 
-    if (trimmedName.isEmpty ||
-        trimmedName == 'Loading...') {
+    if (trimmedName.isEmpty || trimmedName == 'Loading...') {
       return 'U';
     }
 
@@ -520,8 +455,7 @@ class WelcomeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool maximumLevel =
-        level >= LevelConfig.levels.last.level;
+    final bool maximumLevel = level >= LevelConfig.levels.last.level;
 
     return Container(
       width: double.infinity,
@@ -531,15 +465,11 @@ class WelcomeCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1F8A5C),
-            Color(0xFF14532D),
-          ],
+          colors: [Color(0xFF1F8A5C), Color(0xFF14532D)],
         ),
       ),
       child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -551,44 +481,37 @@ class WelcomeCard extends StatelessWidget {
                       width: 54,
                       height: 54,
                       decoration: BoxDecoration(
-                        color: Colors.white
-                            .withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
-                      child: photoUrl != null &&
-                          photoUrl!.isNotEmpty
+                      child: photoUrl != null && photoUrl!.isNotEmpty
                           ? ClipOval(
-                        child: Image.network(
-                          photoUrl!,
-                          width: 54,
-                          height: 54,
-                          fit: BoxFit.cover,
-                          errorBuilder:
-                              (_, __, ___) {
-                            return Text(
-                              _profileInitial,
-                              style:
-                              const TextStyle(
-                                color:
-                                Colors.white,
-                                fontSize: 24,
-                                fontWeight:
-                                FontWeight.bold,
+                              child: Image.network(
+                                photoUrl!,
+                                width: 54,
+                                height: 54,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) {
+                                  return Text(
+                                    _profileInitial,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  );
+                                },
                               ),
-                            );
-                          },
-                        ),
-                      )
+                            )
                           : Text(
-                        _profileInitial,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight:
-                          FontWeight.bold,
-                        ),
-                      ),
+                              _profileInitial,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                     Positioned(
                       right: 0,
@@ -596,8 +519,7 @@ class WelcomeCard extends StatelessWidget {
                       child: Container(
                         width: 19,
                         height: 19,
-                        decoration:
-                        const BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: Color(0xFFF5A623),
                           shape: BoxShape.circle,
                         ),
@@ -607,8 +529,7 @@ class WelcomeCard extends StatelessWidget {
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 9,
-                            fontWeight:
-                            FontWeight.bold,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -619,27 +540,23 @@ class WelcomeCard extends StatelessWidget {
               const SizedBox(width: 13),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Selamat Datang,',
                       style: TextStyle(
-                        color: Colors.white
-                            .withOpacity(0.75),
+                        color: Colors.white.withValues(alpha: 0.75),
                         fontSize: 12,
                       ),
                     ),
                     Text(
                       name,
                       maxLines: 1,
-                      overflow:
-                      TextOverflow.ellipsis,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
-                        fontWeight:
-                        FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -655,15 +572,11 @@ class WelcomeCard extends StatelessWidget {
                 ),
               ),
               Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const Text(
                     'Total XP',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                   Text(
                     '$currentXp',
@@ -679,22 +592,16 @@ class WelcomeCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Row(
-            mainAxisAlignment:
-            MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 maximumLevel
                     ? 'Maximum level reached'
                     : 'Progress to Level ${level + 1}',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
               Text(
-                maximumLevel
-                    ? '$currentXp XP'
-                    : '$xpToNextLevel XP remaining',
+                maximumLevel ? '$currentXp XP' : '$xpToNextLevel XP remaining',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 12,
@@ -705,15 +612,12 @@ class WelcomeCard extends StatelessWidget {
           ),
           const SizedBox(height: 7),
           ClipRRect(
-            borderRadius:
-            BorderRadius.circular(5),
+            borderRadius: BorderRadius.circular(5),
             child: LinearProgressIndicator(
               value: _levelProgress,
               minHeight: 8,
-              backgroundColor:
-              Colors.white.withOpacity(0.2),
-              valueColor:
-              const AlwaysStoppedAnimation<Color>(
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              valueColor: const AlwaysStoppedAnimation<Color>(
                 Color(0xFF34D399),
               ),
             ),
@@ -767,19 +671,14 @@ class StatMiniCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: 11,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 11),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.12),
+        color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(13),
       ),
       child: Column(
         children: [
-          Text(
-            icon,
-            style: const TextStyle(fontSize: 17),
-          ),
+          Text(icon, style: const TextStyle(fontSize: 17)),
           const SizedBox(height: 3),
           Text(
             value,
@@ -791,10 +690,7 @@ class StatMiniCard extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 10,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 10),
           ),
         ],
       ),
@@ -825,10 +721,7 @@ class QuickActionsRow extends StatelessWidget {
             icon: '📍',
             title: 'GPS Check-In',
             subtitle: 'Check in at nearby sites',
-            colors: const [
-              Color(0xFF16A34A),
-              Color(0xFF0D9488),
-            ],
+            colors: const [Color(0xFF16A34A), Color(0xFF0D9488)],
             onTap: onGpsCheckIn,
           ),
         ),
@@ -838,10 +731,7 @@ class QuickActionsRow extends StatelessWidget {
             icon: '🗺️',
             title: 'Nearby Sites',
             subtitle: 'Explore the heritage map',
-            colors: const [
-              Color(0xFF4F46E5),
-              Color(0xFF7C3AED),
-            ],
+            colors: const [Color(0xFF4F46E5), Color(0xFF7C3AED)],
             onTap: onNearbySites,
           ),
         ),
@@ -877,19 +767,12 @@ class QuickActionCard extends StatelessWidget {
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              colors: colors,
-            ),
+            gradient: LinearGradient(colors: colors),
           ),
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                icon,
-                style:
-                const TextStyle(fontSize: 21),
-              ),
+              Text(icon, style: const TextStyle(fontSize: 21)),
               const SizedBox(height: 9),
               Text(
                 title,
@@ -904,10 +787,7 @@ class QuickActionCard extends StatelessWidget {
                 subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 10,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 10),
               ),
             ],
           ),
@@ -924,10 +804,7 @@ class QuickActionCard extends StatelessWidget {
 class ExploreGuideCard extends StatelessWidget {
   final VoidCallback onTap;
 
-  const ExploreGuideCard({
-    super.key,
-    required this.onTap,
-  });
+  const ExploreGuideCard({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -941,23 +818,16 @@ class ExploreGuideCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             gradient: const LinearGradient(
-              colors: [
-                Color(0xFF4F46E5),
-                Color(0xFF7C3AED),
-              ],
+              colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
             ),
           ),
           child: const Row(
             children: [
-              Text(
-                '🧭',
-                style: TextStyle(fontSize: 34),
-              ),
+              Text('🧭', style: TextStyle(fontSize: 34)),
               SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Explore Malaysia',
@@ -979,11 +849,7 @@ class ExploreGuideCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.white,
-                size: 17,
-              ),
+              Icon(Icons.arrow_forward_ios, color: Colors.white, size: 17),
             ],
           ),
         ),
@@ -999,17 +865,12 @@ class ExploreGuideCard extends StatelessWidget {
 class MissionCard extends StatelessWidget {
   final HomeMission mission;
 
-  const MissionCard({
-    super.key,
-    required this.mission,
-  });
+  const MissionCard({super.key, required this.mission});
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: mission.completed
-          ? const Color(0xFFE9F9EF)
-          : Colors.white,
+      color: mission.completed ? const Color(0xFFE9F9EF) : Colors.white,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: mission.onTap,
@@ -1018,16 +879,11 @@ class MissionCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Text(
-                mission.icon,
-                style:
-                const TextStyle(fontSize: 20),
-              ),
+              Text(mission.icon, style: const TextStyle(fontSize: 20)),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       mission.title,
@@ -1062,16 +918,12 @@ class MissionCard extends StatelessWidget {
                 ),
                 alignment: Alignment.center,
                 child: mission.completed
-                    ? const Icon(
-                  Icons.check,
-                  color: Colors.white,
-                  size: 18,
-                )
+                    ? const Icon(Icons.check, color: Colors.white, size: 18)
                     : const Icon(
-                  Icons.arrow_forward,
-                  color: Colors.grey,
-                  size: 16,
-                ),
+                        Icons.arrow_forward,
+                        color: Colors.grey,
+                        size: 16,
+                      ),
               ),
             ],
           ),
@@ -1102,15 +954,9 @@ class RankingRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: entry.isYou
-            ? const Color(0xFFE9F9EF)
-            : Colors.white,
+        color: entry.isYou ? const Color(0xFFE9F9EF) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: entry.isYou
-            ? Border.all(
-          color: const Color(0xFF86EFAC),
-        )
-            : null,
+        border: entry.isYou ? Border.all(color: const Color(0xFF86EFAC)) : null,
       ),
       child: Row(
         children: [
@@ -1119,10 +965,7 @@ class RankingRow extends StatelessWidget {
             child: Text(
               rank == 1 ? '🏆' : '$rank',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(width: 8),
@@ -1134,16 +977,12 @@ class RankingRow extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: Text(
-              entry.avatar,
-              style: const TextStyle(fontSize: 18),
-            ),
+            child: Text(entry.avatar, style: const TextStyle(fontSize: 18)),
           ),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   entry.name,
@@ -1154,17 +993,12 @@ class RankingRow extends StatelessWidget {
                         ? const Color(0xFF16A34A)
                         : Colors.black87,
                     fontSize: 14,
-                    fontWeight: entry.isYou
-                        ? FontWeight.bold
-                        : FontWeight.w500,
+                    fontWeight: entry.isYou ? FontWeight.bold : FontWeight.w500,
                   ),
                 ),
                 Text(
                   entry.state,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
             ),
