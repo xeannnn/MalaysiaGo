@@ -106,6 +106,7 @@ class HeritageSite {
   final double longitude;
 
   final String imageUrl;
+  final List<String> imageUrls;
 
   final List<String> tags;
   final String duration;
@@ -119,6 +120,10 @@ class HeritageSite {
   final String difficulty;
   final String bestTime;
   final List<String> tips;
+  final String history;
+  final String address;
+  final String establishedYear;
+  final String significance;
 
   HeritageSite({
     required this.id,
@@ -129,6 +134,7 @@ class HeritageSite {
     required this.latitude,
     required this.longitude,
     required this.imageUrl,
+    this.imageUrls = const [],
     required this.tags,
     required this.duration,
     required this.xp,
@@ -140,6 +146,10 @@ class HeritageSite {
     this.difficulty = 'Easy',
     this.bestTime = '',
     this.tips = const [],
+    this.history = '',
+    this.address = '',
+    this.establishedYear = '',
+    this.significance = '',
   });
 
   factory HeritageSite.fromJson(
@@ -168,7 +178,15 @@ class HeritageSite {
           ?.toDouble() ??
           0.0,
       imageUrl:
-      json['imageUrl']?.toString() ?? '',
+      json['image_url']?.toString() ??
+          json['imageUrl']?.toString() ??
+          '',
+      imageUrls: json['image_urls'] is List
+          ? List<String>.from(
+        (json['image_urls'] as List)
+            .map((e) => e.toString()),
+      )
+          : const [],
       tags: List<String>.from(
         json['tags'] ?? const [],
       ),
@@ -181,6 +199,33 @@ class HeritageSite {
       isEditorPick:
       json['isEditorPick'] as bool? ??
           false,
+      openingHours:
+      json['opening_hours']?.toString() ??
+          json['openingHours']?.toString() ??
+          'Unknown',
+      entryFee:
+      json['entry_fee']?.toString() ??
+          json['entryFee']?.toString() ??
+          'Free',
+      difficulty:
+      json['difficulty']?.toString() ?? 'Easy',
+      bestTime:
+      json['best_time']?.toString() ??
+          json['bestTime']?.toString() ??
+          '',
+      tips: List<String>.from(
+        json['tips'] ?? const [],
+      ),
+      history:
+      json['history']?.toString() ?? '',
+      address:
+      json['address']?.toString() ?? '',
+      establishedYear:
+      json['established_year']?.toString() ??
+          json['establishedYear']?.toString() ??
+          '',
+      significance:
+      json['significance']?.toString() ?? '',
     );
   }
 }

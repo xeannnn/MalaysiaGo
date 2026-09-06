@@ -174,9 +174,27 @@ class _GpsCheckInScreenState extends State<GpsCheckInScreen> {
 
   void _checkIn(HeritageSite site) {
     final provider = context.read<AchievementProvider>();
-    if (!provider.visitedHeritageSiteIds.contains(site.id)) {
-      provider.addHeritageVisit(site.id, site.location);
+
+    final bool alreadyVisited =
+    provider.visitedHeritageSiteIds.contains(site.id);
+
+    if (!alreadyVisited) {
+      provider.addHeritageVisit(
+        site.id,
+        site.location,
+        site.xp,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Check-in successful! +${site.xp} XP',
+          ),
+          backgroundColor: const Color(0xFF16A34A),
+        ),
+      );
     }
+
     widget.onSiteSelected(site.id);
   }
 
