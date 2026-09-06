@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,11 +16,11 @@ class ImageService {
   /// Backward-compatible method for screens that only need one image,
   /// such as the Heritage Explorer card.
   static Future<String> getHeritageImage(
-      String name, {
-        String? location,
-        String? siteId,
-        String? existingImageUrl,
-      }) async {
+    String name, {
+    String? location,
+    String? siteId,
+    String? existingImageUrl,
+  }) async {
     final images = await getHeritageImages(
       name,
       location: location,
@@ -40,32 +41,25 @@ class ImageService {
   /// 4. Wikimedia Commons results.
   /// 5. Best images are saved back to Supabase.
   static Future<List<String>> getHeritageImages(
-      String name, {
-        String? location,
-        String? siteId,
-        List<String>? existingImageUrls,
-        String? existingImageUrl,
-        int maxImages = 5,
-      }) {
+    String name, {
+    String? location,
+    String? siteId,
+    List<String>? existingImageUrls,
+    String? existingImageUrl,
+    int maxImages = 5,
+  }) {
     final key = _cacheKey(name, location);
 
-    final suppliedUrls = _cleanUrls([
-      ...?existingImageUrls,
-      if (existingImageUrl != null) existingImageUrl,
-    ]);
+    final suppliedUrls = _cleanUrls([...?existingImageUrls, ?existingImageUrl]);
 
     // If Supabase already contains enough photos, do not call Wikimedia.
     if (suppliedUrls.length >= maxImages) {
-      return Future.value(
-        suppliedUrls.take(maxImages).toList(),
-      );
+      return Future.value(suppliedUrls.take(maxImages).toList());
     }
 
     final cached = _cache[key];
     if (cached != null && cached.length >= maxImages) {
-      return Future.value(
-        cached.take(maxImages).toList(),
-      );
+      return Future.value(cached.take(maxImages).toList());
     }
 
     // Share an already-running request.
@@ -92,12 +86,12 @@ class ImageService {
   }
 
   static Future<List<String>> _fetchImages(
-      String name, {
-        String? location,
-        String? siteId,
-        required List<String> existingUrls,
-        required int maxImages,
-      }) async {
+    String name, {
+    String? location,
+    String? siteId,
+    required List<String> existingUrls,
+    required int maxImages,
+  }) async {
     final key = _cacheKey(name, location);
 
     try {
@@ -164,22 +158,17 @@ class ImageService {
 
       _cache[key] = selected;
 
-      if (selected.isNotEmpty &&
-          siteId != null &&
-          siteId.trim().isNotEmpty) {
-        await _saveImagesToSupabase(
-          siteId: siteId.trim(),
-          imageUrls: selected,
-        );
+      if (selected.isNotEmpty && siteId != null && siteId.trim().isNotEmpty) {
+        await _saveImagesToSupabase(siteId: siteId.trim(), imageUrls: selected);
       }
 
-      print(
+      debugPrint(
         '[ImageService] ${selected.length} image(s) selected for $name',
       );
 
       return selected;
     } catch (e) {
-      print('[ImageService] Error loading images for $name: $e');
+      debugPrint('[ImageService] Error loading images for $name: $e');
 
       // Existing Supabase image(s) are still useful if Wikimedia failed.
       return existingUrls.take(maxImages).toList();
@@ -191,10 +180,10 @@ class ImageService {
   // ============================================================
 
   static List<String> _getSearchQueries(
-      String name, {
-        String? location,
-        String? siteId,
-      }) {
+    String name, {
+    String? location,
+    String? siteId,
+  }) {
     final queries = <String>[];
 
     // Some database names are not the same as the names commonly used
@@ -215,7 +204,9 @@ class ImageService {
       queries.add(cleanName);
     }
 
-    if (location != null && location.trim().isNotEmpty && cleanName.isNotEmpty) {
+    if (location != null &&
+        location.trim().isNotEmpty &&
+        cleanName.isNotEmpty) {
       queries.add('$cleanName ${location.trim()}');
     }
 
@@ -245,10 +236,10 @@ class ImageService {
   // ============================================================
 
   static Future<String> _getWikipediaMainImage(
-      String name, {
-        String? location,
-        String? siteId,
-      }) async {
+    String name, {
+    String? location,
+    String? siteId,
+  }) async {
     try {
       final queries = _getSearchQueries(
         name,
@@ -257,37 +248,28 @@ class ImageService {
       );
 
       for (final query in queries) {
-        print('[ImageService] Wikipedia search: $query');
+        debugPrint('[ImageService] Wikipedia search: $query');
 
-        final searchUrl = Uri.https(
-          'en.wikipedia.org',
-          '/w/api.php',
-          {
-            'action': 'query',
-            'list': 'search',
-            'srsearch': query,
-            'srlimit': '5',
-            'format': 'json',
-            'origin': '*',
-          },
-        );
+        final searchUrl = Uri.https('en.wikipedia.org', '/w/api.php', {
+          'action': 'query',
+          'list': 'search',
+          'srsearch': query,
+          'srlimit': '5',
+          'format': 'json',
+          'origin': '*',
+        });
 
-        final searchResponse = await http.get(
-          searchUrl,
-          headers: _headers,
-        );
+        final searchResponse = await http.get(searchUrl, headers: _headers);
 
         if (searchResponse.statusCode == 429) {
-          print(
-            '[ImageService] Wikipedia rate limit reached for $query',
-          );
+          debugPrint('[ImageService] Wikipedia rate limit reached for $query');
           continue;
         }
 
         if (searchResponse.statusCode != 200) {
-          print(
+          debugPrint(
             '[ImageService] Wikipedia search failed '
-                '(${searchResponse.statusCode}) for $query',
+            '(${searchResponse.statusCode}) for $query',
           );
           continue;
         }
@@ -321,28 +303,19 @@ class ImageService {
           continue;
         }
 
-        print(
-          '[ImageService] Wikipedia article selected: $articleTitle',
-        );
+        debugPrint('[ImageService] Wikipedia article selected: $articleTitle');
 
-        final imageUrl = Uri.https(
-          'en.wikipedia.org',
-          '/w/api.php',
-          {
-            'action': 'query',
-            'titles': articleTitle,
-            'prop': 'pageimages',
-            'pithumbsize': '1200',
-            'pilicense': 'any',
-            'format': 'json',
-            'origin': '*',
-          },
-        );
+        final imageUrl = Uri.https('en.wikipedia.org', '/w/api.php', {
+          'action': 'query',
+          'titles': articleTitle,
+          'prop': 'pageimages',
+          'pithumbsize': '1200',
+          'pilicense': 'any',
+          'format': 'json',
+          'origin': '*',
+        });
 
-        final imageResponse = await http.get(
-          imageUrl,
-          headers: _headers,
-        );
+        final imageResponse = await http.get(imageUrl, headers: _headers);
 
         if (imageResponse.statusCode != 200) {
           continue;
@@ -356,26 +329,19 @@ class ImageService {
         }
 
         final page = pages.values.first;
-        final image =
-            page['thumbnail']?['source']?.toString() ?? '';
+        final image = page['thumbnail']?['source']?.toString() ?? '';
 
         if (image.isNotEmpty) {
-          print(
-            '[ImageService] Wikipedia image found for $name',
-          );
+          debugPrint('[ImageService] Wikipedia image found for $name');
           return image;
         }
       }
 
-      print(
-        '[ImageService] No Wikipedia image found for $name',
-      );
+      debugPrint('[ImageService] No Wikipedia image found for $name');
 
       return '';
     } catch (e) {
-      print(
-        '[ImageService] Wikipedia error for $name: $e',
-      );
+      debugPrint('[ImageService] Wikipedia error for $name: $e');
       return '';
     }
   }
@@ -385,10 +351,10 @@ class ImageService {
   // ============================================================
 
   static Future<List<_ImageCandidate>> _getCommonsImages(
-      String name, {
-        String? location,
-        String? siteId,
-      }) async {
+    String name, {
+    String? location,
+    String? siteId,
+  }) async {
     try {
       final queries = _getSearchQueries(
         name,
@@ -400,41 +366,32 @@ class ImageService {
       final seenUrls = <String>{};
 
       for (final query in queries) {
-        print('[ImageService] Commons search: $query');
+        debugPrint('[ImageService] Commons search: $query');
 
-        final url = Uri.https(
-          'commons.wikimedia.org',
-          '/w/api.php',
-          {
-            'action': 'query',
-            'generator': 'search',
-            'gsrsearch': query,
-            'gsrnamespace': '6',
-            'gsrlimit': '20',
-            'prop': 'imageinfo',
-            'iiprop': 'url|size|mime',
-            'iiurlwidth': '1200',
-            'format': 'json',
-            'origin': '*',
-          },
-        );
+        final url = Uri.https('commons.wikimedia.org', '/w/api.php', {
+          'action': 'query',
+          'generator': 'search',
+          'gsrsearch': query,
+          'gsrnamespace': '6',
+          'gsrlimit': '20',
+          'prop': 'imageinfo',
+          'iiprop': 'url|size|mime',
+          'iiurlwidth': '1200',
+          'format': 'json',
+          'origin': '*',
+        });
 
-        final response = await http.get(
-          url,
-          headers: _headers,
-        );
+        final response = await http.get(url, headers: _headers);
 
         if (response.statusCode == 429) {
-          print(
-            '[ImageService] Wikimedia rate limit reached for $query',
-          );
+          debugPrint('[ImageService] Wikimedia rate limit reached for $query');
           continue;
         }
 
         if (response.statusCode != 200) {
-          print(
+          debugPrint(
             '[ImageService] Commons search failed '
-                '(${response.statusCode}) for $query',
+            '(${response.statusCode}) for $query',
           );
           continue;
         }
@@ -457,9 +414,7 @@ class ImageService {
           final info = infoList.first;
 
           final imageUrl =
-              info['thumburl']?.toString() ??
-                  info['url']?.toString() ??
-                  '';
+              info['thumburl']?.toString() ?? info['url']?.toString() ?? '';
 
           if (imageUrl.isEmpty) {
             continue;
@@ -471,16 +426,11 @@ class ImageService {
             continue;
           }
 
-          final width = _parseInt(
-            info['thumbwidth'] ?? info['width'],
-          );
+          final width = _parseInt(info['thumbwidth'] ?? info['width']);
 
-          final height = _parseInt(
-            info['thumbheight'] ?? info['height'],
-          );
+          final height = _parseInt(info['thumbheight'] ?? info['height']);
 
-          final mime =
-              info['mime']?.toString().toLowerCase() ?? '';
+          final mime = info['mime']?.toString().toLowerCase() ?? '';
 
           final score = _scoreImage(
             title: title,
@@ -497,11 +447,7 @@ class ImageService {
           }
 
           allCandidates.add(
-            _ImageCandidate(
-              url: imageUrl,
-              title: title,
-              score: score,
-            ),
+            _ImageCandidate(url: imageUrl, title: title, score: score),
           );
         }
 
@@ -512,16 +458,14 @@ class ImageService {
         }
       }
 
-      print(
+      debugPrint(
         '[ImageService] ${allCandidates.length} '
-            'Commons candidate(s) found for $name',
+        'Commons candidate(s) found for $name',
       );
 
       return allCandidates;
     } catch (e) {
-      print(
-        '[ImageService] Commons error for $name: $e',
-      );
+      debugPrint('[ImageService] Commons error for $name: $e');
       return [];
     }
   }
@@ -660,51 +604,43 @@ class ImageService {
       final response = await _supabase
           .from('heritage_sites')
           .update({
-        // Keep image_url for old/existing UI code.
-        'image_url': imageUrls.first,
+            // Keep image_url for old/existing UI code.
+            'image_url': imageUrls.first,
 
-        // New multiple-image field.
-        'image_urls': imageUrls,
-      })
+            // New multiple-image field.
+            'image_urls': imageUrls,
+          })
           .eq('site_id', siteId)
           .select('site_id, image_url, image_urls');
 
       if (response.isEmpty) {
-        print(
+        debugPrint(
           '[ImageService] WARNING: Supabase update matched 0 rows for $siteId',
         );
         return;
       }
 
-      print(
+      debugPrint(
         '[ImageService] Saved ${imageUrls.length} image(s) '
-            'to Supabase: $siteId',
+        'to Supabase: $siteId',
       );
     } catch (e) {
       // Displaying the images should still work even if DB caching fails.
-      print(
-        '[ImageService] Failed to save images for $siteId: $e',
-      );
+      debugPrint('[ImageService] Failed to save images for $siteId: $e');
     }
   }
 
   static Map<String, String> get _headers => const {
-    'User-Agent':
-    'MalaysiaGo/1.0 Heritage Explorer Flutter Application',
+    'User-Agent': 'MalaysiaGo/1.0 Heritage Explorer Flutter Application',
     'Accept': 'application/json',
   };
 
-  static String _cacheKey(
-      String name,
-      String? location,
-      ) {
+  static String _cacheKey(String name, String? location) {
     return '${name.trim().toLowerCase()}|'
         '${location?.trim().toLowerCase() ?? ''}';
   }
 
-  static List<String> _cleanUrls(
-      List<String> values,
-      ) {
+  static List<String> _cleanUrls(List<String> values) {
     final result = <String>[];
     final seen = <String>{};
 
@@ -761,4 +697,3 @@ class _ImageCandidate {
     required this.score,
   });
 }
-

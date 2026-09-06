@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'quiz.dart';
 import 'heritage_detail.dart';
 import '../models.dart';
+import '../services/heritage_api_service.dart';
+import '../services/location_checkin_policy.dart';
 import '../widgets/app_header.dart';
 
 /// ---------------------------------------------------------------
@@ -37,6 +39,7 @@ class HeritageMapSite {
   final bool visited;
   final bool hasQuiz;
   final String briefInfo;
+  final HeritageSite? source;
 
   const HeritageMapSite({
     required this.id,
@@ -51,48 +54,87 @@ class HeritageMapSite {
     required this.visited,
     required this.hasQuiz,
     required this.briefInfo,
+    this.source,
   });
+
+  factory HeritageMapSite.fromHeritageSite(
+    HeritageSite site, {
+    bool hasQuiz = true,
+  }) {
+    const icons = <String, String>{
+      'UNESCO': '🏛️',
+      'Religious': '🛕',
+      'Nature': '🌳',
+      'National': '🇲🇾',
+      'Cultural': '🎭',
+      'Archaeological': '🏺',
+    };
+
+    return HeritageMapSite(
+      id: site.id,
+      icon: icons[site.category] ?? '📍',
+      name: site.name,
+      location: site.location,
+      latitude: site.latitude,
+      longitude: site.longitude,
+      distanceKm: double.infinity,
+      xpReward: site.xp,
+      category: site.category,
+      visited: site.visited,
+      hasQuiz: hasQuiz,
+      briefInfo: site.description.trim().isEmpty
+          ? 'Discover the history and cultural significance of ${site.name}.'
+          : site.description,
+      source: site,
+    );
+  }
 
   ll.LatLng get latLng => ll.LatLng(latitude, longitude);
 
   /// Adapts the map's lightweight site record to the full Traveller's Guide
   /// detail-page model.
-  HeritageSite toHeritageSite() => HeritageSite(
-    id: id,
-    name: name,
-    location: location,
-    description: briefInfo,
-    category: category,
-    latitude: latitude,
-    longitude: longitude,
-    imageUrl: '',
-    tags: [category],
-    duration: '1–2 hours',
-    xp: xpReward,
-    visited: visited,
-    isEditorPick: false,
-    openingHours: 'Check with the site before visiting',
-    entryFee: 'Check with the site before visiting',
-    difficulty: 'Easy',
-    bestTime: '',
-    tips: const [],
-  );
-
-  HeritageMapSite copyWith({double? distanceKm, bool? visited}) =>
-      HeritageMapSite(
+  HeritageSite toHeritageSite() =>
+      source ??
+      HeritageSite(
         id: id,
-        icon: icon,
         name: name,
         location: location,
+        description: briefInfo,
+        category: category,
         latitude: latitude,
         longitude: longitude,
-        distanceKm: distanceKm ?? this.distanceKm,
-        xpReward: xpReward,
-        category: category,
-        visited: visited ?? this.visited,
-        hasQuiz: hasQuiz,
-        briefInfo: briefInfo,
+        imageUrl: '',
+        tags: [category],
+        duration: '1–2 hours',
+        xp: xpReward,
+        visited: visited,
+        isEditorPick: false,
+        openingHours: 'Check with the site before visiting',
+        entryFee: 'Check with the site before visiting',
+        difficulty: 'Easy',
+        bestTime: '',
+        tips: const [],
       );
+
+  HeritageMapSite copyWith({
+    double? distanceKm,
+    bool? visited,
+    bool? hasQuiz,
+  }) => HeritageMapSite(
+    id: id,
+    icon: icon,
+    name: name,
+    location: location,
+    latitude: latitude,
+    longitude: longitude,
+    distanceKm: distanceKm ?? this.distanceKm,
+    xpReward: xpReward,
+    category: category,
+    visited: visited ?? this.visited,
+    hasQuiz: hasQuiz ?? this.hasQuiz,
+    briefInfo: briefInfo,
+    source: source,
+  );
 }
 
 String formatSiteDistance(double distanceKm) {
@@ -270,13 +312,56 @@ const List<HeritageMapSite> heritageMapSites = [
   ),
 ];
 
-const List<String> _filterCategories = [
-  'All',
-  'UNESCO',
-  'Religious',
-  'Nature',
-  'National',
-];
+/// Combines the bundled sites with the complete Supabase catalogue. The
+/// bundled entries keep the map useful while offline; matching Supabase rows
+/// replace them and every new valid row becomes a marker automatically.
+List<HeritageMapSite> mergeHeritageMapSites(
+  Iterable<HeritageSite> remoteSites, {
+  Set<String>? quizSiteIds,
+}) {
+  final sitesById = <String, HeritageMapSite>{
+    for (final site in heritageMapSites) site.id: site,
+  };
+
+  for (final site in remoteSites) {
+    if (site.id.trim().isEmpty ||
+        site.latitude == 0 ||
+        site.longitude == 0 ||
+        site.latitude < -90 ||
+        site.latitude > 90 ||
+        site.longitude < -180 ||
+        site.longitude > 180) {
+      continue;
+    }
+    sitesById[site.id] = HeritageMapSite.fromHeritageSite(
+      site,
+      hasQuiz: quizSiteIds?.contains(site.id) ?? true,
+    );
+  }
+
+  if (quizSiteIds != null) {
+    for (final entry in sitesById.entries.toList()) {
+      sitesById[entry.key] = entry.value.copyWith(
+        hasQuiz: quizSiteIds.contains(entry.key),
+      );
+    }
+  }
+
+  return sitesById.values.toList(growable: false)
+    ..sort((first, second) => first.name.compareTo(second.name));
+}
+
+List<HeritageMapSite> filterHeritageMapSites(
+  Iterable<HeritageMapSite> sites,
+  String category,
+) {
+  if (category == 'All') {
+    return sites.toList(growable: false);
+  }
+  return sites
+      .where((site) => site.category == category)
+      .toList(growable: false);
+}
 
 class MapScreen extends StatefulWidget {
   final int totalXp;
@@ -306,8 +391,30 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   String _selectedCategory = 'All';
+  List<HeritageMapSite> _catalogSites = heritageMapSites;
+  bool _isLoadingSites = true;
 
-  List<HeritageMapSite> get _sites => heritageMapSites.map((site) {
+  @override
+  void initState() {
+    super.initState();
+    _loadSites();
+  }
+
+  Future<void> _loadSites() async {
+    final remoteSites = await HeritageApiService.fetchMalaysiaHeritage();
+    final quizSiteIds = await QuizRepository.loadAvailableSiteIds();
+    if (!mounted) return;
+
+    setState(() {
+      _catalogSites = mergeHeritageMapSites(
+        remoteSites,
+        quizSiteIds: quizSiteIds,
+      );
+      _isLoadingSites = false;
+    });
+  }
+
+  List<HeritageMapSite> get _sites => _catalogSites.map((site) {
     final hasLocation =
         widget.userLatitude != null && widget.userLongitude != null;
     final distanceKm = hasLocation
@@ -326,15 +433,20 @@ class _MapScreenState extends State<MapScreen> {
     );
   }).toList();
 
-  List<HeritageMapSite> get _filteredSites => _selectedCategory == 'All'
-      ? _sites
-      : _sites.where((s) => s.category == _selectedCategory).toList();
+  List<HeritageMapSite> get _filteredSites =>
+      filterHeritageMapSites(_sites, _selectedCategory);
 
   HeritageMapSite get _nearestSite => (List<HeritageMapSite>.from(
     _sites,
   )..sort((a, b) => a.distanceKm.compareTo(b.distanceKm))).first;
 
   int get _visitedCount => _sites.where((s) => s.visited).length;
+
+  List<String> get _availableCategories {
+    final categories = _sites.map((site) => site.category).toSet().toList()
+      ..sort();
+    return <String>['All', ...categories];
+  }
 
   bool _isCompleted(HeritageMapSite site) =>
       widget.completedQuizIds.contains(site.id);
@@ -345,6 +457,16 @@ class _MapScreenState extends State<MapScreen> {
   /// "Take Quiz" button (and directly wherever a quiz-only action
   /// makes sense, e.g. the nearby-site banner).
   void _startQuiz(HeritageMapSite site) {
+    if (!site.visited) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Check in at ${site.name} before taking its heritage quiz.',
+          ),
+        ),
+      );
+      return;
+    }
     if (!site.hasQuiz) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Quiz for ${site.name} is coming soon.')),
@@ -429,9 +551,22 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingSites) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF5F5F7),
+        body: SafeArea(
+          child: Center(
+            child: CircularProgressIndicator(color: Color(0xFF0F8A5F)),
+          ),
+        ),
+      );
+    }
+
     final nearest = _nearestSite;
     final showNearbyBanner =
-        nearest.distanceKm < 1.0 && nearest.hasQuiz && !_isCompleted(nearest);
+        nearest.distanceKm * 1000 <= heritageCheckInRadiusMeters &&
+        nearest.hasQuiz &&
+        !_isCompleted(nearest);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
@@ -448,8 +583,13 @@ class _MapScreenState extends State<MapScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _MapCanvas(
-                  sites: _sites,
-                  visitedCount: _visitedCount,
+                  key: ValueKey<String>(
+                    'heritage-map-$_selectedCategory-${_catalogSites.length}',
+                  ),
+                  sites: _filteredSites,
+                  visitedCount: _filteredSites
+                      .where((site) => site.visited)
+                      .length,
                   onTapSite: _openSite,
                   focusSiteId: widget.initialSiteId,
                   onFocusedSiteReady: _openSite,
@@ -475,10 +615,10 @@ class _MapScreenState extends State<MapScreen> {
                         height: 40,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
-                          itemCount: _filterCategories.length,
+                          itemCount: _availableCategories.length,
                           separatorBuilder: (_, _) => const SizedBox(width: 8),
                           itemBuilder: (context, index) {
-                            final category = _filterCategories[index];
+                            final category = _availableCategories[index];
                             final selected = category == _selectedCategory;
                             return _FilterChip(
                               label: category,
@@ -601,6 +741,7 @@ class _MapCanvas extends StatefulWidget {
   final ValueChanged<HeritageMapSite>? onFocusedSiteReady;
 
   const _MapCanvas({
+    super.key,
     required this.sites,
     required this.visitedCount,
     required this.onTapSite,
@@ -805,9 +946,8 @@ class _ZoomButton extends StatelessWidget {
 }
 
 /// A conventional map-pin teardrop, anchored so its point (not its
-/// centre) marks the actual site location. flutter_map's Marker
-/// takes a plain widget child (unlike google_maps_flutter's bitmap
-/// icons), so this is what actually gets drawn.
+/// centre) marks the actual site location. The centre uses a local
+/// heritage sticker so markers stay sharp and remain available offline.
 class _MapPin extends StatelessWidget {
   final HeritageMapSite site;
   const _MapPin({required this.site});
@@ -846,7 +986,16 @@ class _MapPin extends StatelessWidget {
                 color: Colors.white,
               ),
               alignment: Alignment.center,
-              child: Text(site.icon, style: const TextStyle(fontSize: 14)),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/map_markers/heritage_sticker.png',
+                  width: 24,
+                  height: 24,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.medium,
+                  excludeFromSemantics: true,
+                ),
+              ),
             ),
           ),
           Positioned(
@@ -1265,7 +1414,9 @@ class _SiteOptionsSheet extends StatelessWidget {
                   size: 18,
                 ),
                 label: Text(
-                  !site.hasQuiz
+                  !site.visited
+                      ? 'Check in onsite to unlock quiz'
+                      : !site.hasQuiz
                       ? 'Quiz coming soon'
                       : completed
                       ? 'Quiz completed — view score'
@@ -1478,7 +1629,9 @@ class SiteGuideScreen extends StatelessWidget {
                       size: 18,
                     ),
                     label: Text(
-                      !site.hasQuiz
+                      !site.visited
+                          ? 'Check in onsite to unlock quiz'
+                          : !site.hasQuiz
                           ? 'Quiz coming soon'
                           : completed
                           ? 'Quiz completed — view score'

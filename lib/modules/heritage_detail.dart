@@ -190,7 +190,7 @@ class _HeritageDetailScreenState extends State<HeritageDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.65),
+        color: Colors.black.withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -481,7 +481,7 @@ class _HeritageDetailScreenState extends State<HeritageDetailScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.65),
+                    color: Colors.black.withValues(alpha: 0.65),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -501,7 +501,7 @@ class _HeritageDetailScreenState extends State<HeritageDetailScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.65),
+                    color: Colors.black.withValues(alpha: 0.65),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -652,7 +652,7 @@ class _HeritageDetailScreenState extends State<HeritageDetailScreen> {
                       children: [
                         TileLayer(
                           urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                           userAgentPackageName: 'com.example.malaysiago',
                         ),
                         MarkerLayer(
@@ -880,7 +880,7 @@ class _HeritageDetailScreenState extends State<HeritageDetailScreen> {
 
     final googleMapsUrl = Uri.parse(
       'https://www.google.com/maps/search/?api=1'
-          '&query=${site.latitude},${site.longitude}',
+      '&query=${site.latitude},${site.longitude}',
     );
 
     try {
@@ -1069,7 +1069,7 @@ class _HeritageDetailScreenState extends State<HeritageDetailScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -1153,9 +1153,8 @@ class _HeritageDetailScreenState extends State<HeritageDetailScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const PassportScreen(
-                  showBackButton: true,
-                ),
+                builder: (context) =>
+                    const PassportScreen(showBackButton: true),
               ),
             );
           },
