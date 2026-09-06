@@ -20,11 +20,11 @@ class HeritageApiService {
     }
   }
 
-  // NEW METHOD: Fetch nearby sites using the PostGIS RPC function
+  // Fetch nearby sites using the PostGIS RPC function
   static Future<List<HeritageSite>> fetchNearbyHeritage({
     required double userLat,
     required double userLng,
-    double radiusInMeters = 10000, // Default 10 km
+    double radiusInMeters = 10000,
   }) async {
     try {
       final List<dynamic> response = await _supabase.rpc(
@@ -79,7 +79,7 @@ class HeritageApiService {
         id: data['site_id']?.toString() ?? data['id']?.toString() ?? '',
         name: data['name']?.toString() ?? 'Unknown Heritage',
         location:
-            data['location']?.toString() ??
+        data['location']?.toString() ??
             data['state']?.toString() ??
             'Malaysia',
         description: data['description']?.toString() ?? '',
@@ -87,24 +87,44 @@ class HeritageApiService {
         latitude: parseDouble(data['latitude']),
         longitude: parseDouble(data['longitude']),
         imageUrl:
-            data['image_url']?.toString() ?? data['imageUrl']?.toString() ?? '',
+        data['image_url']?.toString() ?? data['imageUrl']?.toString() ?? '',
+        imageUrls: (() {
+          final urls = parseList(data['image_urls']);
+          final single =
+              data['image_url']?.toString() ??
+                  data['imageUrl']?.toString() ??
+                  '';
+
+          if (urls.isEmpty && single.trim().isNotEmpty) {
+            return <String>[single.trim()];
+          }
+
+          return urls;
+        })(),
         tags: parseList(data['tags']),
         duration: data['duration']?.toString() ?? '1-2 hours',
         xp: parseInt(data['xp'], 50),
         visited: parseBool(data['visited']),
         isEditorPick: parseBool(data['is_editor_pick'] ?? data['isEditorPick']),
         openingHours:
-            data['opening_hours']?.toString() ??
+        data['opening_hours']?.toString() ??
             data['openingHours']?.toString() ??
             'Unknown',
         entryFee:
-            data['entry_fee']?.toString() ??
+        data['entry_fee']?.toString() ??
             data['entryFee']?.toString() ??
             'Free',
         difficulty: data['difficulty']?.toString() ?? 'Easy',
         bestTime:
-            data['best_time']?.toString() ?? data['bestTime']?.toString() ?? '',
+        data['best_time']?.toString() ?? data['bestTime']?.toString() ?? '',
         tips: parseList(data['tips']),
+        history: data['history']?.toString() ?? '',
+        address: data['address']?.toString() ?? '',
+        establishedYear:
+        data['established_year']?.toString() ??
+            data['establishedYear']?.toString() ??
+            '',
+        significance: data['significance']?.toString() ?? '',
       );
     }).toList();
   }

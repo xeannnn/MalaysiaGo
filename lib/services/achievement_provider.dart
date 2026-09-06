@@ -116,11 +116,11 @@ class AchievementProvider extends ChangeNotifier {
       if (savedXp != null && savedVisited != null && savedBonuses != null) {
         _totalXp = (savedXp as num).toInt();
         _visitedSites = (savedVisited as Map).map(
-          (key, value) =>
+              (key, value) =>
               MapEntry(key.toString(), List<String>.from(value as Iterable)),
         );
         _claimedBonuses = (savedBonuses as Map).map(
-          (key, value) => MapEntry(key.toString(), value == true),
+              (key, value) => MapEntry(key.toString(), value == true),
         );
 
         // These two fields were added after the above three, so older
@@ -133,7 +133,7 @@ class AchievementProvider extends ChangeNotifier {
           _quizHistory = (savedQuizHistory as List)
               .map(
                 (m) => QuizAttempt.fromMap(Map<String, dynamic>.from(m as Map)),
-              )
+          )
               .toList();
         }
 
@@ -169,8 +169,8 @@ class AchievementProvider extends ChangeNotifier {
   void _migrateLegacyProgress() {
     final hasDemoSeed =
         _totalXp == 470 &&
-        _completedQuizIds.isEmpty &&
-        (_visitedSites['badge_kl']?.contains('site_klcc') ?? false);
+            _completedQuizIds.isEmpty &&
+            (_visitedSites['badge_kl']?.contains('site_klcc') ?? false);
     if (hasDemoSeed) {
       _loadEmptyData();
       return;
@@ -186,7 +186,7 @@ class AchievementProvider extends ChangeNotifier {
     };
 
     _visitedSites = _visitedSites.map(
-      (badgeId, siteIds) => MapEntry(
+          (badgeId, siteIds) => MapEntry(
         badgeId,
         siteIds.map((siteId) => aliases[siteId] ?? siteId).toSet().toList(),
       ),
@@ -223,8 +223,17 @@ class AchievementProvider extends ChangeNotifier {
     return _totalXp;
   }
 
-  /// Add XP from visiting a site and save
-  int addSiteVisit(String badgeId, String siteId) {
+  /// Add XP from visiting a site and save.
+  ///
+  /// [xp] is optional for backward compatibility. Heritage Explorer should
+  /// pass site.xp so the amount shown on the site card matches the amount
+  /// actually awarded. Other modules can omit it and use the default
+  /// BadgeService calculation.
+  int addSiteVisit(
+      String badgeId,
+      String siteId, {
+        int? xp,
+      }) {
     if (_visitedSites.containsKey(badgeId) &&
         _visitedSites[badgeId]!.contains(siteId)) {
       return _totalXp;
@@ -233,23 +242,35 @@ class AchievementProvider extends ChangeNotifier {
     if (!_visitedSites.containsKey(badgeId)) {
       _visitedSites[badgeId] = [];
     }
+
     _visitedSites[badgeId]!.add(siteId);
 
-    int xp = BadgeService.calculateSiteXp(siteId);
-    _totalXp += xp;
+    final int awardedXp = xp ?? BadgeService.calculateSiteXp(siteId);
+    _totalXp += awardedXp;
 
     notifyListeners();
-    _saveToHive(); // ✅ Persist
+    _saveToHive();
     return _totalXp;
   }
 
-  /// Records a verified GPS visit using the IDs shared by the map and quizzes.
-  int addHeritageVisit(String siteId, String stateName) {
+  /// Records a verified GPS heritage visit.
+  ///
+  /// The third parameter is optional so existing two-argument calls keep
+  /// compiling. Heritage Explorer should pass the site's XP:
+  ///
+  /// provider.addHeritageVisit(site.id, stateName, site.xp);
+  int addHeritageVisit(
+      String siteId,
+      String stateName, [
+        int? xp,
+      ]) {
     final normalizedState = stateName.split('·').first.toLowerCase().trim();
+
     const badgeByState = <String, String>{
       'kuala lumpur': 'badge_kl',
       'selangor': 'badge_selangor',
       'penang': 'badge_penang',
+      'pulau pinang': 'badge_penang',
       'perak': 'badge_perak',
       'kedah': 'badge_kedah',
       'perlis': 'badge_perlis',
@@ -262,10 +283,17 @@ class AchievementProvider extends ChangeNotifier {
       'kelantan': 'badge_kelantan',
       'sarawak': 'badge_sarawak',
       'sabah': 'badge_sabah',
+      'putrajaya': 'badge_putrajaya',
+      'labuan': 'badge_labuan',
     };
 
     final badgeId = badgeByState[normalizedState] ?? 'badge_other';
-    return addSiteVisit(badgeId, siteId);
+
+    return addSiteVisit(
+      badgeId,
+      siteId,
+      xp: xp,
+    );
   }
 
   int addQuizXp(int score, int totalQuestions, {bool perfect = false}) {
