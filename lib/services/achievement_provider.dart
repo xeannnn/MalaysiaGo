@@ -116,11 +116,11 @@ class AchievementProvider extends ChangeNotifier {
       if (savedXp != null && savedVisited != null && savedBonuses != null) {
         _totalXp = (savedXp as num).toInt();
         _visitedSites = (savedVisited as Map).map(
-              (key, value) =>
+          (key, value) =>
               MapEntry(key.toString(), List<String>.from(value as Iterable)),
         );
         _claimedBonuses = (savedBonuses as Map).map(
-              (key, value) => MapEntry(key.toString(), value == true),
+          (key, value) => MapEntry(key.toString(), value == true),
         );
 
         // These two fields were added after the above three, so older
@@ -133,7 +133,7 @@ class AchievementProvider extends ChangeNotifier {
           _quizHistory = (savedQuizHistory as List)
               .map(
                 (m) => QuizAttempt.fromMap(Map<String, dynamic>.from(m as Map)),
-          )
+              )
               .toList();
         }
 
@@ -169,8 +169,8 @@ class AchievementProvider extends ChangeNotifier {
   void _migrateLegacyProgress() {
     final hasDemoSeed =
         _totalXp == 470 &&
-            _completedQuizIds.isEmpty &&
-            (_visitedSites['badge_kl']?.contains('site_klcc') ?? false);
+        _completedQuizIds.isEmpty &&
+        (_visitedSites['badge_kl']?.contains('site_klcc') ?? false);
     if (hasDemoSeed) {
       _loadEmptyData();
       return;
@@ -186,7 +186,7 @@ class AchievementProvider extends ChangeNotifier {
     };
 
     _visitedSites = _visitedSites.map(
-          (badgeId, siteIds) => MapEntry(
+      (badgeId, siteIds) => MapEntry(
         badgeId,
         siteIds.map((siteId) => aliases[siteId] ?? siteId).toSet().toList(),
       ),
@@ -229,11 +229,7 @@ class AchievementProvider extends ChangeNotifier {
   /// pass site.xp so the amount shown on the site card matches the amount
   /// actually awarded. Other modules can omit it and use the default
   /// BadgeService calculation.
-  int addSiteVisit(
-      String badgeId,
-      String siteId, {
-        int? xp,
-      }) {
+  int addSiteVisit(String badgeId, String siteId, {int? xp}) {
     if (_visitedSites.containsKey(badgeId) &&
         _visitedSites[badgeId]!.contains(siteId)) {
       return _totalXp;
@@ -259,11 +255,15 @@ class AchievementProvider extends ChangeNotifier {
   /// compiling. Heritage Explorer should pass the site's XP:
   ///
   /// provider.addHeritageVisit(site.id, stateName, site.xp);
-  int addHeritageVisit(
-      String siteId,
-      String stateName, [
-        int? xp,
-      ]) {
+  int addHeritageVisit(String siteId, String stateName, [int? xp]) {
+    String? badgeIdFromSite;
+    for (final badge in activeStateBadges) {
+      if (badge.requiredSiteIds.contains(siteId)) {
+        badgeIdFromSite = badge.id;
+        break;
+      }
+    }
+
     final normalizedState = stateName.split('·').first.toLowerCase().trim();
 
     const badgeByState = <String, String>{
@@ -287,13 +287,10 @@ class AchievementProvider extends ChangeNotifier {
       'labuan': 'badge_labuan',
     };
 
-    final badgeId = badgeByState[normalizedState] ?? 'badge_other';
+    final badgeId =
+        badgeIdFromSite ?? badgeByState[normalizedState] ?? 'badge_other';
 
-    return addSiteVisit(
-      badgeId,
-      siteId,
-      xp: xp,
-    );
+    return addSiteVisit(badgeId, siteId, xp: xp);
   }
 
   int addQuizXp(int score, int totalQuestions, {bool perfect = false}) {

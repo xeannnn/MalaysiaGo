@@ -213,8 +213,9 @@ const List<StateBadge> allStateBadges = [
       'national_mosque',
       'national_museum',
       'tarumt_kl',
+      'petronas_towers',
     ],
-    totalPieces: 5,
+    totalPieces: 6,
     description: 'Complete all featured heritage sites in Kuala Lumpur',
     bonusXp: 150,
   ),
@@ -326,8 +327,8 @@ int getCompletedBadgeCount(Map<String, List<String>> visitedSites) {
 }
 
 List<UserBadgeProgress> getAllBadgeProgress(
-    Map<String, List<String>> visitedSites,
-    ) {
+  Map<String, List<String>> visitedSites,
+) {
   final List<UserBadgeProgress> progress = [];
 
   for (StateBadge badge in activeStateBadges) {

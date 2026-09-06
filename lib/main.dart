@@ -21,6 +21,8 @@ import 'modules/passport.dart';
 import 'modules/quiz.dart';
 
 import 'services/achievement_provider.dart';
+import 'services/heritage_api_service.dart';
+import 'services/location_checkin_policy.dart';
 
 import 'widgets/app_bottom_bar.dart';
 
@@ -47,13 +49,12 @@ Future<void> main() async {
     publishableKey: 'sb_publishable_ArQqnsMHEqiQRHZAR5E9hA_9y5NpWp1',
   );
 
+  final achievementProvider = AchievementProvider();
+  await achievementProvider.loadUserData();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (context) {
-        final provider = AchievementProvider();
-        provider.loadUserData();
-        return provider;
-      },
+    ChangeNotifierProvider.value(
+      value: achievementProvider,
       child: const MalaysiaGoApp(),
     ),
   );
@@ -87,14 +88,12 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  static const double _arrivalRadiusMeters = 250;
-  static const double _maximumAcceptedAccuracyMeters = 150;
-
   BottomTab _selectedTab = BottomTab.home;
   String? _mapFocusSiteId;
 
   StreamSubscription<Position>? _locationSubscription;
   Position? _currentPosition;
+  List<HeritageMapSite> _locationSites = heritageMapSites;
 
   final Set<String> _promptedSiteIds = <String>{};
 
@@ -111,6 +110,15 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _startHeritageLocationTracking() async {
     try {
+      final remoteSites = await HeritageApiService.fetchMalaysiaHeritage();
+      final quizSiteIds = await QuizRepository.loadAvailableSiteIds();
+      if (remoteSites.isNotEmpty) {
+        _locationSites = mergeHeritageMapSites(
+          remoteSites,
+          quizSiteIds: quizSiteIds,
+        );
+      }
+
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
@@ -185,7 +193,7 @@ class _MainScreenState extends State<MainScreen> {
      * heritage-site prompt from appearing when the GPS position has
      * a very large uncertainty radius.
      */
-    if (position.accuracy > _maximumAcceptedAccuracyMeters) {
+    if (position.accuracy > maximumHeritageGpsAccuracyMeters) {
       debugPrint(
         'Ignoring inaccurate GPS reading: '
         '${position.accuracy.toStringAsFixed(1)} metres',
@@ -204,7 +212,7 @@ class _MainScreenState extends State<MainScreen> {
     HeritageMapSite? nearestSite;
     double nearestDistance = double.infinity;
 
-    for (final site in heritageMapSites) {
+    for (final site in _locationSites) {
       if (_promptedSiteIds.contains(site.id)) {
         continue;
       }
@@ -216,7 +224,11 @@ class _MainScreenState extends State<MainScreen> {
         site.longitude,
       );
 
-      if (distance <= _arrivalRadiusMeters && distance < nearestDistance) {
+      if (canCheckInAtHeritageSite(
+            distanceMeters: distance,
+            accuracyMeters: position.accuracy,
+          ) &&
+          distance < nearestDistance) {
         nearestSite = site;
         nearestDistance = distance;
       }
@@ -227,11 +239,6 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     _promptedSiteIds.add(nearestSite.id);
-
-    Provider.of<AchievementProvider>(
-      context,
-      listen: false,
-    ).addHeritageVisit(nearestSite.id, nearestSite.location);
 
     _showHeritageSiteArrivalPrompt(
       site: nearestSite,
@@ -249,7 +256,10 @@ class _MainScreenState extends State<MainScreen> {
 
     _arrivalDialogOpen = true;
 
-    final shouldOpenSite = await showDialog<bool>(
+    final provider = Provider.of<AchievementProvider>(context, listen: false);
+    final alreadyVisited = provider.visitedHeritageSiteIds.contains(site.id);
+
+    final shouldCheckIn = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
@@ -262,7 +272,7 @@ class _MainScreenState extends State<MainScreen> {
             children: [
               Text(site.icon, style: const TextStyle(fontSize: 30)),
               const SizedBox(width: 12),
-              Expanded(child: Text('You are near ${site.name}!')),
+              Expanded(child: Text('You are at ${site.name}!')),
             ],
           ),
           content: SingleChildScrollView(
@@ -279,6 +289,13 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(site.briefInfo),
+                const SizedBox(height: 16),
+                Text(
+                  alreadyVisited
+                      ? 'You have already checked in here.'
+                      : 'Confirm your check-in to earn +${site.xpReward} XP.',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 16),
                 Container(
                   width: double.infinity,
@@ -323,8 +340,10 @@ class _MainScreenState extends State<MainScreen> {
               onPressed: () {
                 Navigator.of(dialogContext).pop(true);
               },
-              icon: Icon(site.hasQuiz ? Icons.quiz : Icons.menu_book),
-              label: Text(site.hasQuiz ? 'Info & Quiz' : 'View Info'),
+              icon: Icon(
+                alreadyVisited ? Icons.map_outlined : Icons.location_on,
+              ),
+              label: Text(alreadyVisited ? 'View Site' : 'Check In & Explore'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0F8A5F),
                 foregroundColor: Colors.white,
@@ -337,7 +356,10 @@ class _MainScreenState extends State<MainScreen> {
 
     _arrivalDialogOpen = false;
 
-    if (shouldOpenSite == true && mounted) {
+    if (shouldCheckIn == true && mounted) {
+      if (!alreadyVisited) {
+        provider.addHeritageVisit(site.id, site.location, site.xpReward);
+      }
       _openDetectedSiteOnMap(site.id);
     }
   }

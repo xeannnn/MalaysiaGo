@@ -148,11 +148,33 @@ class QuizBundle {
 class QuizRepository {
   QuizRepository._();
 
+  static const int questionsPerAttempt = 3;
   static final Random _random = Random();
+  static Set<String> _availableSiteIds = <String>{};
 
   static SupabaseClient get _client => Supabase.instance.client;
 
-  static Future<QuizBundle?> loadQuiz(String siteId, {int count = 5}) async {
+  static Future<Set<String>> loadAvailableSiteIds() async {
+    try {
+      final rows = await _client.from('quiz_sites').select('site_id');
+      final ids = rows
+          .map((row) => row['site_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      if (ids.isNotEmpty) {
+        _availableSiteIds = ids;
+      }
+      return Set<String>.from(_availableSiteIds);
+    } catch (error) {
+      debugPrint('Failed to load available quiz sites: $error');
+      return Set<String>.from(_availableSiteIds);
+    }
+  }
+
+  static Future<QuizBundle?> loadQuiz(
+    String siteId, {
+    int count = questionsPerAttempt,
+  }) async {
     try {
       /*
        * Your existing quiz_sites table uses site_id as its primary
@@ -205,7 +227,7 @@ class QuizRepository {
       }
 
       /*
-       * Randomize the pool, select up to five questions, then
+       * Randomize the pool, select the requested number of questions, then
        * separately randomize each question's answer choices.
        */
       questionPool.shuffle(_random);
@@ -252,7 +274,7 @@ class _QuizIntroScreenState extends State<QuizIntroScreen> {
   }
 
   void _loadQuiz() {
-    _quizFuture = QuizRepository.loadQuiz(widget.siteId, count: 5);
+    _quizFuture = QuizRepository.loadQuiz(widget.siteId);
   }
 
   void _retry() {
@@ -530,10 +552,17 @@ class _QuizScreenState extends State<QuizScreen> {
   int? _selectedAnswerIndex;
   bool _answered = false;
 
-  QuizQuestion get _currentQuestion => widget.questions[_currentQuestionIndex];
+  /// The repository already supplies a randomized set of three. Limiting the
+  /// list again here prevents any alternate or stale caller from starting a
+  /// five-question attempt.
+  List<QuizQuestion> get _attemptQuestions => widget.questions
+      .take(QuizRepository.questionsPerAttempt)
+      .toList(growable: false);
+
+  QuizQuestion get _currentQuestion => _attemptQuestions[_currentQuestionIndex];
 
   bool get _isLastQuestion =>
-      _currentQuestionIndex == widget.questions.length - 1;
+      _currentQuestionIndex == _attemptQuestions.length - 1;
 
   void _selectAnswer(int index) {
     if (_answered) {
@@ -576,7 +605,7 @@ class _QuizScreenState extends State<QuizScreen> {
       siteName: widget.site.name,
       siteIcon: widget.site.icon,
       correctCount: _correctCount,
-      totalQuestions: widget.questions.length,
+      totalQuestions: _attemptQuestions.length,
       xpEarned: _xpEarned,
       completedAt: DateTime.now(),
     );
@@ -590,23 +619,23 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Color _optionBackground(int index) {
     if (!_answered) {
-      return Colors.white;
+      return const Color(0xFF202A57);
     }
 
     if (index == _currentQuestion.correctIndex) {
-      return const Color(0xFFE8F8EE);
+      return const Color(0xFF153E3D);
     }
 
     if (index == _selectedAnswerIndex) {
-      return const Color(0xFFFDE8E8);
+      return const Color(0xFF4A233F);
     }
 
-    return Colors.white;
+    return const Color(0xFF202A57);
   }
 
   Color _optionBorder(int index) {
     if (!_answered) {
-      return const Color(0xFFE5E7EB);
+      return const Color(0xFF3C4775);
     }
 
     if (index == _currentQuestion.correctIndex) {
@@ -617,7 +646,7 @@ class _QuizScreenState extends State<QuizScreen> {
       return const Color(0xFFDC2626);
     }
 
-    return const Color(0xFFE5E7EB);
+    return const Color(0xFF3C4775);
   }
 
   IconData? _optionIcon(int index) {
@@ -649,20 +678,21 @@ class _QuizScreenState extends State<QuizScreen> {
     final question = _currentQuestion;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: const Color(0xFF001831),
       appBar: AppBar(
         title: Text(widget.site.name),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: const Color(0xFF001831),
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: SafeArea(
         child: Column(
           children: [
             LinearProgressIndicator(
-              value: (_currentQuestionIndex + 1) / widget.questions.length,
+              value: (_currentQuestionIndex + 1) / _attemptQuestions.length,
               minHeight: 7,
-              backgroundColor: const Color(0xFFE5E7EB),
-              color: const Color(0xFF16A34A),
+              backgroundColor: const Color(0xFF30395E),
+              color: const Color(0xFF43E0D0),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -675,9 +705,9 @@ class _QuizScreenState extends State<QuizScreen> {
                         Text(
                           'Question '
                           '${_currentQuestionIndex + 1} '
-                          'of ${widget.questions.length}',
+                          'of ${_attemptQuestions.length}',
                           style: const TextStyle(
-                            color: Color(0xFF0F8A5F),
+                            color: Colors.white60,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -695,6 +725,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     Text(
                       question.question,
                       style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 23,
                         fontWeight: FontWeight.bold,
                         height: 1.3,
@@ -724,11 +755,11 @@ class _QuizScreenState extends State<QuizScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 16,
-                                  backgroundColor: const Color(0xFFEEF2F7),
+                                  backgroundColor: const Color(0xFF3B4779),
                                   child: Text(
                                     String.fromCharCode(65 + index),
                                     style: const TextStyle(
-                                      color: Colors.black87,
+                                      color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -738,6 +769,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                   child: Text(
                                     question.options[index],
                                     style: const TextStyle(
+                                      color: Colors.white,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -757,8 +789,9 @@ class _QuizScreenState extends State<QuizScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE9F9EF),
+                          color: const Color(0xFF153E3D),
                           borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFF34D399)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -769,7 +802,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                   : 'Correct answer: '
                                         '${question.options[question.correctIndex]}',
                               style: const TextStyle(
-                                color: Color(0xFF166534),
+                                color: Color(0xFFA7F3D0),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -777,7 +810,7 @@ class _QuizScreenState extends State<QuizScreen> {
                             Text(
                               question.explanation,
                               style: const TextStyle(
-                                color: Color(0xFF166534),
+                                color: Color(0xFFD1FAE5),
                                 height: 1.4,
                               ),
                             ),
@@ -799,7 +832,8 @@ class _QuizScreenState extends State<QuizScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF16A34A),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade300,
+                    disabledBackgroundColor: const Color(0xFF30395E),
+                    disabledForegroundColor: Colors.white38,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
